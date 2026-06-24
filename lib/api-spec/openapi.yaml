@@ -3,13 +3,30 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: OmniChat omnichannel messaging platform API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: users
+    description: User management
+  - name: departments
+    description: Department management
+  - name: channels
+    description: Channel management
+  - name: contacts
+    description: Contact management
+  - name: conversations
+    description: Conversation management
+  - name: messages
+    description: Message management
+  - name: webhooks
+    description: Meta webhook endpoints
+  - name: stats
+    description: Dashboard statistics
+
 paths:
   /healthz:
     get:
@@ -24,6 +41,664 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # Users
+  /users:
+    get:
+      operationId: listUsers
+      tags: [users]
+      summary: List all users
+      responses:
+        "200":
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+    post:
+      operationId: createUser
+      tags: [users]
+      summary: Create a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /users/{id}:
+    get:
+      operationId: getUser
+      tags: [users]
+      summary: Get a user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateUser
+      tags: [users]
+      summary: Update a user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+    delete:
+      operationId: deleteUser
+      tags: [users]
+      summary: Delete a user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # Departments
+  /departments:
+    get:
+      operationId: listDepartments
+      tags: [departments]
+      summary: List all departments
+      responses:
+        "200":
+          description: List of departments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Department"
+    post:
+      operationId: createDepartment
+      tags: [departments]
+      summary: Create a department
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DepartmentInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Department"
+
+  /departments/{id}:
+    get:
+      operationId: getDepartment
+      tags: [departments]
+      summary: Get a department
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Department
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Department"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateDepartment
+      tags: [departments]
+      summary: Update a department
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DepartmentUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Department"
+    delete:
+      operationId: deleteDepartment
+      tags: [departments]
+      summary: Delete a department
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # Channels
+  /channels:
+    get:
+      operationId: listChannels
+      tags: [channels]
+      summary: List all channels
+      responses:
+        "200":
+          description: List of channels
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Channel"
+    post:
+      operationId: createChannel
+      tags: [channels]
+      summary: Create a channel
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChannelInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Channel"
+
+  /channels/{id}:
+    get:
+      operationId: getChannel
+      tags: [channels]
+      summary: Get a channel
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Channel
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Channel"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateChannel
+      tags: [channels]
+      summary: Update a channel
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChannelUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Channel"
+    delete:
+      operationId: deleteChannel
+      tags: [channels]
+      summary: Delete a channel
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # Contacts
+  /contacts:
+    get:
+      operationId: listContacts
+      tags: [contacts]
+      summary: List contacts
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: channelType
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of contacts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Contact"
+    post:
+      operationId: createContact
+      tags: [contacts]
+      summary: Create a contact
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContactInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Contact"
+
+  /contacts/{id}:
+    get:
+      operationId: getContact
+      tags: [contacts]
+      summary: Get a contact
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Contact
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Contact"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateContact
+      tags: [contacts]
+      summary: Update a contact
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContactUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Contact"
+
+  # Conversations
+  /conversations:
+    get:
+      operationId: listConversations
+      tags: [conversations]
+      summary: List conversations
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: channelId
+          in: query
+          schema:
+            type: integer
+        - name: departmentId
+          in: query
+          schema:
+            type: integer
+        - name: assignedAgentId
+          in: query
+          schema:
+            type: integer
+        - name: channelType
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of conversations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Conversation"
+    post:
+      operationId: createConversation
+      tags: [conversations]
+      summary: Create a conversation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConversationInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Conversation"
+
+  /conversations/{id}:
+    get:
+      operationId: getConversation
+      tags: [conversations]
+      summary: Get a conversation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Conversation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Conversation"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateConversation
+      tags: [conversations]
+      summary: Update a conversation (assign agent, department, status)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConversationUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Conversation"
+
+  /conversations/{id}/assign:
+    post:
+      operationId: assignConversation
+      tags: [conversations]
+      summary: Assign conversation to an agent and/or department
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssignmentInput"
+      responses:
+        "200":
+          description: Assigned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Conversation"
+
+  /conversations/{id}/resolve:
+    post:
+      operationId: resolveConversation
+      tags: [conversations]
+      summary: Mark conversation as resolved
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Resolved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Conversation"
+
+  /conversations/{id}/reopen:
+    post:
+      operationId: reopenConversation
+      tags: [conversations]
+      summary: Reopen a resolved conversation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Reopened
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Conversation"
+
+  # Messages
+  /conversations/{conversationId}/messages:
+    get:
+      operationId: listMessages
+      tags: [messages]
+      summary: List messages in a conversation
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Message"
+    post:
+      operationId: sendMessage
+      tags: [messages]
+      summary: Send a message in a conversation
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MessageInput"
+      responses:
+        "201":
+          description: Sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+
+  # Webhooks
+  /webhooks/meta:
+    get:
+      operationId: verifyMetaWebhook
+      tags: [webhooks]
+      summary: Meta webhook verification (GET challenge)
+      parameters:
+        - name: hub.mode
+          in: query
+          schema:
+            type: string
+        - name: hub.verify_token
+          in: query
+          schema:
+            type: string
+        - name: hub.challenge
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Verification successful
+    post:
+      operationId: receiveMetaWebhook
+      tags: [webhooks]
+      summary: Receive Meta webhook events
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MetaWebhookPayload"
+      responses:
+        "200":
+          description: Acknowledged
+
+  # Stats / Dashboard
+  /stats/overview:
+    get:
+      operationId: getStatsOverview
+      tags: [stats]
+      summary: Dashboard overview stats
+      responses:
+        "200":
+          description: Overview statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatsOverview"
+
+  /stats/conversations-by-channel:
+    get:
+      operationId: getConversationsByChannel
+      tags: [stats]
+      summary: Conversation counts grouped by channel type
+      responses:
+        "200":
+          description: Counts by channel
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChannelCount"
+
+  /stats/conversations-by-department:
+    get:
+      operationId: getConversationsByDepartment
+      tags: [stats]
+      summary: Conversation counts grouped by department
+      responses:
+        "200":
+          description: Counts by department
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DepartmentCount"
+
+  /stats/agent-workload:
+    get:
+      operationId: getAgentWorkload
+      tags: [stats]
+      summary: Per-agent conversation workload
+      responses:
+        "200":
+          description: Agent workload data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AgentWorkload"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +709,438 @@ components:
       required:
         - status
 
+    # Users
+    User:
+      type: object
+      required: [id, email, name, role, isActive, createdAt]
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+          enum: [admin, supervisor, agent]
+        departmentId:
+          type: ["integer", "null"]
+        avatarUrl:
+          type: ["string", "null"]
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+
+    UserInput:
+      type: object
+      required: [email, name, role]
+      properties:
+        email:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+          enum: [admin, supervisor, agent]
+        departmentId:
+          type: ["integer", "null"]
+        avatarUrl:
+          type: ["string", "null"]
+
+    UserUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        role:
+          type: string
+          enum: [admin, supervisor, agent]
+        departmentId:
+          type: ["integer", "null"]
+        avatarUrl:
+          type: ["string", "null"]
+        isActive:
+          type: boolean
+
+    # Departments
+    Department:
+      type: object
+      required: [id, name, routingMode, isActive, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        routingMode:
+          type: string
+          enum: [manual, round_robin]
+        isActive:
+          type: boolean
+        memberCount:
+          type: integer
+        createdAt:
+          type: string
+
+    DepartmentInput:
+      type: object
+      required: [name, routingMode]
+      properties:
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        routingMode:
+          type: string
+          enum: [manual, round_robin]
+
+    DepartmentUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        routingMode:
+          type: string
+          enum: [manual, round_robin]
+        isActive:
+          type: boolean
+
+    # Channels
+    Channel:
+      type: object
+      required: [id, name, channelType, isActive, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        channelType:
+          type: string
+          enum: [whatsapp, instagram, facebook]
+        externalId:
+          type: ["string", "null"]
+        phoneNumber:
+          type: ["string", "null"]
+        pageId:
+          type: ["string", "null"]
+        accessToken:
+          type: ["string", "null"]
+        webhookVerifyToken:
+          type: ["string", "null"]
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+
+    ChannelInput:
+      type: object
+      required: [name, channelType]
+      properties:
+        name:
+          type: string
+        channelType:
+          type: string
+          enum: [whatsapp, instagram, facebook]
+        externalId:
+          type: ["string", "null"]
+        phoneNumber:
+          type: ["string", "null"]
+        pageId:
+          type: ["string", "null"]
+        accessToken:
+          type: ["string", "null"]
+        webhookVerifyToken:
+          type: ["string", "null"]
+
+    ChannelUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        externalId:
+          type: ["string", "null"]
+        phoneNumber:
+          type: ["string", "null"]
+        pageId:
+          type: ["string", "null"]
+        accessToken:
+          type: ["string", "null"]
+        webhookVerifyToken:
+          type: ["string", "null"]
+        isActive:
+          type: boolean
+
+    # Contacts
+    Contact:
+      type: object
+      required: [id, name, channelType, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        phone:
+          type: ["string", "null"]
+        email:
+          type: ["string", "null"]
+        avatarUrl:
+          type: ["string", "null"]
+        channelType:
+          type: string
+          enum: [whatsapp, instagram, facebook]
+        externalId:
+          type: string
+        customFields:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    ContactInput:
+      type: object
+      required: [name, channelType, externalId]
+      properties:
+        name:
+          type: string
+        phone:
+          type: ["string", "null"]
+        email:
+          type: ["string", "null"]
+        avatarUrl:
+          type: ["string", "null"]
+        channelType:
+          type: string
+          enum: [whatsapp, instagram, facebook]
+        externalId:
+          type: string
+        customFields:
+          type: ["string", "null"]
+
+    ContactUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        phone:
+          type: ["string", "null"]
+        email:
+          type: ["string", "null"]
+        avatarUrl:
+          type: ["string", "null"]
+        customFields:
+          type: ["string", "null"]
+
+    # Conversations
+    Conversation:
+      type: object
+      required: [id, status, channelType, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        contactId:
+          type: integer
+        channelId:
+          type: integer
+        channelType:
+          type: string
+          enum: [whatsapp, instagram, facebook]
+        departmentId:
+          type: ["integer", "null"]
+        assignedAgentId:
+          type: ["integer", "null"]
+        status:
+          type: string
+          enum: [open, pending, resolved, snoozed]
+        subject:
+          type: ["string", "null"]
+        lastMessageAt:
+          type: ["string", "null"]
+        unreadCount:
+          type: integer
+        contact:
+          $ref: "#/components/schemas/Contact"
+        channel:
+          $ref: "#/components/schemas/Channel"
+        assignedAgent:
+          type: object
+          nullable: true
+          properties:
+            id: { type: integer }
+            name: { type: string }
+            avatarUrl: { type: ["string", "null"] }
+        department:
+          type: object
+          nullable: true
+          properties:
+            id: { type: integer }
+            name: { type: string }
+        lastMessage:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+
+    ConversationInput:
+      type: object
+      required: [contactId, channelId, channelType]
+      properties:
+        contactId:
+          type: integer
+        channelId:
+          type: integer
+        channelType:
+          type: string
+          enum: [whatsapp, instagram, facebook]
+        departmentId:
+          type: ["integer", "null"]
+        assignedAgentId:
+          type: ["integer", "null"]
+        subject:
+          type: ["string", "null"]
+
+    ConversationUpdate:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [open, pending, resolved, snoozed]
+        departmentId:
+          type: ["integer", "null"]
+        assignedAgentId:
+          type: ["integer", "null"]
+        subject:
+          type: ["string", "null"]
+
+    AssignmentInput:
+      type: object
+      properties:
+        departmentId:
+          type: ["integer", "null"]
+        assignedAgentId:
+          type: ["integer", "null"]
+
+    # Messages
+    Message:
+      type: object
+      required: [id, conversationId, direction, contentType, createdAt]
+      properties:
+        id:
+          type: integer
+        conversationId:
+          type: integer
+        senderType:
+          type: string
+          enum: [contact, agent, system]
+        senderId:
+          type: ["integer", "null"]
+        direction:
+          type: string
+          enum: [inbound, outbound]
+        contentType:
+          type: string
+          enum: [text, image, video, audio, document, location, sticker, template, note]
+        content:
+          type: ["string", "null"]
+        mediaUrl:
+          type: ["string", "null"]
+        mediaType:
+          type: ["string", "null"]
+        isRead:
+          type: boolean
+        externalMessageId:
+          type: ["string", "null"]
+        metadata:
+          type: ["string", "null"]
+        senderName:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    MessageInput:
+      type: object
+      required: [contentType]
+      properties:
+        contentType:
+          type: string
+          enum: [text, image, video, audio, document, location, sticker, template, note]
+        content:
+          type: ["string", "null"]
+        mediaUrl:
+          type: ["string", "null"]
+        mediaType:
+          type: ["string", "null"]
+        senderId:
+          type: ["integer", "null"]
+
+    # Webhooks
+    MetaWebhookPayload:
+      type: object
+      required: [object]
+      properties:
+        object:
+          type: string
+        entry:
+          type: array
+          items:
+            type: object
+
+    # Stats
+    StatsOverview:
+      type: object
+      required: [totalConversations, openConversations, pendingConversations, resolvedConversations, totalContacts, totalAgents, avgResponseTime]
+      properties:
+        totalConversations:
+          type: integer
+        openConversations:
+          type: integer
+        pendingConversations:
+          type: integer
+        resolvedConversations:
+          type: integer
+        totalContacts:
+          type: integer
+        totalAgents:
+          type: integer
+        avgResponseTime:
+          type: number
+        unassignedConversations:
+          type: integer
+
+    ChannelCount:
+      type: object
+      required: [channelType, count]
+      properties:
+        channelType:
+          type: string
+        count:
+          type: integer
+
+    DepartmentCount:
+      type: object
+      required: [departmentId, departmentName, count]
+      properties:
+        departmentId:
+          type: integer
+        departmentName:
+          type: string
+        count:
+          type: integer
+
+    AgentWorkload:
+      type: object
+      required: [agentId, agentName, openCount, resolvedCount]
+      properties:
+        agentId:
+          type: integer
+        agentName:
+          type: string
+        avatarUrl:
+          type: ["string", "null"]
+        openCount:
+          type: integer
+        resolvedCount:
+          type: integer

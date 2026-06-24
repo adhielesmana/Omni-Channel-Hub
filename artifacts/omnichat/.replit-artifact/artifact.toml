@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "OmniChat"
+version = "1.0.0"
+id = "artifacts/omnichat"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 20438
+
+[services.development]
+run = "pnpm --filter @workspace/omnichat run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/omnichat", "run", "build" ]
+publicDir = "artifacts/omnichat/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "20438"
+BASE_PATH = "/"
