@@ -1,0 +1,14 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "s1SQaTZTx4GLDATi1e0FL"
+uri = "file://README.md"
+type = "text"
+title = "README.md — Full Project Documentation"
+
+[[outputs]]
+id = "N4wC8Sm3FPAXBBSi63LFr"
+uri = "file://agents.md"
+type = "text"
+title = "agents.md — Agent & Deployment Reference"
