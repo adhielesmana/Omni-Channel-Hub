@@ -12,3 +12,21 @@ id = "N4wC8Sm3FPAXBBSi63LFr"
 uri = "file://agents.md"
 type = "text"
 title = "agents.md — Agent & Deployment Reference"
+
+[[outputs]]
+id = "x08cvXuARWdvcg_I7wqwE"
+uri = "file://INSTALL.md"
+type = "text"
+title = "INSTALL.md — Docker Installation Guide"
+
+[[outputs]]
+id = "nr_AG1etB0WhydFFDmMHI"
+uri = "file://UPDATE.md"
+type = "text"
+title = "UPDATE.md — Update Guide"
+
+[[outputs]]
+id = "iYK-Iy3SCk9PxDxkutwMt"
+uri = "file://migrations/README.md"
+type = "text"
+title = "migrations/README.md — Migration Reference"
