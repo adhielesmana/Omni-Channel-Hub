@@ -2,6 +2,7 @@ import { Link, useLocation } from "wouter";
 import { MessageSquare, Users, Building, Share2, BarChart2, Settings, UserCircle, LogOut } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useAuth } from "@/context/AuthContext";
 
 const NAV_ITEMS = [
   { href: "/inbox", icon: MessageSquare, label: "Inbox" },
@@ -14,16 +15,19 @@ const NAV_ITEMS = [
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
+  const { user, logout } = useAuth();
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background text-foreground">
       {/* Narrow Sidebar */}
       <aside className="w-16 flex-shrink-0 border-r bg-sidebar flex flex-col items-center py-4 justify-between z-20">
         <div className="flex flex-col items-center gap-4 w-full">
-          <div className="w-10 h-10 bg-primary text-primary-foreground rounded-lg flex items-center justify-center font-bold text-xl mb-4 shadow-sm">
-            O
-          </div>
-          
+          <Link href="/">
+            <div className="w-10 h-10 bg-primary text-primary-foreground rounded-lg flex items-center justify-center font-bold text-xl mb-4 shadow-sm cursor-pointer hover:opacity-90 transition-opacity">
+              O
+            </div>
+          </Link>
+
           <div className="flex flex-col gap-2 w-full px-2">
             {NAV_ITEMS.map((item) => {
               const isActive = location.startsWith(item.href);
@@ -61,7 +65,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
           <Tooltip delayDuration={0}>
             <TooltipTrigger asChild>
-              <button className="w-12 h-12 flex items-center justify-center rounded-xl text-sidebar-foreground/70 hover:bg-destructive/10 hover:text-destructive transition-colors outline-none">
+              <button
+                onClick={logout}
+                className="w-12 h-12 flex items-center justify-center rounded-xl text-sidebar-foreground/70 hover:bg-destructive/10 hover:text-destructive transition-colors outline-none cursor-pointer"
+              >
                 <LogOut className="w-5 h-5 ml-1" />
               </button>
             </TooltipTrigger>
@@ -71,10 +78,19 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </Tooltip>
 
           <div className="mt-2 w-12 h-12 flex items-center justify-center">
-            <Avatar className="w-10 h-10 border border-border cursor-pointer hover:opacity-80 transition-opacity">
-              <AvatarImage src="" />
-              <AvatarFallback className="bg-primary/10 text-primary font-medium">JD</AvatarFallback>
-            </Avatar>
+            <Tooltip delayDuration={0}>
+              <TooltipTrigger asChild>
+                <Avatar className="w-10 h-10 border border-border cursor-pointer hover:opacity-80 transition-opacity">
+                  <AvatarImage src="" />
+                  <AvatarFallback className="bg-primary/10 text-primary font-medium text-xs">
+                    {user?.initials ?? "?"}
+                  </AvatarFallback>
+                </Avatar>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="font-medium">
+                {user?.name ?? "Unknown"} · {user?.role}
+              </TooltipContent>
+            </Tooltip>
           </div>
         </div>
       </aside>
