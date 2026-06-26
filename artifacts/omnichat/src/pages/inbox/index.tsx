@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import {
-  Search, Inbox as InboxIcon, CheckCircle2, Check,
+  Search, Inbox as InboxIcon, CheckCircle2, Check, CheckCheck, Clock, AlertCircle,
   MoreVertical, Phone, Mail, Hash, UserSquare, Info, Send,
-  MessageSquare, StickyNote
+  MessageSquare, StickyNote, FileText
 } from "lucide-react";
 import {
   useListConversations, useListMessages, useSendMessage,
@@ -21,6 +21,56 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/context/AuthContext";
+
+function renderMessageContent(msg: { contentType?: string | null; content?: string | null; mediaUrl?: string | null }) {
+  const url = msg.mediaUrl ?? undefined;
+  const caption = msg.content;
+  switch (msg.contentType) {
+    case "image":
+    case "sticker": {
+      if (!url) return <p className="text-sm italic opacity-70">[{msg.contentType}]</p>;
+      return (
+        <div className="flex flex-col gap-1">
+          <a href={url} target="_blank" rel="noreferrer">
+            <img
+              src={url}
+              alt={caption ?? "image"}
+              loading="lazy"
+              className={`rounded-lg ${msg.contentType === "sticker" ? "max-h-32 w-auto" : "max-w-full max-h-72 object-cover"}`}
+            />
+          </a>
+          {caption && <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{caption}</p>}
+        </div>
+      );
+    }
+    case "video": {
+      if (!url) return <p className="text-sm italic opacity-70">[video]</p>;
+      return (
+        <div className="flex flex-col gap-1">
+          <video src={url} controls className="rounded-lg max-w-full max-h-72" />
+          {caption && <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{caption}</p>}
+        </div>
+      );
+    }
+    case "audio": {
+      if (!url) return <p className="text-sm italic opacity-70">[audio]</p>;
+      return <audio src={url} controls className="max-w-full" />;
+    }
+    case "document": {
+      if (!url) return <p className="text-sm italic opacity-70">{caption || "[document]"}</p>;
+      return (
+        <a href={url} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm underline">
+          <FileText className="w-4 h-4 shrink-0" />
+          <span className="break-all">{caption || "Document"}</span>
+        </a>
+      );
+    }
+    case "location":
+      return <p className="text-sm leading-relaxed">📍 {caption || "Shared location"}</p>;
+    default:
+      return <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{caption}</p>;
+  }
+}
 
 export default function Inbox() {
   const [activeTab, setActiveTab] = useState("all");
@@ -297,20 +347,22 @@ export default function Inbox() {
                             : 'bg-primary text-primary-foreground rounded-tr-sm'
                       }`}>
                         {isNote && <div className="text-[10px] font-bold uppercase tracking-wider mb-1 opacity-70">Internal Note</div>}
-                        <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{msg.content}</p>
+                        {renderMessageContent(msg)}
                         <div className={`flex items-center justify-end gap-1 mt-1 text-[10px] ${
                           isInbound ? 'text-muted-foreground' : 'text-primary-foreground/70'
                         }`}>
                           {new Date(msg.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                           {!isInbound && !isNote && (
                             msg.deliveryStatus === 'read' ? (
-                              <Check className="w-3 h-3 text-blue-300" />
+                              <CheckCheck className="w-3.5 h-3.5 text-sky-400" />
                             ) : msg.deliveryStatus === 'delivered' ? (
-                              <Check className="w-3 h-3 text-primary-foreground/90" />
+                              <CheckCheck className="w-3.5 h-3.5" />
                             ) : msg.deliveryStatus === 'sent' ? (
-                              <Check className="w-3 h-3" />
+                              <Check className="w-3.5 h-3.5" />
+                            ) : msg.deliveryStatus === 'failed' ? (
+                              <AlertCircle className="w-3.5 h-3.5 text-red-400" />
                             ) : (
-                              <span className="text-[8px] uppercase">sending</span>
+                              <Clock className="w-3 h-3 opacity-70" />
                             )
                           )}
                         </div>

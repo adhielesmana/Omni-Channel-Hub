@@ -2,8 +2,19 @@ import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
 import { db, channelsTable, contactsTable, conversationsTable, messagesTable } from "@workspace/db";
 import { logger } from "../lib/logger";
+import { downloadWhatsAppMedia } from "../lib/whatsapp-media";
 
 const router: IRouter = Router();
+
+const WA_MEDIA_TYPES = new Set(["image", "video", "audio", "voice", "document", "sticker"]);
+
+// Whether a stored contact name is just a placeholder (phone number) we should
+// overwrite once we learn the customer's real WhatsApp profile name.
+function isPlaceholderName(name: string | null | undefined, phone: string): boolean {
+  if (!name) return true;
+  if (name === phone) return true;
+  return /^[+\d\s()-]+$/.test(name);
+}
 
 // GET — Meta webhook verification
 router.get("/webhooks/meta", async (req, res): Promise<void> => {
@@ -114,8 +125,40 @@ async function processWhatsAppEntry(entry: Record<string, unknown>) {
     for (const msg of messages) {
       const from = msg.from as string;
       const msgId = msg.id as string;
-      const msgType = msg.type as string;
-      const text = msgType === "text" ? (msg.text as Record<string, unknown>)?.body as string : null;
+      const rawType = msg.type as string;
+
+      // Resolve content + media from the message payload
+      let content: string | null = null;
+      let mediaUrl: string | null = null;
+      let mediaType: string | null = null;
+      let contentType: "text" | "image" | "video" | "audio" | "document" | "location" | "sticker" = "text";
+
+      if (rawType === "text") {
+        content = ((msg.text as Record<string, unknown>)?.body as string) ?? null;
+      } else if (rawType === "reaction") {
+        content = ((msg.reaction as Record<string, unknown>)?.emoji as string) ?? null;
+      } else if (rawType === "location") {
+        const loc = msg.location as Record<string, unknown> | undefined;
+        content =
+          (loc?.name as string) ||
+          (loc?.address as string) ||
+          (loc ? `${loc.latitude}, ${loc.longitude}` : null);
+        contentType = "location";
+      } else if (WA_MEDIA_TYPES.has(rawType)) {
+        const mediaObj = msg[rawType] as Record<string, unknown> | undefined;
+        content = (mediaObj?.caption as string) ?? null;
+        contentType = rawType === "voice" ? "audio" : (rawType as "image" | "video" | "audio" | "document" | "sticker");
+        const mediaId = mediaObj?.id as string | undefined;
+        if (mediaId && channel.accessToken) {
+          const dl = await downloadWhatsAppMedia(mediaId, channel.accessToken);
+          if (dl) {
+            mediaUrl = dl.url;
+            mediaType = dl.mimeType;
+          } else {
+            logger.warn({ mediaId, rawType }, "WhatsApp media could not be downloaded");
+          }
+        }
+      }
 
       // Extract customer profile name from webhook contacts array
       const waContacts = value.contacts as Array<Record<string, unknown>>;
@@ -132,8 +175,8 @@ async function processWhatsAppEntry(entry: Record<string, unknown>) {
           externalId: from,
         }).returning();
         contact = contacts[0];
-      } else if (profileName && contact.name === from) {
-        // Update contact name if we got a real profile name and current name is just the phone number
+      } else if (profileName && profileName !== contact.name && isPlaceholderName(contact.name, from)) {
+        // Upgrade a placeholder (phone-number) name to the real WhatsApp profile name
         await db.update(contactsTable).set({ name: profileName }).where(eq(contactsTable.id, contact.id));
         contact = { ...contact, name: profileName };
       }
@@ -167,8 +210,10 @@ async function processWhatsAppEntry(entry: Record<string, unknown>) {
         conversationId: conversation.id,
         senderType: "contact",
         direction: "inbound",
-        contentType: msgType === "text" ? "text" : (msgType as "image" | "audio" | "document" | "video" | "location" | "sticker") ?? "text",
-        content: text,
+        contentType,
+        content,
+        mediaUrl,
+        mediaType,
         externalMessageId: msgId,
         senderName: contact.name,
       });

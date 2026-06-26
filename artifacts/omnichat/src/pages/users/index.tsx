@@ -1,16 +1,26 @@
 import { useState } from "react";
-import { useListUsers, useCreateUser, useListDepartments } from "@workspace/api-client-react";
+import { useListUsers, useCreateUser, useUpdateUser, useListDepartments } from "@workspace/api-client-react";
 import { UserInputRole } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { UserCircle, UserPlus, Search } from "lucide-react";
+import { UserCircle, UserPlus, Search, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+type UserDto = {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+  departmentId?: number | null;
+  isActive: boolean;
+  createdAt: string;
+};
 
 export default function Users() {
   const [search, setSearch] = useState("");
@@ -18,10 +28,16 @@ export default function Users() {
   const [form, setForm] = useState({ name: "", email: "", role: UserInputRole.agent as string, departmentId: "" });
   const [error, setError] = useState("");
 
+  const [editOpen, setEditOpen] = useState(false);
+  const [editUser, setEditUser] = useState<UserDto | null>(null);
+  const [editForm, setEditForm] = useState({ name: "", role: UserInputRole.agent as string, departmentId: "", isActive: "true" });
+  const [editError, setEditError] = useState("");
+
   const queryClient = useQueryClient();
   const { data: users, isLoading } = useListUsers();
   const { data: departments } = useListDepartments();
   const createUser = useCreateUser();
+  const updateUser = useUpdateUser();
 
   const filtered = users?.filter(u =>
     !search ||
@@ -51,6 +67,46 @@ export default function Users() {
           setForm({ name: "", email: "", role: UserInputRole.agent, departmentId: "" });
         },
         onError: () => setError("Failed to create user. Please try again."),
+      }
+    );
+  };
+
+  const handleEdit = (user: UserDto) => {
+    setEditUser(user);
+    setEditForm({
+      name: user.name || "",
+      role: user.role,
+      departmentId: user.departmentId ? String(user.departmentId) : "",
+      isActive: user.isActive ? "true" : "false",
+    });
+    setEditError("");
+    setEditOpen(true);
+  };
+
+  const handleEditSubmit = () => {
+    if (!editUser) return;
+    if (!editForm.name.trim()) {
+      setEditError("Name is required.");
+      return;
+    }
+    setEditError("");
+    updateUser.mutate(
+      {
+        id: editUser.id,
+        data: {
+          name: editForm.name.trim(),
+          role: editForm.role as typeof UserInputRole[keyof typeof UserInputRole],
+          departmentId: editForm.departmentId ? Number(editForm.departmentId) : null,
+          isActive: editForm.isActive === "true",
+        },
+      },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+          setEditOpen(false);
+          setEditUser(null);
+        },
+        onError: () => setEditError("Failed to update user. Please try again."),
       }
     );
   };
@@ -88,16 +144,17 @@ export default function Users() {
               <TableHead>Status</TableHead>
               <TableHead>Department</TableHead>
               <TableHead className="text-right">Joined</TableHead>
+              <TableHead className="w-[60px]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center h-32 text-muted-foreground">Loading users...</TableCell>
+                <TableCell colSpan={6} className="text-center h-32 text-muted-foreground">Loading users...</TableCell>
               </TableRow>
             ) : filtered?.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center h-32 text-muted-foreground">
+                <TableCell colSpan={6} className="text-center h-32 text-muted-foreground">
                   {search ? `No users matching "${search}"` : (
                     <div className="flex flex-col items-center gap-3">
                       <UserCircle className="w-10 h-10 opacity-20" />
@@ -141,6 +198,11 @@ export default function Users() {
                     </TableCell>
                     <TableCell className="text-right text-muted-foreground text-sm">
                       {new Date(user.createdAt).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(user)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 );
@@ -206,6 +268,72 @@ export default function Users() {
             <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
             <Button onClick={handleSubmit} disabled={createUser.isPending}>
               {createUser.isPending ? "Inviting..." : "Send Invite"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Team Member</DialogTitle>
+            <DialogDescription>
+              {editUser?.email ? `Update details for ${editUser.email}.` : "Update the team member details below."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 py-2">
+            {editError && <p className="text-sm text-destructive">{editError}</p>}
+            <div className="flex flex-col gap-1.5">
+              <Label>Full name</Label>
+              <Input
+                value={editForm.name}
+                onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label>Role</Label>
+              <Select value={editForm.role} onValueChange={v => setEditForm(f => ({ ...f, role: v }))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={UserInputRole.agent}>Agent</SelectItem>
+                  <SelectItem value={UserInputRole.supervisor}>Supervisor</SelectItem>
+                  <SelectItem value={UserInputRole.admin}>Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label>Department <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Select value={editForm.departmentId || "none"} onValueChange={v => setEditForm(f => ({ ...f, departmentId: v === "none" ? "" : v }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select department" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No department</SelectItem>
+                  {departments?.map(d => (
+                    <SelectItem key={d.id} value={d.id.toString()}>{d.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label>Status</Label>
+              <Select value={editForm.isActive} onValueChange={v => setEditForm(f => ({ ...f, isActive: v }))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="true">Active</SelectItem>
+                  <SelectItem value="false">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+            <Button onClick={handleEditSubmit} disabled={updateUser.isPending}>
+              {updateUser.isPending ? "Saving..." : "Save Changes"}
             </Button>
           </DialogFooter>
         </DialogContent>
