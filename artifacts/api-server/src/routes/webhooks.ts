@@ -12,9 +12,20 @@ router.get("/webhooks/meta", async (req, res): Promise<void> => {
   const challenge = req.query["hub.challenge"];
 
   if (mode === "subscribe") {
-    // Accept any verify token for now (production: compare against stored channel tokens)
-    req.log.info({ mode, token }, "Meta webhook verification");
-    res.status(200).send(challenge);
+    // Verify against the stored webhook_verify_token of the channel
+    const [channel] = await db
+      .select()
+      .from(channelsTable)
+      .where(eq(channelsTable.webhookVerifyToken, token as string));
+
+    if (channel) {
+      req.log.info({ mode, token, channelId: channel.id }, "Meta webhook verified");
+      res.status(200).send(challenge);
+      return;
+    }
+
+    req.log.warn({ mode, token }, "Meta webhook verification failed: token mismatch");
+    res.status(403).json({ error: "Forbidden: invalid verify token" });
     return;
   }
 
@@ -62,11 +73,11 @@ async function processWhatsAppEntry(entry: Record<string, unknown>) {
     const messages = value.messages as Array<Record<string, unknown>>;
     if (!messages?.length || !phoneNumberId) continue;
 
-    // Find channel by phone_number_id
+    // Find channel by phone_number_id (stored in external_id)
     const [channel] = await db
       .select()
       .from(channelsTable)
-      .where(eq(channelsTable.channelType, "whatsapp"));
+      .where(eq(channelsTable.externalId, phoneNumberId));
 
     if (!channel) {
       logger.warn({ phoneNumberId }, "No WhatsApp channel found for incoming webhook");

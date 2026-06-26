@@ -15,6 +15,9 @@ import Channels from "@/pages/channels";
 import Users from "@/pages/users";
 import Analytics from "@/pages/analytics";
 import Settings from "@/pages/settings";
+import PrivacyPolicy from "@/pages/privacy";
+import TermsOfService from "@/pages/terms";
+import DataDeletion from "@/pages/data-deletion";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -45,6 +48,9 @@ function Router() {
       <Route path="/login">
         {isAuthenticated ? <Redirect to="/inbox" /> : <Login />}
       </Route>
+      <Route path="/privacy" component={PrivacyPolicy} />
+      <Route path="/terms" component={TermsOfService} />
+      <Route path="/data-deletion" component={DataDeletion} />
 
       {/* Protected app routes */}
       <Route path="/inbox">

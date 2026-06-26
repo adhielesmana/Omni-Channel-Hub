@@ -662,9 +662,9 @@ export default function Landing() {
               <div>
                 <div className="font-semibold text-gray-400 mb-3 text-xs uppercase tracking-wider">Legal</div>
                 <ul className="space-y-2">
-                  {["Privacy", "Terms", "Security"].map(l => (
-                    <li key={l}><a href="#" className="text-gray-600 hover:text-white transition-colors">{l}</a></li>
-                  ))}
+                  <li><Link href="/privacy" className="text-gray-600 hover:text-white transition-colors">Privacy Policy</Link></li>
+                  <li><Link href="/terms" className="text-gray-600 hover:text-white transition-colors">Terms of Service</Link></li>
+                  <li><Link href="/data-deletion" className="text-gray-600 hover:text-white transition-colors">Data Deletion</Link></li>
                 </ul>
               </div>
             </div>
