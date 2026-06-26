@@ -22,6 +22,30 @@ import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/context/AuthContext";
 
+const GOOGLE_MAPS_RE =
+  /https?:\/\/(?:www\.)?(?:maps\.google\.com|google\.com\/maps|maps\.app\.goo\.gl|goo\.gl\/maps)(?:\/[^\s]*)?/i;
+
+const GOOGLE_MAPS_COORDS_RE = /@(-?\d+\.\d+),(-?\d+\.\d+)/;
+
+function extractGoogleMapsUrl(text: string): string | null {
+  const m = text.match(GOOGLE_MAPS_RE);
+  return m ? m[0] : null;
+}
+
+function extractCoords(url: string): { lat: string; lng: string } | null {
+  const c = url.match(GOOGLE_MAPS_COORDS_RE);
+  if (c) return { lat: c[1], lng: c[2] };
+  // Try ?q=lat,lng pattern
+  const q = new URL(url).searchParams.get("q");
+  if (q) {
+    const parts = q.split(",");
+    if (parts.length >= 2 && /^-?\d+\.\d+$/.test(parts[0]) && /^-?\d+\.\d+$/.test(parts[1])) {
+      return { lat: parts[0].trim(), lng: parts[1].trim() };
+    }
+  }
+  return null;
+}
+
 function renderMessageContent(msg: { contentType?: string | null; content?: string | null; mediaUrl?: string | null }) {
   const url = msg.mediaUrl ?? undefined;
   const caption = msg.content;
@@ -68,8 +92,38 @@ function renderMessageContent(msg: { contentType?: string | null; content?: stri
     case "location":
       return <p className="text-sm leading-relaxed">📍 {caption || "Shared location"}</p>;
     default:
-      return <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{caption}</p>;
+      return <TextWithMaps text={caption} />;
   }
+}
+
+function TextWithMaps({ text }: { text: string | null | undefined }) {
+  if (!text) return null;
+  const mapUrl = extractGoogleMapsUrl(text);
+  if (!mapUrl) return <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{text}</p>;
+
+  const coords = (() => {
+    try {
+      return extractCoords(mapUrl);
+    } catch {
+      return null;
+    }
+  })();
+
+  return (
+    <div className="flex flex-col gap-2">
+      {coords && (
+        <a href={mapUrl} target="_blank" rel="noreferrer" className="block rounded-lg overflow-hidden border border-black/10">
+          <iframe
+            title="Google Maps"
+            src={`https://maps.google.com/maps?q=${coords.lat},${coords.lng}&z=15&output=embed`}
+            loading="lazy"
+            className="w-full h-36 border-0"
+          />
+        </a>
+      )}
+      <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{text}</p>
+    </div>
+  );
 }
 
 export default function Inbox() {
