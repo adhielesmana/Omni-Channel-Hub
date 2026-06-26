@@ -181,7 +181,8 @@ async function processWhatsAppEntry(entry: Record<string, unknown>) {
         contact = contacts[0];
       } else {
         const updates: Partial<typeof contactsTable.$inferSelect> = {};
-        if (profileName && profileName !== contact.name && isPlaceholderName(contact.name, from)) {
+        // Always update contact name if WhatsApp profile name is available and different
+        if (profileName && profileName !== contact.name) {
           updates.name = profileName;
         }
         if (avatarUrl && avatarUrl !== contact.avatarUrl) {

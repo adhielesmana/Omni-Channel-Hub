@@ -26,7 +26,7 @@ export default function Contacts() {
   const [search, setSearch] = useState("");
   const [editOpen, setEditOpen] = useState(false);
   const [editContact, setEditContact] = useState<ContactDto | null>(null);
-  const [editForm, setEditForm] = useState({ name: "", phone: "", email: "" });
+  const [editForm, setEditForm] = useState({ name: "", phone: "", email: "", customFields: "" });
 
   const queryClient = useQueryClient();
   const { data: contacts, isLoading } = useListContacts({});
@@ -41,7 +41,12 @@ export default function Contacts() {
 
   const handleEdit = (contact: ContactDto) => {
     setEditContact(contact);
-    setEditForm({ name: contact.name || "", phone: contact.phone || "", email: contact.email || "" });
+    setEditForm({
+      name: contact.name || "",
+      phone: contact.phone || "",
+      email: contact.email || "",
+      customFields: contact.customFields || "",
+    });
     setEditOpen(true);
   };
 
@@ -54,6 +59,7 @@ export default function Contacts() {
           name: editForm.name.trim(),
           phone: editForm.phone.trim() || null,
           email: editForm.email.trim() || null,
+          customFields: editForm.customFields.trim() || null,
         },
       },
       {
@@ -166,6 +172,10 @@ export default function Contacts() {
             <div>
               <Label>Email</Label>
               <Input value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))} />
+            </div>
+            <div>
+              <Label>Custom Fields (JSON)</Label>
+              <Input value={editForm.customFields} onChange={e => setEditForm(f => ({ ...f, customFields: e.target.value }))} placeholder='{"key": "value"}' />
             </div>
           </div>
           <DialogFooter>
