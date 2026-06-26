@@ -3,7 +3,7 @@ import { useListChannels, useCreateChannel } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Share2, Plus, Settings2, Wifi, WifiOff,
-  Phone, Hash, Key, ShieldCheck,
+  Phone, Hash, Key, ShieldCheck, Fingerprint,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +24,8 @@ const CHANNEL_META: Record<ChannelType, { label: string; color: string; bg: stri
 const EMPTY_FORM = {
   name: "",
   channelType: "" as ChannelType | "",
+  phoneNumberId: "",
+  wabaId: "",
   phoneNumber: "",
   pageId: "",
   accessToken: "",
@@ -49,8 +51,11 @@ export default function Channels() {
   };
 
   const handleSubmit = () => {
-    if (!form.name.trim()) { setError("Channel name is required."); return; }
-    if (!form.channelType)  { setError("Please select a channel type."); return; }
+    if (!form.name.trim())        { setError("Channel name is required."); return; }
+    if (!form.channelType)         { setError("Please select a channel type."); return; }
+    if (form.channelType === "whatsapp" && !form.phoneNumberId.trim()) {
+      setError("Phone Number ID is required for WhatsApp."); return;
+    }
     setError("");
 
     createChannel.mutate(
@@ -58,10 +63,12 @@ export default function Channels() {
         data: {
           name: form.name.trim(),
           channelType: form.channelType as ChannelType,
-          ...(form.phoneNumber.trim()       && { phoneNumber:       form.phoneNumber.trim() }),
-          ...(form.pageId.trim()            && { pageId:            form.pageId.trim() }),
-          ...(form.accessToken.trim()       && { accessToken:       form.accessToken.trim() }),
-          ...(form.webhookVerifyToken.trim()&& { webhookVerifyToken:form.webhookVerifyToken.trim() }),
+          ...(form.phoneNumberId.trim()     && { externalId:         form.phoneNumberId.trim() }),
+          ...(form.wabaId.trim()            && { wabaId:             form.wabaId.trim() }),
+          ...(form.phoneNumber.trim()       && { phoneNumber:        form.phoneNumber.trim() }),
+          ...(form.pageId.trim()            && { pageId:             form.pageId.trim() }),
+          ...(form.accessToken.trim()       && { accessToken:        form.accessToken.trim() }),
+          ...(form.webhookVerifyToken.trim()&& { webhookVerifyToken: form.webhookVerifyToken.trim() }),
         },
       },
       {
@@ -74,7 +81,7 @@ export default function Channels() {
     );
   };
 
-  const isWhatsApp  = form.channelType === "whatsapp";
+  const isWhatsApp   = form.channelType === "whatsapp";
   const isSocialPage = form.channelType === "instagram" || form.channelType === "facebook";
 
   return (
@@ -151,20 +158,28 @@ export default function Channels() {
                         <span className="font-mono text-xs">{channel.phoneNumber}</span>
                       </div>
                     )}
+                    {channel.externalId && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground flex items-center gap-1.5">
+                          <Fingerprint className="w-3 h-3" /> Phone Number ID
+                        </span>
+                        <span className="font-mono text-xs truncate max-w-[130px]">{channel.externalId}</span>
+                      </div>
+                    )}
+                    {channel.wabaId && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground flex items-center gap-1.5">
+                          <Hash className="w-3 h-3" /> WABA ID
+                        </span>
+                        <span className="font-mono text-xs truncate max-w-[130px]">{channel.wabaId}</span>
+                      </div>
+                    )}
                     {channel.pageId && (
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-muted-foreground flex items-center gap-1.5">
                           <Hash className="w-3 h-3" /> Page ID
                         </span>
                         <span className="font-mono text-xs">{channel.pageId}</span>
-                      </div>
-                    )}
-                    {channel.externalId && (
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground flex items-center gap-1.5">
-                          <Hash className="w-3 h-3" /> External ID
-                        </span>
-                        <span className="font-mono text-xs truncate max-w-[130px]">{channel.externalId}</span>
                       </div>
                     )}
                     {channel.webhookVerifyToken && (
@@ -191,7 +206,7 @@ export default function Channels() {
 
       {/* Add Channel Dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add Channel</DialogTitle>
             <DialogDescription>
@@ -206,12 +221,12 @@ export default function Channels() {
               </p>
             )}
 
-            {/* Channel type — first so the rest adapts */}
+            {/* Channel type */}
             <div className="flex flex-col gap-1.5">
               <Label>Channel type <span className="text-destructive">*</span></Label>
               <Select
                 value={form.channelType}
-                onValueChange={v => setForm(f => ({ ...f, channelType: v as ChannelType, phoneNumber: "", pageId: "" }))}
+                onValueChange={v => setForm(f => ({ ...f, channelType: v as ChannelType, phoneNumber: "", pageId: "", phoneNumberId: "", wabaId: "" }))}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select a platform…" />
@@ -229,7 +244,7 @@ export default function Channels() {
               <Label>Channel name <span className="text-destructive">*</span></Label>
               <Input
                 placeholder={
-                  form.channelType === "whatsapp"  ? "e.g. WhatsApp Support" :
+                  form.channelType === "whatsapp"  ? "e.g. MaxnetPlus WhatsApp" :
                   form.channelType === "instagram" ? "e.g. Instagram Official" :
                   form.channelType === "facebook"  ? "e.g. Facebook Page" :
                   "e.g. Customer Support"
@@ -239,20 +254,48 @@ export default function Channels() {
               />
             </div>
 
-            {/* Phone number — WhatsApp only */}
+            {/* WhatsApp-specific fields */}
             {isWhatsApp && (
-              <div className="flex flex-col gap-1.5">
-                <Label className="flex items-center gap-1.5">
-                  <Phone className="w-3.5 h-3.5 text-muted-foreground" />
-                  Phone number
-                  <span className="text-muted-foreground font-normal text-xs">(optional)</span>
-                </Label>
-                <Input
-                  placeholder="+1 555 000 1234"
-                  value={form.phoneNumber}
-                  onChange={set("phoneNumber")}
-                />
-              </div>
+              <>
+                <div className="flex flex-col gap-1.5">
+                  <Label className="flex items-center gap-1.5">
+                    <Fingerprint className="w-3.5 h-3.5 text-muted-foreground" />
+                    Phone Number ID <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    placeholder="e.g. 1191225537412011"
+                    value={form.phoneNumberId}
+                    onChange={set("phoneNumberId")}
+                  />
+                  <p className="text-xs text-muted-foreground">Found in Meta App → WhatsApp → API Setup</p>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <Label className="flex items-center gap-1.5">
+                    <Hash className="w-3.5 h-3.5 text-muted-foreground" />
+                    WhatsApp Business Account ID (WABA ID)
+                    <span className="text-muted-foreground font-normal text-xs">(optional)</span>
+                  </Label>
+                  <Input
+                    placeholder="e.g. 1059777943046360"
+                    value={form.wabaId}
+                    onChange={set("wabaId")}
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <Label className="flex items-center gap-1.5">
+                    <Phone className="w-3.5 h-3.5 text-muted-foreground" />
+                    Phone number
+                    <span className="text-muted-foreground font-normal text-xs">(optional)</span>
+                  </Label>
+                  <Input
+                    placeholder="+628991066262"
+                    value={form.phoneNumber}
+                    onChange={set("phoneNumber")}
+                  />
+                </div>
+              </>
             )}
 
             {/* Page ID — Instagram / Facebook */}
@@ -279,7 +322,7 @@ export default function Channels() {
                 <span className="text-muted-foreground font-normal text-xs">(optional)</span>
               </Label>
               <Input
-                placeholder="Meta Cloud API access token"
+                placeholder="Meta permanent access token"
                 type="password"
                 value={form.accessToken}
                 onChange={set("accessToken")}
@@ -299,7 +342,7 @@ export default function Channels() {
                 onChange={set("webhookVerifyToken")}
               />
               <p className="text-xs text-muted-foreground">
-                Set this in your Meta App Dashboard under Webhook → Verify Token.
+                Set this in Meta App Dashboard → WhatsApp → Configuration → Webhook → Verify Token.
               </p>
             </div>
           </div>

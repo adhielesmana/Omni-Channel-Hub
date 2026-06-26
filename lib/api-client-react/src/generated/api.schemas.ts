@@ -135,6 +135,8 @@ export interface Channel {
   /** @nullable */
   externalId?: string | null;
   /** @nullable */
+  wabaId?: string | null;
+  /** @nullable */
   phoneNumber?: string | null;
   /** @nullable */
   pageId?: string | null;
@@ -161,6 +163,8 @@ export interface ChannelInput {
   /** @nullable */
   externalId?: string | null;
   /** @nullable */
+  wabaId?: string | null;
+  /** @nullable */
   phoneNumber?: string | null;
   /** @nullable */
   pageId?: string | null;
@@ -174,6 +178,8 @@ export interface ChannelUpdate {
   name?: string;
   /** @nullable */
   externalId?: string | null;
+  /** @nullable */
+  wabaId?: string | null;
   /** @nullable */
   phoneNumber?: string | null;
   /** @nullable */

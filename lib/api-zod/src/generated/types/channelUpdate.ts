@@ -11,6 +11,8 @@ export interface ChannelUpdate {
   /** @nullable */
   externalId?: string | null;
   /** @nullable */
+  wabaId?: string | null;
+  /** @nullable */
   phoneNumber?: string | null;
   /** @nullable */
   pageId?: string | null;

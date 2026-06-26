@@ -7,6 +7,7 @@ export const channelsTable = pgTable("channels", {
   name: text("name").notNull(),
   channelType: text("channel_type", { enum: ["whatsapp", "instagram", "facebook"] }).notNull(),
   externalId: text("external_id"),
+  wabaId: text("waba_id"),
   phoneNumber: text("phone_number"),
   pageId: text("page_id"),
   accessToken: text("access_token"),

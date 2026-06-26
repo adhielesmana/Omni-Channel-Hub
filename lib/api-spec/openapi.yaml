@@ -823,6 +823,8 @@ components:
           enum: [whatsapp, instagram, facebook]
         externalId:
           type: ["string", "null"]
+        wabaId:
+          type: ["string", "null"]
         phoneNumber:
           type: ["string", "null"]
         pageId:
@@ -847,6 +849,8 @@ components:
           enum: [whatsapp, instagram, facebook]
         externalId:
           type: ["string", "null"]
+        wabaId:
+          type: ["string", "null"]
         phoneNumber:
           type: ["string", "null"]
         pageId:
@@ -862,6 +866,8 @@ components:
         name:
           type: string
         externalId:
+          type: ["string", "null"]
+        wabaId:
           type: ["string", "null"]
         phoneNumber:
           type: ["string", "null"]
