@@ -104,7 +104,7 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
     senderName = user?.name ?? null;
   }
 
-  const [message] = await db.insert(messagesTable).values({
+  let [message] = await db.insert(messagesTable).values({
     conversationId: params.data.conversationId,
     senderType: "agent",
     senderId: senderId ?? null,
@@ -147,6 +147,8 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
               .set({ externalMessageId: waRes.messages[0].id, deliveryStatus: "sent" })
               .where(eq(messagesTable.id, message.id));
             logger.info({ messageId: message.id, waId: waRes.messages[0].id }, "WhatsApp message sent");
+            // Reflect the updated status in the returned message so the frontend doesn't show pending
+            message = { ...message, deliveryStatus: "sent" };
           }
         }
       }

@@ -410,13 +410,13 @@ export default function Inbox() {
                             msg.deliveryStatus === 'read' ? (
                               <CheckCheck className="w-3.5 h-3.5 text-sky-400" />
                             ) : msg.deliveryStatus === 'delivered' ? (
-                              <CheckCheck className="w-3.5 h-3.5" />
+                              <CheckCheck className="w-3.5 h-3.5 text-primary-foreground/70" />
                             ) : msg.deliveryStatus === 'sent' ? (
-                              <Check className="w-3.5 h-3.5" />
+                              <Check className="w-3.5 h-3.5 text-primary-foreground/70" />
                             ) : msg.deliveryStatus === 'failed' ? (
                               <AlertCircle className="w-3.5 h-3.5 text-red-400" />
                             ) : (
-                              <Clock className="w-3 h-3 opacity-70" />
+                              <Clock className="w-3.5 h-3.5 text-primary-foreground/70" />
                             )
                           )}
                         </div>
