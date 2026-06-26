@@ -14,7 +14,7 @@ import { MessageInputContentType } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -24,6 +24,10 @@ import { useAuth } from "@/context/AuthContext";
 
 const GOOGLE_MAPS_RE =
   /https?:\/\/(?:www\.)?(?:maps\.google\.com|google\.com\/maps|maps\.app\.goo\.gl|goo\.gl\/maps)(?:\/[^\s]*)?/i;
+
+// Short-link URLs (goo.gl/maps, maps.app.goo.gl) can't have coords extracted inline
+const GOOGLE_MAPS_SHORT_RE =
+  /https?:\/\/(?:maps\.app\.goo\.gl|goo\.gl\/maps)(?:\/[^\s]*)?/i;
 
 const GOOGLE_MAPS_COORDS_RE = /@(-?\d+\.\d+),(-?\d+\.\d+)/;
 
@@ -111,7 +115,7 @@ function TextWithMaps({ text }: { text: string | null | undefined }) {
 
   return (
     <div className="flex flex-col gap-2">
-      {coords && (
+      {coords ? (
         <a href={mapUrl} target="_blank" rel="noreferrer" className="block rounded-lg overflow-hidden border border-black/10">
           <iframe
             title="Google Maps"
@@ -119,6 +123,11 @@ function TextWithMaps({ text }: { text: string | null | undefined }) {
             loading="lazy"
             className="w-full h-36 border-0"
           />
+        </a>
+      ) : (
+        <a href={mapUrl} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm underline break-all">
+          <span className="inline-flex items-center justify-center w-6 h-6 rounded bg-green-100 text-green-700 text-xs font-bold">📍</span>
+          Open in Google Maps
         </a>
       )}
       <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{text}</p>
@@ -133,6 +142,8 @@ export default function Inbox() {
   const [messageText, setMessageText] = useState("");
   const [composerMode, setComposerMode] = useState<"message" | "note">("message");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const prevConversationsRef = useRef<number>(0);
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
@@ -179,6 +190,34 @@ export default function Inbox() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Play a subtle notification sound when new conversations arrive
+  useEffect(() => {
+    const currentCount = conversations?.length ?? 0;
+    const prevCount = prevConversationsRef.current;
+    if (currentCount > prevCount && prevCount > 0) {
+      try {
+        const AC = (window as any).AudioContext || (window as any).webkitAudioContext;
+        const ctx = audioCtxRef.current ?? new AC();
+        audioCtxRef.current = ctx;
+        const now = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(880, now);
+        osc.frequency.setValueAtTime(1100, now + 0.08);
+        gain.gain.setValueAtTime(0.25, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.3);
+      } catch {
+        // Audio not available — silent fallback
+      }
+    }
+    prevConversationsRef.current = currentCount;
+  }, [conversations]);
 
   const invalidateConversation = () => {
     queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey() });
@@ -284,8 +323,11 @@ export default function Inbox() {
                     activeConversationId === conv.id ? 'bg-primary/5 border-l-2 border-l-primary' : 'border-l-2 border-l-transparent'
                   }`}
                 >
-                  <div className="relative">
+                  <div className="relative flex-shrink-0">
                     <Avatar className="w-10 h-10 border border-border/50">
+                      {conv.contact?.avatarUrl ? (
+                        <AvatarImage src={conv.contact.avatarUrl} alt={conv.contact.name} />
+                      ) : null}
                       <AvatarFallback className="bg-primary/10 text-primary text-xs font-medium">
                         {conv.contact?.name?.substring(0, 2).toUpperCase() || "??"}
                       </AvatarFallback>

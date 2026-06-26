@@ -160,10 +160,13 @@ async function processWhatsAppEntry(entry: Record<string, unknown>) {
         }
       }
 
-      // Extract customer profile name from webhook contacts array
+      // Extract customer profile name and picture from webhook contacts array
       const waContacts = value.contacts as Array<Record<string, unknown>>;
       const waProfile = waContacts?.find((c: Record<string, unknown>) => c.wa_id === from);
-      const profileName = waProfile ? (waProfile.profile as Record<string, unknown>)?.name as string : undefined;
+      const waProfileData = waProfile ? (waProfile.profile as Record<string, unknown>) : undefined;
+      const profileName = waProfileData?.name as string | undefined;
+      const profilePicture = waProfileData ? (waProfileData.picture as Record<string, unknown>)?.data as { url?: string } | undefined : undefined;
+      const avatarUrl = profilePicture?.url ?? undefined;
 
       // Find or create contact
       let contact = (await db.select().from(contactsTable).where(eq(contactsTable.externalId, from)))[0];
@@ -173,12 +176,21 @@ async function processWhatsAppEntry(entry: Record<string, unknown>) {
           phone: from,
           channelType: "whatsapp",
           externalId: from,
+          avatarUrl: avatarUrl ?? undefined,
         }).returning();
         contact = contacts[0];
-      } else if (profileName && profileName !== contact.name && isPlaceholderName(contact.name, from)) {
-        // Upgrade a placeholder (phone-number) name to the real WhatsApp profile name
-        await db.update(contactsTable).set({ name: profileName }).where(eq(contactsTable.id, contact.id));
-        contact = { ...contact, name: profileName };
+      } else {
+        const updates: Partial<typeof contactsTable.$inferSelect> = {};
+        if (profileName && profileName !== contact.name && isPlaceholderName(contact.name, from)) {
+          updates.name = profileName;
+        }
+        if (avatarUrl && avatarUrl !== contact.avatarUrl) {
+          updates.avatarUrl = avatarUrl;
+        }
+        if (Object.keys(updates).length > 0) {
+          await db.update(contactsTable).set(updates).where(eq(contactsTable.id, contact.id));
+          contact = { ...contact, ...updates };
+        }
       }
 
       // Find or create conversation
