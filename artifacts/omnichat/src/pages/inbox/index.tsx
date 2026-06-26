@@ -136,11 +136,29 @@ export default function Inbox() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
-  const { data: conversations, isLoading: isConversationsLoading } = useListConversations({
-    status: activeTab !== "all" ? activeTab : undefined
-  });
+  const { data: conversations, isLoading: isConversationsLoading } = useListConversations(
+    { status: activeTab !== "all" ? activeTab : undefined },
+    {
+      query: {
+        refetchInterval: 3000,
+        staleTime: 0,
+        refetchIntervalInBackground: true,
+        queryKey: getListConversationsQueryKey({ status: activeTab !== "all" ? activeTab : undefined }),
+      },
+    }
+  );
 
-  const { data: messages, isLoading: isMessagesLoading } = useListMessages(activeConversationId || 0);
+  const { data: messages, isLoading: isMessagesLoading } = useListMessages(
+    activeConversationId || 0,
+    {
+      query: {
+        refetchInterval: 3000,
+        staleTime: 0,
+        refetchIntervalInBackground: true,
+        queryKey: getListMessagesQueryKey(activeConversationId || 0),
+      },
+    }
+  );
 
   const { data: users } = useListUsers();
   const { data: departments } = useListDepartments();
