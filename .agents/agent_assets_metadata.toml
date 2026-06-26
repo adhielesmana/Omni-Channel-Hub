@@ -30,3 +30,9 @@ id = "iYK-Iy3SCk9PxDxkutwMt"
 uri = "file://migrations/README.md"
 type = "text"
 title = "migrations/README.md — Migration Reference"
+
+[[outputs]]
+id = "7tVKC1zk4SN84Ys9EW8hR"
+uri = "file://macbook-ssh.tar.gz"
+type = "unspecified"
+title = "MacBook SSH Key Files (tar.gz)"

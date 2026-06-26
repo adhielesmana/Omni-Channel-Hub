@@ -1,0 +1,6 @@
+Host omnichat-vm
+    HostName 202.10.40.78
+    User root
+    IdentityFile ~/.ssh/id_ed25519
+    StrictHostKeyChecking no
+    ConnectTimeout 10
