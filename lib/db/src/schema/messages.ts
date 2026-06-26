@@ -16,9 +16,10 @@ export const messagesTable = pgTable("messages", {
   externalMessageId: text("external_message_id"),
   metadata: text("metadata"),
   senderName: text("sender_name"),
+  deliveryStatus: text("delivery_status", { enum: ["pending", "sent", "delivered", "read", "failed"] }).notNull().default("pending"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const insertMessageSchema = createInsertSchema(messagesTable).omit({ id: true, createdAt: true });
+export const insertMessageSchema = createInsertSchema(messagesTable).omit({ id: true, createdAt: true, deliveryStatus: true });
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
 export type Message = typeof messagesTable.$inferSelect;

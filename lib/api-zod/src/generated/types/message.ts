@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { MessageContentType } from './messageContentType';
+import type { MessageDeliveryStatus } from './messageDeliveryStatus';
 import type { MessageDirection } from './messageDirection';
 import type { MessageSenderType } from './messageSenderType';
 
@@ -30,5 +31,6 @@ export interface Message {
   metadata?: string | null;
   /** @nullable */
   senderName?: string | null;
+  deliveryStatus?: MessageDeliveryStatus;
   createdAt: string;
 }

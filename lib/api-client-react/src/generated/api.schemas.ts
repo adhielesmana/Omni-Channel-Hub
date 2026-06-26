@@ -387,6 +387,17 @@ export const MessageContentType = {
   note: 'note',
 } as const;
 
+export type MessageDeliveryStatus = typeof MessageDeliveryStatus[keyof typeof MessageDeliveryStatus];
+
+
+export const MessageDeliveryStatus = {
+  pending: 'pending',
+  sent: 'sent',
+  delivered: 'delivered',
+  read: 'read',
+  failed: 'failed',
+} as const;
+
 export interface Message {
   id: number;
   conversationId: number;
@@ -408,6 +419,7 @@ export interface Message {
   metadata?: string | null;
   /** @nullable */
   senderName?: string | null;
+  deliveryStatus?: MessageDeliveryStatus;
   createdAt: string;
 }
 

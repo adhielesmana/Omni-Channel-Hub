@@ -749,6 +749,7 @@ export const ListMessagesResponseItem = zod.object({
   "externalMessageId": zod.string().nullish(),
   "metadata": zod.string().nullish(),
   "senderName": zod.string().nullish(),
+  "deliveryStatus": zod.enum(['pending', 'sent', 'delivered', 'read', 'failed']).optional(),
   "createdAt": zod.string()
 })
 export const ListMessagesResponse = zod.array(ListMessagesResponseItem)

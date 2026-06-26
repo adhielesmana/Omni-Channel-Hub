@@ -302,7 +302,17 @@ export default function Inbox() {
                           isInbound ? 'text-muted-foreground' : 'text-primary-foreground/70'
                         }`}>
                           {new Date(msg.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                          {!isInbound && !isNote && <Check className="w-3 h-3" />}
+                          {!isInbound && !isNote && (
+                            msg.deliveryStatus === 'read' ? (
+                              <Check className="w-3 h-3 text-blue-300" />
+                            ) : msg.deliveryStatus === 'delivered' ? (
+                              <Check className="w-3 h-3 text-primary-foreground/90" />
+                            ) : msg.deliveryStatus === 'sent' ? (
+                              <Check className="w-3 h-3" />
+                            ) : (
+                              <span className="text-[8px] uppercase">sending</span>
+                            )
+                          )}
                         </div>
                       </div>
                     </div>

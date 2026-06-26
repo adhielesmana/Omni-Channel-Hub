@@ -38,6 +38,7 @@ async function sendWhatsAppMessage(channel: typeof channelsTable.$inferSelect, c
 const toDto = (m: typeof messagesTable.$inferSelect) => ({
   ...m,
   createdAt: m.createdAt.toISOString(),
+  deliveryStatus: m.deliveryStatus ?? "pending",
 });
 
 router.get("/conversations/:conversationId/messages", async (req, res): Promise<void> => {
@@ -143,7 +144,7 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
           if (waRes.messages?.[0]?.id) {
             await db
               .update(messagesTable)
-              .set({ externalMessageId: waRes.messages[0].id })
+              .set({ externalMessageId: waRes.messages[0].id, deliveryStatus: "sent" })
               .where(eq(messagesTable.id, message.id));
             logger.info({ messageId: message.id, waId: waRes.messages[0].id }, "WhatsApp message sent");
           }

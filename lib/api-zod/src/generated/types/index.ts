@@ -40,6 +40,7 @@ export * from './listContactsParams';
 export * from './listConversationsParams';
 export * from './message';
 export * from './messageContentType';
+export * from './messageDeliveryStatus';
 export * from './messageDirection';
 export * from './messageInput';
 export * from './messageInputContentType';

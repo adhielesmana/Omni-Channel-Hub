@@ -1063,6 +1063,9 @@ components:
           type: ["string", "null"]
         senderName:
           type: ["string", "null"]
+        deliveryStatus:
+          type: string
+          enum: [pending, sent, delivered, read, failed]
         createdAt:
           type: string
 

@@ -55,8 +55,35 @@ async function processWebhook(payload: Record<string, unknown>) {
   for (const entry of entries) {
     if (object === "whatsapp_business_account") {
       await processWhatsAppEntry(entry);
+      await processWhatsAppStatus(entry);
     } else if (object === "instagram" || object === "page") {
       await processMetaPageEntry(entry, object === "instagram" ? "instagram" : "facebook");
+    }
+  }
+}
+
+async function processWhatsAppStatus(entry: Record<string, unknown>) {
+  const changes = entry.changes as Array<Record<string, unknown>>;
+  if (!changes?.length) return;
+
+  for (const change of changes) {
+    const value = change.value as Record<string, unknown>;
+    if (!value) continue;
+
+    const statuses = value.statuses as Array<Record<string, unknown>>;
+    if (!statuses?.length) continue;
+
+    for (const status of statuses) {
+      const statusType = status.status as string; // sent, delivered, read, failed
+      const waId = status.id as string;
+      if (!waId) continue;
+
+      const newStatus = statusType === "read" ? "read" : statusType === "delivered" ? "delivered" : statusType === "sent" ? "sent" : "failed";
+      await db
+        .update(messagesTable)
+        .set({ deliveryStatus: newStatus })
+        .where(eq(messagesTable.externalMessageId, waId));
+      logger.info({ waId, status: newStatus }, "WhatsApp delivery status updated");
     }
   }
 }
@@ -90,16 +117,25 @@ async function processWhatsAppEntry(entry: Record<string, unknown>) {
       const msgType = msg.type as string;
       const text = msgType === "text" ? (msg.text as Record<string, unknown>)?.body as string : null;
 
+      // Extract customer profile name from webhook contacts array
+      const waContacts = value.contacts as Array<Record<string, unknown>>;
+      const waProfile = waContacts?.find((c: Record<string, unknown>) => c.wa_id === from);
+      const profileName = waProfile ? (waProfile.profile as Record<string, unknown>)?.name as string : undefined;
+
       // Find or create contact
       let contact = (await db.select().from(contactsTable).where(eq(contactsTable.externalId, from)))[0];
       if (!contact) {
         const contacts = await db.insert(contactsTable).values({
-          name: from,
+          name: profileName || from,
           phone: from,
           channelType: "whatsapp",
           externalId: from,
         }).returning();
         contact = contacts[0];
+      } else if (profileName && contact.name === from) {
+        // Update contact name if we got a real profile name and current name is just the phone number
+        await db.update(contactsTable).set({ name: profileName }).where(eq(contactsTable.id, contact.id));
+        contact = { ...contact, name: profileName };
       }
 
       // Find or create conversation
