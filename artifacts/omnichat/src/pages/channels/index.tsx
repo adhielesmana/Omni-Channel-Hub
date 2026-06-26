@@ -104,16 +104,16 @@ export default function Channels() {
   const isSocialPage = form.channelType === "instagram" || form.channelType === "facebook";
 
   return (
-    <div className="p-8 h-full overflow-y-auto">
+    <div className="p-4 md:p-8 h-full overflow-y-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-4 md:mb-8">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Channels</h1>
-          <p className="text-muted-foreground mt-1">Connect and manage your messaging platforms</p>
+          <h1 className="text-xl md:text-2xl font-bold tracking-tight">Channels</h1>
+          <p className="text-muted-foreground mt-1 text-sm hidden md:block">Connect and manage your messaging platforms</p>
         </div>
-        <Button className="gap-2" onClick={handleOpen}>
+        <Button className="gap-2" size="sm" onClick={handleOpen}>
           <Plus className="w-4 h-4" />
-          Add Channel
+          <span className="hidden sm:inline">Add Channel</span>
         </Button>
       </div>
 

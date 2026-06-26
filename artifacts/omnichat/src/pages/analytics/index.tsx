@@ -33,10 +33,10 @@ export default function Analytics() {
   }));
 
   return (
-    <div className="p-8 h-full overflow-y-auto bg-muted/10">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold tracking-tight">Analytics Overview</h1>
-        <p className="text-muted-foreground mt-1">Real-time performance and volume metrics</p>
+    <div className="p-4 md:p-8 h-full overflow-y-auto bg-muted/10">
+      <div className="mb-4 md:mb-8">
+        <h1 className="text-xl md:text-2xl font-bold tracking-tight">Analytics Overview</h1>
+        <p className="text-muted-foreground mt-1 text-sm hidden md:block">Real-time performance and volume metrics</p>
       </div>
 
       {statsLoading ? (

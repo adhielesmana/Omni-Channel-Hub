@@ -66,13 +66,13 @@ export default function Contacts() {
   };
 
   return (
-    <div className="p-8 h-full flex flex-col">
-      <div className="flex items-center justify-between mb-8">
+    <div className="p-4 md:p-8 h-full flex flex-col overflow-hidden">
+      <div className="flex items-center justify-between mb-4 md:mb-8">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Contacts</h1>
-          <p className="text-muted-foreground mt-1">Manage your customer directory</p>
+          <h1 className="text-xl md:text-2xl font-bold tracking-tight">Contacts</h1>
+          <p className="text-muted-foreground mt-1 text-sm hidden md:block">Manage your customer directory</p>
         </div>
-        <div className="relative w-72">
+        <div className="relative w-56 md:w-72">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search contacts..."

@@ -112,21 +112,21 @@ export default function Users() {
   };
 
   return (
-    <div className="p-8 h-full flex flex-col">
-      <div className="flex items-center justify-between mb-8">
+    <div className="p-4 md:p-8 h-full flex flex-col overflow-hidden">
+      <div className="flex items-center justify-between mb-4 md:mb-8">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Team Members</h1>
-          <p className="text-muted-foreground mt-1">Manage agents, supervisors, and administrators</p>
+          <h1 className="text-xl md:text-2xl font-bold tracking-tight">Team Members</h1>
+          <p className="text-muted-foreground mt-1 text-sm hidden md:block">Manage agents, supervisors, and administrators</p>
         </div>
-        <Button className="gap-2" onClick={() => setOpen(true)}>
+        <Button className="gap-2" size="sm" onClick={() => setOpen(true)}>
           <UserPlus className="w-4 h-4" />
-          Invite User
+          <span className="hidden sm:inline">Invite User</span>
         </Button>
       </div>
 
       <div className="border rounded-xl bg-card overflow-hidden flex-1 flex flex-col shadow-sm">
-        <div className="p-4 border-b flex items-center justify-between bg-muted/20">
-          <div className="relative w-72">
+        <div className="p-3 md:p-4 border-b flex items-center justify-between bg-muted/20">
+          <div className="relative w-56 md:w-72">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search users..."

@@ -47,15 +47,15 @@ export default function Departments() {
   };
 
   return (
-    <div className="p-8 h-full overflow-y-auto">
-      <div className="flex items-center justify-between mb-8">
+    <div className="p-4 md:p-8 h-full overflow-y-auto">
+      <div className="flex items-center justify-between mb-4 md:mb-8">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Departments</h1>
-          <p className="text-muted-foreground mt-1">Manage routing and organizational units</p>
+          <h1 className="text-xl md:text-2xl font-bold tracking-tight">Departments</h1>
+          <p className="text-muted-foreground mt-1 text-sm hidden md:block">Manage routing and organizational units</p>
         </div>
-        <Button className="gap-2" onClick={() => setOpen(true)}>
+        <Button className="gap-2" size="sm" onClick={() => setOpen(true)}>
           <Plus className="w-4 h-4" />
-          Create Department
+          <span className="hidden sm:inline">Create Department</span>
         </Button>
       </div>
 

@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import {
   Search, Inbox as InboxIcon, CheckCircle2, Check, CheckCheck, Clock, AlertCircle,
   MoreVertical, Phone, Mail, Hash, UserSquare, Info, Send,
-  MessageSquare, StickyNote, FileText
+  MessageSquare, StickyNote, FileText, ArrowLeft
 } from "lucide-react";
 import {
   useListConversations, useListMessages, useSendMessage,
@@ -141,6 +141,7 @@ export default function Inbox() {
   const [searchQuery, setSearchQuery] = useState("");
   const [messageText, setMessageText] = useState("");
   const [composerMode, setComposerMode] = useState<"message" | "note">("message");
+  const [mobileShowChat, setMobileShowChat] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const prevConversationsRef = useRef<number>(0);
@@ -282,7 +283,7 @@ export default function Inbox() {
     <div className="flex h-full w-full bg-background overflow-hidden">
 
       {/* Pane 1: Conversation List */}
-      <div className="w-[340px] flex-shrink-0 border-r bg-card flex flex-col h-full relative z-10">
+      <div className={`flex-shrink-0 border-r bg-card flex flex-col h-full relative z-10 w-full md:w-[340px] ${mobileShowChat ? 'hidden md:flex' : 'flex'}`}>
         <div className="p-4 border-b flex flex-col gap-4">
           <h1 className="text-xl font-bold tracking-tight">Inbox</h1>
           <div className="relative">
@@ -318,7 +319,7 @@ export default function Inbox() {
               filteredConversations?.map((conv) => (
                 <button
                   key={conv.id}
-                  onClick={() => setActiveConversationId(conv.id)}
+                  onClick={() => { setActiveConversationId(conv.id); setMobileShowChat(true); }}
                   className={`w-full text-left p-4 border-b transition-colors flex gap-3 hover:bg-muted/30 ${
                     activeConversationId === conv.id ? 'bg-primary/5 border-l-2 border-l-primary' : 'border-l-2 border-l-transparent'
                   }`}
@@ -363,57 +364,65 @@ export default function Inbox() {
         </ScrollArea>
       </div>
 
-      {/* Pane 2: Main Chat Area */}
+      {/* Empty state on mobile when no chat selected */}
       {activeConversation ? (
-        <div className="flex-1 flex flex-col h-full bg-background min-w-[400px]">
+        <div className={`flex-1 flex flex-col h-full bg-background min-w-0 ${!mobileShowChat ? 'hidden md:flex' : 'flex'}`}>
           {/* Chat Header */}
           <div className="h-16 px-4 border-b bg-card flex items-center justify-between shrink-0 gap-2">
-            <div className="flex items-center gap-3 min-w-0">
+            <div className="flex items-center gap-3 min-w-0 flex-1 overflow-hidden">
+              <button
+                className="md:hidden w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted -ml-1"
+                onClick={() => setMobileShowChat(false)}
+              >
+                <ArrowLeft className="w-5 h-5 text-muted-foreground" />
+              </button>
               <Avatar className="w-9 h-9 flex-shrink-0">
                 <AvatarFallback className="bg-primary/10 text-primary font-medium">
                   {activeConversation.contact?.name?.substring(0, 2).toUpperCase() || "??"}
                 </AvatarFallback>
               </Avatar>
-              <div className="min-w-0">
+              <div className="min-w-0 overflow-hidden">
                 <h2 className="font-semibold text-sm leading-tight truncate">{activeConversation.contact?.name}</h2>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
                   <span className="capitalize">{activeConversation.channelType}</span>
-                  <span>•</span>
-                  <span className="truncate">{activeConversation.contact?.phone || activeConversation.contact?.email || 'Unknown'}</span>
+                  <span className="hidden sm:inline">•</span>
+                  <span className="hidden sm:inline truncate">{activeConversation.contact?.phone || activeConversation.contact?.email || 'Unknown'}</span>
                 </div>
               </div>
             </div>
 
             <div className="flex items-center gap-2 flex-shrink-0">
-              <Select
-                value={activeConversation.department?.id?.toString() ?? "none"}
-                onValueChange={handleAssignDepartment}
-              >
-                <SelectTrigger className="h-8 text-xs w-[130px] border-muted">
-                  <SelectValue placeholder="Department" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No department</SelectItem>
-                  {departments?.map(d => (
-                    <SelectItem key={d.id} value={d.id.toString()}>{d.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="hidden md:flex items-center gap-2">
+                <Select
+                  value={activeConversation.department?.id?.toString() ?? "none"}
+                  onValueChange={handleAssignDepartment}
+                >
+                  <SelectTrigger className="h-8 text-xs w-[130px] border-muted">
+                    <SelectValue placeholder="Department" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No department</SelectItem>
+                    {departments?.map(d => (
+                      <SelectItem key={d.id} value={d.id.toString()}>{d.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
 
-              <Select
-                value={activeConversation.assignedAgent?.id?.toString() ?? "none"}
-                onValueChange={handleAssignAgent}
-              >
-                <SelectTrigger className="h-8 text-xs w-[130px] border-muted">
-                  <SelectValue placeholder="Assign agent" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Unassigned</SelectItem>
-                  {users?.map(u => (
-                    <SelectItem key={u.id} value={u.id.toString()}>{u.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <Select
+                  value={activeConversation.assignedAgent?.id?.toString() ?? "none"}
+                  onValueChange={handleAssignAgent}
+                >
+                  <SelectTrigger className="h-8 text-xs w-[130px] border-muted">
+                    <SelectValue placeholder="Assign agent" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Unassigned</SelectItem>
+                    {users?.map(u => (
+                      <SelectItem key={u.id} value={u.id.toString()}>{u.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
               <Button
                 variant={activeConversation.status === 'resolved' ? 'outline' : 'default'}
@@ -423,10 +432,10 @@ export default function Inbox() {
                 disabled={resolveConversation.isPending || reopenConversation.isPending}
               >
                 <CheckCircle2 className="w-3.5 h-3.5" />
-                {activeConversation.status === 'resolved' ? 'Reopen' : 'Resolve'}
+                <span className="hidden sm:inline">{activeConversation.status === 'resolved' ? 'Reopen' : 'Resolve'}</span>
               </Button>
 
-              <Button variant="ghost" size="icon" className="h-8 w-8">
+              <Button variant="ghost" size="icon" className="h-8 w-8 hidden md:flex">
                 <MoreVertical className="w-4 h-4" />
               </Button>
             </div>
@@ -490,7 +499,7 @@ export default function Inbox() {
           </ScrollArea>
 
           {/* Chat Composer */}
-          <div className="p-4 bg-card border-t shrink-0">
+          <div className="p-2 md:p-4 bg-card border-t shrink-0">
             {composerMode === "note" && (
               <div className="flex items-center gap-2 mb-2 px-1">
                 <div className="w-2 h-2 rounded-full bg-amber-400" />
@@ -541,7 +550,7 @@ export default function Inbox() {
           </div>
         </div>
       ) : (
-        <div className="flex-1 flex flex-col items-center justify-center bg-muted/10 text-muted-foreground min-w-[400px]">
+        <div className="flex-1 flex flex-col items-center justify-center bg-muted/10 text-muted-foreground min-w-0 md:min-w-[400px] hidden md:flex">
           <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
             <MessageSquare className="w-8 h-8 opacity-50" />
           </div>
@@ -554,7 +563,7 @@ export default function Inbox() {
 
       {/* Pane 3: Details Panel */}
       {activeConversation && (
-        <div className="w-[280px] flex-shrink-0 border-l bg-card flex flex-col h-full overflow-y-auto">
+        <div className="hidden lg:flex w-[280px] flex-shrink-0 border-l bg-card flex-col h-full overflow-y-auto">
           <div className="p-5 border-b flex flex-col items-center text-center">
             <Avatar className="w-16 h-16 mb-3 shadow-sm border-2 border-background">
               <AvatarFallback className="bg-primary/10 text-primary text-lg font-medium">
