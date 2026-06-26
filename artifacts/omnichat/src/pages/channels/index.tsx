@@ -1,82 +1,327 @@
-import { useListChannels } from "@workspace/api-client-react";
-import { Share2, Plus, Settings2 } from "lucide-react";
+import { useState } from "react";
+import { useListChannels, useCreateChannel } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  Share2, Plus, Settings2, Wifi, WifiOff,
+  Phone, Hash, Key, ShieldCheck,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+type ChannelType = "whatsapp" | "instagram" | "facebook";
+
+const CHANNEL_META: Record<ChannelType, { label: string; color: string; bg: string; icon: string }> = {
+  whatsapp:  { label: "WhatsApp Business", color: "text-green-700",  bg: "bg-green-50 border-green-200",  icon: "💬" },
+  instagram: { label: "Instagram DM",      color: "text-pink-700",   bg: "bg-pink-50 border-pink-200",    icon: "📸" },
+  facebook:  { label: "Facebook Messenger",color: "text-blue-700",   bg: "bg-blue-50 border-blue-200",    icon: "💙" },
+};
+
+const EMPTY_FORM = {
+  name: "",
+  channelType: "" as ChannelType | "",
+  phoneNumber: "",
+  pageId: "",
+  accessToken: "",
+  webhookVerifyToken: "",
+};
 
 export default function Channels() {
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [error, setError] = useState("");
+
+  const queryClient = useQueryClient();
   const { data: channels, isLoading } = useListChannels();
+  const createChannel = useCreateChannel();
+
+  const set = (key: keyof typeof EMPTY_FORM) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm(f => ({ ...f, [key]: e.target.value }));
+
+  const handleOpen = () => {
+    setForm(EMPTY_FORM);
+    setError("");
+    setOpen(true);
+  };
+
+  const handleSubmit = () => {
+    if (!form.name.trim()) { setError("Channel name is required."); return; }
+    if (!form.channelType)  { setError("Please select a channel type."); return; }
+    setError("");
+
+    createChannel.mutate(
+      {
+        data: {
+          name: form.name.trim(),
+          channelType: form.channelType as ChannelType,
+          ...(form.phoneNumber.trim()       && { phoneNumber:       form.phoneNumber.trim() }),
+          ...(form.pageId.trim()            && { pageId:            form.pageId.trim() }),
+          ...(form.accessToken.trim()       && { accessToken:       form.accessToken.trim() }),
+          ...(form.webhookVerifyToken.trim()&& { webhookVerifyToken:form.webhookVerifyToken.trim() }),
+        },
+      },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ["/api/channels"] });
+          setOpen(false);
+        },
+        onError: () => setError("Failed to add channel. Please try again."),
+      }
+    );
+  };
+
+  const isWhatsApp  = form.channelType === "whatsapp";
+  const isSocialPage = form.channelType === "instagram" || form.channelType === "facebook";
 
   return (
     <div className="p-8 h-full overflow-y-auto">
+      {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Channels</h1>
-          <p className="text-muted-foreground mt-1">Connect and manage communication platforms</p>
+          <p className="text-muted-foreground mt-1">Connect and manage your messaging platforms</p>
         </div>
-        <Button className="gap-2">
+        <Button className="gap-2" onClick={handleOpen}>
           <Plus className="w-4 h-4" />
           Add Channel
         </Button>
       </div>
 
+      {/* Content */}
       {isLoading ? (
-        <div className="text-center p-12 text-muted-foreground">Loading channels...</div>
-      ) : channels?.length === 0 ? (
-        <div className="text-center p-12 border rounded-xl bg-card border-dashed">
-          <Share2 className="w-12 h-12 mx-auto text-muted-foreground opacity-20 mb-4" />
-          <h3 className="font-semibold mb-1">No channels connected</h3>
-          <p className="text-sm text-muted-foreground mb-4">Connect WhatsApp, Instagram, or Facebook to start receiving messages.</p>
-          <Button variant="outline">Connect Channel</Button>
+        <div className="text-center p-12 text-muted-foreground">Loading channels…</div>
+      ) : !channels?.length ? (
+        <div className="text-center p-16 border rounded-2xl bg-card border-dashed flex flex-col items-center gap-4">
+          <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center">
+            <Share2 className="w-6 h-6 text-muted-foreground/50" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-base mb-1">No channels connected yet</h3>
+            <p className="text-sm text-muted-foreground max-w-sm">
+              Connect WhatsApp Business, Instagram DM, or Facebook Messenger to start receiving messages.
+            </p>
+          </div>
+          <Button onClick={handleOpen} className="gap-2 mt-2">
+            <Plus className="w-4 h-4" /> Add Your First Channel
+          </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {channels?.map((channel) => (
-            <Card key={channel.id} className="shadow-sm flex flex-col">
-              <CardHeader className="pb-3 flex-row items-start justify-between space-y-0">
-                <div className="space-y-1">
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    {channel.name}
-                  </CardTitle>
-                  <CardDescription className="capitalize">
-                    {channel.channelType}
-                  </CardDescription>
-                </div>
-                <Badge variant={channel.isActive ? 'default' : 'secondary'} className={channel.isActive ? 'bg-green-500/10 text-green-700 hover:bg-green-500/20 hover:text-green-800 border-green-500/20' : ''}>
-                  {channel.isActive ? 'Connected' : 'Disconnected'}
-                </Badge>
-              </CardHeader>
-              <CardContent className="flex-1">
-                <div className="space-y-3 mt-2">
-                  {channel.phoneNumber && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Phone Number</span>
-                      <span className="font-mono">{channel.phoneNumber}</span>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {channels.map((channel) => {
+            const meta = CHANNEL_META[channel.channelType as ChannelType];
+            return (
+              <Card key={channel.id} className="shadow-sm flex flex-col hover:shadow-md transition-shadow">
+                <CardHeader className="pb-3 flex-row items-start justify-between space-y-0">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-xl border flex items-center justify-center text-lg ${meta?.bg ?? "bg-muted"}`}>
+                      {meta?.icon ?? "📡"}
                     </div>
-                  )}
-                  {channel.pageId && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Page ID</span>
-                      <span className="font-mono">{channel.pageId}</span>
+                    <div>
+                      <CardTitle className="text-base leading-tight">{channel.name}</CardTitle>
+                      <CardDescription className="text-xs mt-0.5">
+                        {meta?.label ?? channel.channelType}
+                      </CardDescription>
                     </div>
-                  )}
-                  {channel.externalId && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">External ID</span>
-                      <span className="font-mono truncate max-w-[120px]">{channel.externalId}</span>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-              <CardFooter className="pt-4 border-t bg-muted/20">
-                <Button variant="ghost" size="sm" className="w-full gap-2 text-xs">
-                  <Settings2 className="w-4 h-4" /> Configure
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
+                  </div>
+                  <Badge
+                    variant={channel.isActive ? "default" : "secondary"}
+                    className={channel.isActive
+                      ? "bg-green-50 text-green-700 border border-green-200 hover:bg-green-50"
+                      : "bg-muted text-muted-foreground"}
+                  >
+                    {channel.isActive ? (
+                      <span className="flex items-center gap-1"><Wifi className="w-3 h-3" /> Connected</span>
+                    ) : (
+                      <span className="flex items-center gap-1"><WifiOff className="w-3 h-3" /> Disconnected</span>
+                    )}
+                  </Badge>
+                </CardHeader>
+
+                <CardContent className="flex-1 pb-3">
+                  <div className="space-y-2">
+                    {channel.phoneNumber && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground flex items-center gap-1.5">
+                          <Phone className="w-3 h-3" /> Phone
+                        </span>
+                        <span className="font-mono text-xs">{channel.phoneNumber}</span>
+                      </div>
+                    )}
+                    {channel.pageId && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground flex items-center gap-1.5">
+                          <Hash className="w-3 h-3" /> Page ID
+                        </span>
+                        <span className="font-mono text-xs">{channel.pageId}</span>
+                      </div>
+                    )}
+                    {channel.externalId && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground flex items-center gap-1.5">
+                          <Hash className="w-3 h-3" /> External ID
+                        </span>
+                        <span className="font-mono text-xs truncate max-w-[130px]">{channel.externalId}</span>
+                      </div>
+                    )}
+                    {channel.webhookVerifyToken && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground flex items-center gap-1.5">
+                          <ShieldCheck className="w-3 h-3" /> Webhook token
+                        </span>
+                        <span className="font-mono text-xs text-muted-foreground">••••••••</span>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+
+                <CardFooter className="pt-3 border-t bg-muted/20">
+                  <Button variant="ghost" size="sm" className="w-full gap-2 text-xs">
+                    <Settings2 className="w-3.5 h-3.5" /> Configure
+                  </Button>
+                </CardFooter>
+              </Card>
+            );
+          })}
         </div>
       )}
+
+      {/* Add Channel Dialog */}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Add Channel</DialogTitle>
+            <DialogDescription>
+              Connect a WhatsApp Business number, Instagram page, or Facebook page.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex flex-col gap-4 py-1">
+            {error && (
+              <p className="text-sm text-destructive bg-destructive/5 border border-destructive/20 rounded-lg px-3 py-2">
+                {error}
+              </p>
+            )}
+
+            {/* Channel type — first so the rest adapts */}
+            <div className="flex flex-col gap-1.5">
+              <Label>Channel type <span className="text-destructive">*</span></Label>
+              <Select
+                value={form.channelType}
+                onValueChange={v => setForm(f => ({ ...f, channelType: v as ChannelType, phoneNumber: "", pageId: "" }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a platform…" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="whatsapp">💬 WhatsApp Business</SelectItem>
+                  <SelectItem value="instagram">📸 Instagram DM</SelectItem>
+                  <SelectItem value="facebook">💙 Facebook Messenger</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Name */}
+            <div className="flex flex-col gap-1.5">
+              <Label>Channel name <span className="text-destructive">*</span></Label>
+              <Input
+                placeholder={
+                  form.channelType === "whatsapp"  ? "e.g. WhatsApp Support" :
+                  form.channelType === "instagram" ? "e.g. Instagram Official" :
+                  form.channelType === "facebook"  ? "e.g. Facebook Page" :
+                  "e.g. Customer Support"
+                }
+                value={form.name}
+                onChange={set("name")}
+              />
+            </div>
+
+            {/* Phone number — WhatsApp only */}
+            {isWhatsApp && (
+              <div className="flex flex-col gap-1.5">
+                <Label className="flex items-center gap-1.5">
+                  <Phone className="w-3.5 h-3.5 text-muted-foreground" />
+                  Phone number
+                  <span className="text-muted-foreground font-normal text-xs">(optional)</span>
+                </Label>
+                <Input
+                  placeholder="+1 555 000 1234"
+                  value={form.phoneNumber}
+                  onChange={set("phoneNumber")}
+                />
+              </div>
+            )}
+
+            {/* Page ID — Instagram / Facebook */}
+            {isSocialPage && (
+              <div className="flex flex-col gap-1.5">
+                <Label className="flex items-center gap-1.5">
+                  <Hash className="w-3.5 h-3.5 text-muted-foreground" />
+                  {form.channelType === "instagram" ? "Instagram" : "Facebook"} Page ID
+                  <span className="text-muted-foreground font-normal text-xs">(optional)</span>
+                </Label>
+                <Input
+                  placeholder="e.g. 123456789"
+                  value={form.pageId}
+                  onChange={set("pageId")}
+                />
+              </div>
+            )}
+
+            {/* Access Token */}
+            <div className="flex flex-col gap-1.5">
+              <Label className="flex items-center gap-1.5">
+                <Key className="w-3.5 h-3.5 text-muted-foreground" />
+                Access token
+                <span className="text-muted-foreground font-normal text-xs">(optional)</span>
+              </Label>
+              <Input
+                placeholder="Meta Cloud API access token"
+                type="password"
+                value={form.accessToken}
+                onChange={set("accessToken")}
+              />
+            </div>
+
+            {/* Webhook verify token */}
+            <div className="flex flex-col gap-1.5">
+              <Label className="flex items-center gap-1.5">
+                <ShieldCheck className="w-3.5 h-3.5 text-muted-foreground" />
+                Webhook verify token
+                <span className="text-muted-foreground font-normal text-xs">(optional)</span>
+              </Label>
+              <Input
+                placeholder="Token used to verify Meta webhook"
+                value={form.webhookVerifyToken}
+                onChange={set("webhookVerifyToken")}
+              />
+              <p className="text-xs text-muted-foreground">
+                Set this in your Meta App Dashboard under Webhook → Verify Token.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className="pt-2">
+            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button onClick={handleSubmit} disabled={createChannel.isPending} className="gap-2">
+              {createChannel.isPending ? (
+                <>
+                  <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                  </svg>
+                  Connecting…
+                </>
+              ) : (
+                <><Plus className="w-4 h-4" /> Connect Channel</>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

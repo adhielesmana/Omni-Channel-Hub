@@ -33,7 +33,6 @@ export default function Departments() {
           name: form.name.trim(),
           description: form.description.trim() || undefined,
           routingMode: form.routingMode as typeof DepartmentInputRoutingMode[keyof typeof DepartmentInputRoutingMode],
-          isActive: true,
         }
       },
       {

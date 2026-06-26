@@ -34,9 +34,7 @@ export default function Inbox() {
     status: activeTab !== "all" ? activeTab : undefined
   });
 
-  const { data: messages, isLoading: isMessagesLoading } = useListMessages(activeConversationId || 0, {
-    query: { enabled: !!activeConversationId }
-  });
+  const { data: messages, isLoading: isMessagesLoading } = useListMessages(activeConversationId || 0);
 
   const { data: users } = useListUsers();
   const { data: departments } = useListDepartments();
@@ -69,7 +67,7 @@ export default function Inbox() {
     if (!messageText.trim() || !activeConversationId) return;
     sendMessage.mutate(
       {
-        id: activeConversationId,
+        conversationId: activeConversationId,
         data: {
           content: messageText.trim(),
           contentType: composerMode === "note" ? MessageInputContentType.note : MessageInputContentType.text,
@@ -103,7 +101,7 @@ export default function Inbox() {
   const handleAssignAgent = (agentId: string) => {
     if (!activeConversationId) return;
     assignConversation.mutate(
-      { id: activeConversationId, data: { agentId: agentId === "none" ? undefined : Number(agentId) } },
+      { id: activeConversationId, data: { assignedAgentId: agentId === "none" ? undefined : Number(agentId) } },
       { onSuccess: invalidateConversation }
     );
   };
