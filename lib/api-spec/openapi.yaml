@@ -1081,6 +1081,8 @@ components:
           type: ["string", "null"]
         senderId:
           type: ["integer", "null"]
+        senderName:
+          type: ["string", "null"]
 
     # Webhooks
     MetaWebhookPayload:

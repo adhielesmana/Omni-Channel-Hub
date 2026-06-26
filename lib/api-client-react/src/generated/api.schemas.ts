@@ -436,6 +436,8 @@ export interface MessageInput {
   mediaType?: string | null;
   /** @nullable */
   senderId?: number | null;
+  /** @nullable */
+  senderName?: string | null;
 }
 
 export type MetaWebhookPayloadEntryItem = { [key: string]: unknown };

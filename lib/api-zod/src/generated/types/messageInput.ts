@@ -17,4 +17,6 @@ export interface MessageInput {
   mediaType?: string | null;
   /** @nullable */
   senderId?: number | null;
+  /** @nullable */
+  senderName?: string | null;
 }

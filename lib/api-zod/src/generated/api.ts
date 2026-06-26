@@ -766,7 +766,8 @@ export const SendMessageBody = zod.object({
   "content": zod.string().nullish(),
   "mediaUrl": zod.string().nullish(),
   "mediaType": zod.string().nullish(),
-  "senderId": zod.number().nullish()
+  "senderId": zod.number().nullish(),
+  "senderName": zod.string().nullish()
 })
 
 

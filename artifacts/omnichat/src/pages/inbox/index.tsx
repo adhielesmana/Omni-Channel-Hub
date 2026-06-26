@@ -20,6 +20,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useAuth } from "@/context/AuthContext";
 
 export default function Inbox() {
   const [activeTab, setActiveTab] = useState("all");
@@ -29,6 +30,7 @@ export default function Inbox() {
   const [composerMode, setComposerMode] = useState<"message" | "note">("message");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const { data: conversations, isLoading: isConversationsLoading } = useListConversations({
     status: activeTab !== "all" ? activeTab : undefined
@@ -71,6 +73,7 @@ export default function Inbox() {
         data: {
           content: messageText.trim(),
           contentType: composerMode === "note" ? MessageInputContentType.note : MessageInputContentType.text,
+          senderName: user?.name ?? null,
         }
       },
       {

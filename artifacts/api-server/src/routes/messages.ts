@@ -1,14 +1,39 @@
 import { Router, type IRouter } from "express";
 import { eq, asc } from "drizzle-orm";
-import { db, messagesTable, conversationsTable, usersTable } from "@workspace/db";
+import { db, messagesTable, conversationsTable, usersTable, channelsTable, contactsTable } from "@workspace/db";
 import {
   ListMessagesResponse,
   ListMessagesParams,
   SendMessageParams,
   SendMessageBody,
 } from "@workspace/api-zod";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
+
+async function sendWhatsAppMessage(channel: typeof channelsTable.$inferSelect, contact: typeof contactsTable.$inferSelect, content: string): Promise<{ messages?: Array<{ id: string }>; error?: { message: string } }> {
+  const url = `https://graph.facebook.com/v18.0/${channel.externalId}/messages`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${channel.accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: contact.phone,
+      type: "text",
+      text: { body: content },
+    }),
+  });
+  const data = (await res.json().catch(() => ({}))) as { messages?: Array<{ id: string }>; error?: { message: string } };
+  if (!res.ok) {
+    logger.error({ status: res.status, data }, "WhatsApp send failed");
+    throw new Error(data.error?.message || `WhatsApp send failed: ${res.status}`);
+  }
+  return data;
+}
 
 const toDto = (m: typeof messagesTable.$inferSelect) => ({
   ...m,
@@ -68,12 +93,12 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
     return;
   }
 
-  const { contentType, content, mediaUrl, mediaType, senderId } = parsed.data;
+  const { contentType, content, mediaUrl, mediaType, senderId, senderName: bodySenderName } = parsed.data;
   const isNote = contentType === "note";
 
-  // Resolve sender name
-  let senderName: string | null = null;
-  if (senderId) {
+  // Resolve sender name: prefer body value, then lookup from DB
+  let senderName: string | null = bodySenderName ?? null;
+  if (!senderName && senderId) {
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, senderId));
     senderName = user?.name ?? null;
   }
@@ -82,7 +107,7 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
     conversationId: params.data.conversationId,
     senderType: "agent",
     senderId: senderId ?? null,
-    direction: isNote ? "outbound" : "outbound",
+    direction: "outbound",
     contentType,
     content: content ?? null,
     mediaUrl: mediaUrl ?? null,
@@ -96,6 +121,39 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
     .update(conversationsTable)
     .set({ lastMessageAt: new Date(), updatedAt: new Date() })
     .where(eq(conversationsTable.id, params.data.conversationId));
+
+  // Send to WhatsApp Cloud API (skip for notes and non-text for now)
+  if (!isNote && contentType === "text" && content) {
+    try {
+      const [conv] = await db
+        .select()
+        .from(conversationsTable)
+        .where(eq(conversationsTable.id, params.data.conversationId));
+      if (conv) {
+        const [channel] = await db
+          .select()
+          .from(channelsTable)
+          .where(eq(channelsTable.id, conv.channelId));
+        const [contact] = await db
+          .select()
+          .from(contactsTable)
+          .where(eq(contactsTable.id, conv.contactId));
+        if (channel && contact && channel.channelType === "whatsapp" && channel.accessToken && channel.externalId && contact.phone) {
+          const waRes = await sendWhatsAppMessage(channel, contact, content);
+          if (waRes.messages?.[0]?.id) {
+            await db
+              .update(messagesTable)
+              .set({ externalMessageId: waRes.messages[0].id })
+              .where(eq(messagesTable.id, message.id));
+            logger.info({ messageId: message.id, waId: waRes.messages[0].id }, "WhatsApp message sent");
+          }
+        }
+      }
+    } catch (err) {
+      // Log but don't fail — message is already saved
+      logger.error({ err, messageId: message.id }, "Failed to send WhatsApp message");
+    }
+  }
 
   res.status(201).json({ ...toDto(message), senderName });
 });
