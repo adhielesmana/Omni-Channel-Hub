@@ -264,36 +264,42 @@ export default function Users() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(user)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteConfirmId(user.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                        {showReset ? (
-                          <div className="flex items-center gap-1">
-                            <span className="text-xs font-mono text-amber-600 bg-amber-50 px-2 py-1 rounded max-w-[120px] truncate" title={resetPassword!}>
-                              {resetPassword}
-                            </span>
-                            <button
-                              onClick={() => copyToClipboard(resetPassword!)}
-                              className="p-1 hover:bg-muted rounded cursor-pointer"
-                              title="Copy password"
-                            >
-                              {copied ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
-                            </button>
-                          </div>
+                        {(user as any).isSuperadmin ? (
+                          <span className="text-xs text-muted-foreground italic mr-2">Locked</span>
                         ) : (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="gap-1.5 text-xs h-7"
-                            onClick={() => handleResetPassword(user.id)}
-                            disabled={resetUserPassword.isPending && resetUserId === user.id}
-                          >
-                            <Key className="w-3 h-3" />
-                            Reset
-                          </Button>
+                          <>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(user)}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteConfirmId(user.id)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                            {showReset ? (
+                              <div className="flex items-center gap-1">
+                                <span className="text-xs font-mono text-amber-600 bg-amber-50 px-2 py-1 rounded max-w-[120px] truncate" title={resetPassword!}>
+                                  {resetPassword}
+                                </span>
+                                <button
+                                  onClick={() => copyToClipboard(resetPassword!)}
+                                  className="p-1 hover:bg-muted rounded cursor-pointer"
+                                  title="Copy password"
+                                >
+                                  {copied ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
+                                </button>
+                              </div>
+                            ) : (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="gap-1.5 text-xs h-7"
+                                onClick={() => handleResetPassword(user.id)}
+                                disabled={resetUserPassword.isPending && resetUserId === user.id}
+                              >
+                                <Key className="w-3 h-3" />
+                                Reset
+                              </Button>
+                            )}
+                          </>
                         )}
                       </div>
                     </TableCell>

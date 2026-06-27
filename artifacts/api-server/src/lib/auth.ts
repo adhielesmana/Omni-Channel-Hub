@@ -5,6 +5,23 @@ const SALT_ROUNDS = 10;
 const TOKEN_BYTES = 32;
 const ACTIVE_TOKENS = new Map<string, { userId: number; expiresAt: number }>();
 
+export const SUPERADMIN_ID = -1;
+export const SUPERADMIN = {
+  id: SUPERADMIN_ID,
+  name: "Super Admin",
+  email: "adhielesmana",
+  role: "admin",
+  isSuperadmin: true,
+  isActive: true,
+  departmentId: null,
+  avatarUrl: null,
+  createdAt: new Date("2024-01-01"),
+} as const;
+
+export function isSuperadmin(userId: number): boolean {
+  return userId === SUPERADMIN_ID;
+}
+
 export function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, SALT_ROUNDS);
 }
