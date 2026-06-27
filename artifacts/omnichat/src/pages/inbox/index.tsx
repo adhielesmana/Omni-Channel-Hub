@@ -514,7 +514,7 @@ export default function Inbox() {
                 <span className="text-xs font-medium text-amber-700">Internal note — not visible to customer</span>
               </div>
             )}
-            <div className="flex gap-2">
+            <div className="flex items-start gap-2">
               <div className="relative flex-1">
                 <textarea
                   placeholder={composerMode === "note" ? "Write an internal note..." : "Type a message..."}
@@ -527,16 +527,14 @@ export default function Inbox() {
                   onKeyDown={handleKeyDown}
                 />
               </div>
-              <div className="flex flex-col justify-end gap-2">
-                <Button
-                  className="w-12 h-12 rounded-xl"
-                  size="icon"
-                  onClick={handleSend}
-                  disabled={!messageText.trim() || sendMessage.isPending}
-                >
-                  <Send className="w-5 h-5" />
-                </Button>
-              </div>
+              <Button
+                className="w-12 h-12 shrink-0 rounded-xl"
+                size="icon"
+                onClick={handleSend}
+                disabled={!messageText.trim() || sendMessage.isPending}
+              >
+                <Send className="w-5 h-5" />
+              </Button>
             </div>
             <div className="flex items-center justify-between mt-2 px-1 text-xs text-muted-foreground">
               <div className="flex gap-3">
