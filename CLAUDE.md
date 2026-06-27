@@ -71,9 +71,6 @@ Drizzle ORM manages the schema. Table definitions live in `lib/db/src/schema/`.
 ```bash
 # Push schema changes to PostgreSQL
 pnpm --filter @workspace/db run push
-
-# (Optional) Seed demo data
-pnpm --filter @workspace/scripts run seed
 ```
 
 ## Key Files

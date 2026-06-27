@@ -33,7 +33,6 @@ services:
       sh -c "
         psql -h postgres -U ${POSTGRES_USER} -d ${POSTGRES_DB} -f /migrations/001_initial_schema.sql &&
         psql -h postgres -U ${POSTGRES_USER} -d ${POSTGRES_DB} -f /migrations/002_updated_at_trigger.sql &&
-        psql -h postgres -U ${POSTGRES_USER} -d ${POSTGRES_DB} -f /migrations/003_seed_demo_data.sql &&
         echo 'Migrations complete.'
       "
     networks: [omnichat]
