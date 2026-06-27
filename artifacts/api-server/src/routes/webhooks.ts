@@ -262,42 +262,33 @@ async function fetchMessengerUserProfile(
 }
 
 /**
- * Fetch an Instagram user's name and profile picture using the Page
- * Conversations API (since the IGSID profile endpoint requires
- * instagram_basic permission most tokens don't have).
- *
- * We scan the page's conversation list for a thread whose participant
- * IGSID matches the sender, then read username + profile_picture.
+ * Fetch an Instagram user's name and profile picture from Meta's
+ * Graph API using their IGSID.  The /{id}?fields=name,profile_pic
+ * endpoint works for both Facebook PSIDs and Instagram IGSIDs.
  */
 async function fetchInstagramUserProfile(
   igsid: string,
-  pageId: string | null | undefined,
+  _pageId: string | null | undefined,
   accessToken: string | null | undefined
 ): Promise<{ name?: string; profilePic?: string }> {
-  if (!pageId || !accessToken) return {};
+  if (!accessToken) return {};
   try {
     const res = await fetch(
-      `https://graph.facebook.com/v18.0/${pageId}/conversations?fields=participants{username,profile_picture}&access_token=${encodeURIComponent(accessToken)}&limit=50`
+      `https://graph.facebook.com/v18.0/${igsid}?fields=name,profile_pic&access_token=${encodeURIComponent(accessToken)}`
     );
     const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-    const conversations = (data.data as Array<Record<string, unknown>>) ?? [];
-    for (const conv of conversations) {
-      const participants = (conv.participants as Record<string, unknown>)?.data as Array<Record<string, unknown>>;
-      if (!participants) continue;
-      for (const p of participants) {
-        if (String(p.id) === igsid) {
-          const username = (p.username || p.name) as string | undefined;
-          const profilePic = p.profile_picture as string | undefined;
-          if (username) {
-            logger.info({ igsid, username }, "Found Instagram username from page conversations");
-            return { name: username, profilePic };
-          }
-        }
-      }
+    if (data.error) {
+      logger.warn({ igsid, error: data.error }, "Instagram profile API returned error");
+      return {};
     }
-    logger.info({ igsid, conversationsCount: conversations.length }, "Instagram username not found in conversations");
+    const name = data.name as string | undefined;
+    const profilePic = data.profile_pic as string | undefined;
+    if (name) {
+      logger.info({ igsid, name }, "Fetched Instagram user profile");
+    }
+    return { name, profilePic };
   } catch (err) {
-    logger.warn({ err, igsid }, "Failed to fetch Instagram user profile from conversations");
+    logger.warn({ err, igsid }, "Failed to fetch Instagram user profile");
   }
   return {};
 }
