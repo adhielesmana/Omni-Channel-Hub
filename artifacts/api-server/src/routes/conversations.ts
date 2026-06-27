@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and, or, desc } from "drizzle-orm";
+import { eq, and, or, desc, isNull, type SQL } from "drizzle-orm";
 import { db, conversationsTable, contactsTable, channelsTable, usersTable, departmentsTable, messagesTable } from "@workspace/db";
 import {
   ListConversationsResponse,
@@ -72,25 +72,28 @@ router.get("/conversations", requireAuth, async (req, res): Promise<void> => {
   if (assignedAgentId) conditions.push(eq(conversationsTable.assignedAgentId, Number(assignedAgentId)));
   if (channelType) conditions.push(eq(conversationsTable.channelType, channelType as "whatsapp" | "instagram" | "facebook"));
 
-  // Department-based visibility
+  // Department-based visibility: agents and supervisors in a department
+  // see all conversations in their department + all unassigned ones.
   const [currentUser] = await db
     .select({ role: usersTable.role, departmentId: usersTable.departmentId })
     .from(usersTable)
     .where(eq(usersTable.id, req.userId!));
   if (currentUser && currentUser.role !== "admin") {
-    if (currentUser.role === "agent") {
-      // Agents see ONLY conversations assigned to them
-      conditions.push(eq(conversationsTable.assignedAgentId, req.userId!));
-    } else if (currentUser.role === "supervisor") {
-      // Supervisors see their own + all conversations in their department
-      const visibilityConditions: ReturnType<typeof eq>[] = [
-        eq(conversationsTable.assignedAgentId, req.userId!),
-      ];
-      if (currentUser.departmentId) {
-        visibilityConditions.push(eq(conversationsTable.departmentId, currentUser.departmentId));
-      }
-      conditions.push(or(...visibilityConditions));
+    const visConditions: SQL[] = [
+      eq(conversationsTable.assignedAgentId, req.userId!),
+    ];
+    if (currentUser.departmentId) {
+      visConditions.push(eq(conversationsTable.departmentId, currentUser.departmentId));
     }
+    // Everyone can see unassigned conversations (no department, no assigned agent)
+    const unassignedCondition = and(
+      isNull(conversationsTable.departmentId),
+      isNull(conversationsTable.assignedAgentId)
+    );
+    if (unassignedCondition) {
+      visConditions.push(unassignedCondition);
+    }
+    conditions.push(or(...visConditions));
   }
 
   const convs = conditions.length
