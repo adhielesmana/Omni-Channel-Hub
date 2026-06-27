@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { useChangePassword, useUpdateUser } from "@workspace/api-client-react";
+import { customFetch, useChangePassword, useUpdateUser } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/context/AuthContext";
 
@@ -73,13 +73,10 @@ function ProfileSection() {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const res = await fetch("/api/upload", {
+      const data = await customFetch<{ url: string }>("/api/upload", {
         method: "POST",
-        headers: { Authorization: `Bearer ${localStorage.getItem("omnichat_token")}` },
         body: formData,
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
 
       setAvatarUrl(data.url);
 
@@ -95,7 +92,13 @@ function ProfileSection() {
         );
       }
     } catch (err) {
-      console.error("Upload failed", err);
+      const status =
+        typeof err === "object" && err !== null && "status" in err
+          ? (err as { status?: unknown }).status
+          : undefined;
+      if (status !== 401) {
+        console.error("Upload failed", err);
+      }
     } finally {
       setUploading(false);
     }

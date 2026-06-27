@@ -1,7 +1,9 @@
-import { Switch, Route, Router as WouterRouter, Redirect } from "wouter";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
+import { Switch, Route, Router as WouterRouter, Redirect, useLocation } from "wouter";
+import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { toast } from "@/hooks/use-toast";
 import NotFound from "@/pages/not-found";
 
 import { AuthProvider, useAuth } from "@/context/AuthContext";
@@ -18,6 +20,10 @@ import Settings from "@/pages/settings";
 import PrivacyPolicy from "@/pages/privacy";
 import TermsOfService from "@/pages/terms";
 import DataDeletion from "@/pages/data-deletion";
+import {
+  AUTH_SESSION_EXPIRED_EVENT,
+  type AuthSessionExpiredDetail,
+} from "@workspace/api-client-react";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -36,6 +42,40 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
       <Component />
     </AppLayout>
   );
+}
+
+function AuthSessionListener() {
+  const { token, logout } = useAuth();
+  const queryClient = useQueryClient();
+  const [, navigate] = useLocation();
+  const handledRef = useRef(false);
+
+  useEffect(() => {
+    handledRef.current = false;
+
+    const handleSessionExpired = (event: Event) => {
+      const detail = (event as CustomEvent<AuthSessionExpiredDetail>).detail;
+      if (!detail || detail.status !== 401 || handledRef.current || !token) {
+        return;
+      }
+
+      handledRef.current = true;
+      logout();
+      queryClient.clear();
+      toast({
+        title: "Session expired",
+        description: "Please sign in again to continue.",
+      });
+      navigate("/?reason=session-expired", { replace: true });
+    };
+
+    window.addEventListener(AUTH_SESSION_EXPIRED_EVENT, handleSessionExpired);
+    return () => {
+      window.removeEventListener(AUTH_SESSION_EXPIRED_EVENT, handleSessionExpired);
+    };
+  }, [logout, navigate, queryClient, token]);
+
+  return null;
 }
 
 function Router() {
@@ -86,6 +126,7 @@ function App() {
       <AuthProvider>
         <TooltipProvider>
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+            <AuthSessionListener />
             <Router />
           </WouterRouter>
           <Toaster />
