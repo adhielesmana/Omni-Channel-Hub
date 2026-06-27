@@ -9,6 +9,7 @@ import conversationsRouter from "./conversations";
 import messagesRouter from "./messages";
 import webhooksRouter from "./webhooks";
 import statsRouter from "./stats";
+import mediaRouter from "./media";
 
 const router: IRouter = Router();
 
@@ -22,5 +23,6 @@ router.use(conversationsRouter);
 router.use(messagesRouter);
 router.use(webhooksRouter);
 router.use(statsRouter);
+router.use(mediaRouter);
 
 export default router;

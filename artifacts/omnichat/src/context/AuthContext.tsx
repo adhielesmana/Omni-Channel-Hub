@@ -7,6 +7,8 @@ export interface AuthUser {
   email: string;
   role: "admin" | "supervisor" | "agent";
   initials: string;
+  avatarUrl: string | null;
+  departmentId: number | null;
 }
 
 interface AuthContextValue {
@@ -64,6 +66,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           name: data.user.name,
           email: data.user.email,
           role: data.user.role,
+          avatarUrl: data.user.avatarUrl ?? null,
+          departmentId: data.user.departmentId ?? null,
           initials: data.user.name
             ?.split(" ")
             .map((s: string) => s[0])

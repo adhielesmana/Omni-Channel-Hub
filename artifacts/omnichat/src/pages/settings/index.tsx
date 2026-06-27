@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Bell, Globe, Link2, Repeat2, Shield, Sliders, Webhook, ChevronRight, Check, Copy, RefreshCw, Lock, Eye, EyeOff, Settings as SettingsIcon } from "lucide-react";
+import { useState, useRef } from "react";
+import { Bell, Globe, Link2, Repeat2, Shield, Sliders, Webhook, ChevronRight, Check, Copy, RefreshCw, Lock, Eye, EyeOff, Settings as SettingsIcon, User, Upload } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -8,10 +8,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useChangePassword } from "@workspace/api-client-react";
 import { useAuth } from "@/context/AuthContext";
 
 const SECTIONS = [
+  { id: "profile", label: "Profile", icon: User },
   { id: "workspace", label: "Workspace", icon: Globe },
   { id: "notifications", label: "Notifications", icon: Bell },
   { id: "routing", label: "Routing Rules", icon: Repeat2 },
@@ -46,6 +48,81 @@ function SettingRow({
         {description && <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{description}</p>}
       </div>
       <div className="flex-shrink-0">{children}</div>
+    </div>
+  );
+}
+
+function ProfileSection() {
+  const { user } = useAuth();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.avatarUrl ?? null);
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/media/upload", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${localStorage.getItem("omnichat_token")}` },
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setAvatarUrl(data.url);
+    } catch (err) {
+      console.error("Upload failed", err);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div>
+      <SectionHeader
+        title="Profile"
+        description="Manage your personal profile information."
+      />
+      <div className="space-y-1 divide-y divide-border">
+        <SettingRow label="Avatar" description="Upload a profile picture. JPG, PNG, GIF, WebP, SVG up to 10MB.">
+          <div className="flex items-center gap-3">
+            <Avatar className="w-12 h-12 border-2 border-border">
+              {avatarUrl ? <AvatarImage src={avatarUrl} alt={user?.name} /> : null}
+              <AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
+                {user?.initials ?? "??"}
+              </AvatarFallback>
+            </Avatar>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleFileChange}
+            />
+            <Button variant="outline" size="sm" className="gap-1.5 h-8" onClick={handleUploadClick} disabled={uploading}>
+              <Upload className="w-3.5 h-3.5" />
+              {uploading ? "Uploading..." : "Change photo"}
+            </Button>
+          </div>
+        </SettingRow>
+        <SettingRow label="Name" description="Your display name shown across the platform.">
+          <span className="text-sm font-medium">{user?.name}</span>
+        </SettingRow>
+        <SettingRow label="Email" description="Your login email address.">
+          <span className="text-sm text-muted-foreground">{user?.email}</span>
+        </SettingRow>
+        <SettingRow label="Role" description="Your access level in the workspace.">
+          <Badge variant="outline" className="capitalize text-xs">{user?.role}</Badge>
+        </SettingRow>
+      </div>
     </div>
   );
 }
@@ -608,6 +685,7 @@ function AdvancedSection() {
 }
 
 const SECTION_CONTENT: Record<string, React.ReactNode> = {
+  profile: <ProfileSection />,
   workspace: <WorkspaceSection />,
   notifications: <NotificationsSection />,
   routing: <RoutingSection />,

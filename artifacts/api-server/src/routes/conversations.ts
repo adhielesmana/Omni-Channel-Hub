@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, or, desc } from "drizzle-orm";
 import { db, conversationsTable, contactsTable, channelsTable, usersTable, departmentsTable, messagesTable } from "@workspace/db";
 import {
   ListConversationsResponse,
@@ -18,6 +18,7 @@ import {
   ReopenConversationParams,
   ReopenConversationResponse,
 } from "@workspace/api-zod";
+import { requireAuth } from "../middlewares/auth";
 
 const router: IRouter = Router();
 
@@ -55,7 +56,7 @@ async function buildConversationDto(conv: typeof conversationsTable.$inferSelect
   };
 }
 
-router.get("/conversations", async (req, res): Promise<void> => {
+router.get("/conversations", requireAuth, async (req, res): Promise<void> => {
   const qp = ListConversationsQueryParams.safeParse(req.query);
   if (!qp.success) {
     res.status(400).json({ error: qp.error.message });
@@ -70,6 +71,21 @@ router.get("/conversations", async (req, res): Promise<void> => {
   if (departmentId) conditions.push(eq(conversationsTable.departmentId, Number(departmentId)));
   if (assignedAgentId) conditions.push(eq(conversationsTable.assignedAgentId, Number(assignedAgentId)));
   if (channelType) conditions.push(eq(conversationsTable.channelType, channelType as "whatsapp" | "instagram" | "facebook"));
+
+  // Department-based visibility: agents see their own + department conversations
+  const [currentUser] = await db
+    .select({ role: usersTable.role, departmentId: usersTable.departmentId })
+    .from(usersTable)
+    .where(eq(usersTable.id, req.userId!));
+  if (currentUser && currentUser.role !== "admin") {
+    const visibilityConditions: ReturnType<typeof eq>[] = [
+      eq(conversationsTable.assignedAgentId, req.userId!),
+    ];
+    if (currentUser.departmentId) {
+      visibilityConditions.push(eq(conversationsTable.departmentId, currentUser.departmentId));
+    }
+    conditions.push(or(...visibilityConditions));
+  }
 
   const convs = conditions.length
     ? await db.select().from(conversationsTable).where(and(...conditions)).orderBy(desc(conversationsTable.updatedAt))

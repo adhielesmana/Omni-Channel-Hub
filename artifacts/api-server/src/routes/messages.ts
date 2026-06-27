@@ -8,6 +8,8 @@ import {
   SendMessageBody,
 } from "@workspace/api-zod";
 import { logger } from "../lib/logger";
+import { requireAuth } from "../middlewares/auth";
+import { isSuperadmin } from "../lib/auth";
 
 const router: IRouter = Router();
 
@@ -80,7 +82,7 @@ router.get("/conversations/:conversationId/messages", async (req, res): Promise<
   res.json(ListMessagesResponse.parse(enriched));
 });
 
-router.post("/conversations/:conversationId/messages", async (req, res): Promise<void> => {
+router.post("/conversations/:conversationId/messages", requireAuth, async (req, res): Promise<void> => {
   const rawId = Array.isArray(req.params.conversationId) ? req.params.conversationId[0] : req.params.conversationId;
   const params = SendMessageParams.safeParse({ conversationId: parseInt(rawId, 10) });
   if (!params.success) {
@@ -94,20 +96,21 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
     return;
   }
 
-  const { contentType, content, mediaUrl, mediaType, senderId, senderName: bodySenderName } = parsed.data;
+  const { contentType, content, mediaUrl, mediaType, senderName: bodySenderName } = parsed.data;
   const isNote = contentType === "note";
+  const effectiveSenderId = req.userId!;
 
   // Resolve sender name: prefer body value, then lookup from DB
   let senderName: string | null = bodySenderName ?? null;
-  if (!senderName && senderId) {
-    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, senderId));
+  if (!senderName) {
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, effectiveSenderId));
     senderName = user?.name ?? null;
   }
 
   let [message] = await db.insert(messagesTable).values({
     conversationId: params.data.conversationId,
     senderType: "agent",
-    senderId: senderId ?? null,
+    senderId: effectiveSenderId,
     direction: "outbound",
     contentType,
     content: content ?? null,
@@ -117,11 +120,34 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
     senderName,
   }).returning();
 
-  // Update conversation lastMessageAt
-  await db
-    .update(conversationsTable)
-    .set({ lastMessageAt: new Date(), updatedAt: new Date() })
+  // Auto-assign conversation to the replying agent if unassigned
+  const [conv] = await db
+    .select()
+    .from(conversationsTable)
     .where(eq(conversationsTable.id, params.data.conversationId));
+
+  if (conv) {
+    const updateFields: Record<string, unknown> = { lastMessageAt: new Date(), updatedAt: new Date() };
+
+    if (!conv.assignedAgentId) {
+      updateFields["assignedAgentId"] = effectiveSenderId;
+    }
+
+    if (!conv.departmentId && !isSuperadmin(effectiveSenderId)) {
+      const [agentUser] = await db
+        .select({ departmentId: usersTable.departmentId })
+        .from(usersTable)
+        .where(eq(usersTable.id, effectiveSenderId));
+      if (agentUser?.departmentId) {
+        updateFields["departmentId"] = agentUser.departmentId;
+      }
+    }
+
+    await db
+      .update(conversationsTable)
+      .set(updateFields)
+      .where(eq(conversationsTable.id, params.data.conversationId));
+  }
 
   // Send to WhatsApp Cloud API (skip for notes and non-text for now)
   if (!isNote && contentType === "text" && content) {

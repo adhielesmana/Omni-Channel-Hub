@@ -55,6 +55,8 @@ services:
       PORT: 8080
       DATABASE_URL: ${DATABASE_URL}
       SESSION_SECRET: ${SESSION_SECRET}
+    volumes:
+      - media_data:/app/media
     healthcheck:
       test: ["CMD-SHELL","wget -qO- http://localhost:8080/api/healthz || exit 1"]
       interval: 10s
@@ -88,6 +90,7 @@ services:
 
 volumes:
   postgres_data:
+  media_data:
 
 networks:
   omnichat:
