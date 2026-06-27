@@ -471,9 +471,12 @@ export default function Inbox() {
                       }`}>
                         {isNote && <div className="text-[10px] font-bold uppercase tracking-wider mb-1 opacity-70">Internal Note</div>}
                         {renderMessageContent(msg)}
-                        <div className={`flex items-center justify-end gap-1 mt-1 text-[10px] ${
+                        <div className={`flex items-center justify-end gap-1.5 mt-1 text-[10px] ${
                           isInbound ? 'text-muted-foreground' : 'text-primary-foreground/70'
                         }`}>
+                          {!isInbound && !isNote && msg.senderName && (
+                            <span className="font-medium opacity-80">{msg.senderName}</span>
+                          )}
                           {new Date(msg.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                           {!isInbound && !isNote && (
                             msg.deliveryStatus === 'read' ? (
