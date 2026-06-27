@@ -427,29 +427,45 @@ export default function Channels() {
               <Input defaultValue={activeChannel?.name ?? ""} id="edit-name" />
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <Label className="flex items-center gap-1.5">
-                <Fingerprint className="w-3.5 h-3.5 text-muted-foreground" />
-                Phone Number ID
-              </Label>
-              <Input defaultValue={activeChannel?.externalId ?? ""} id="edit-externalId" />
-            </div>
+            {/* WhatsApp fields */}
+            {activeChannel?.channelType === "whatsapp" && (
+              <>
+                <div className="flex flex-col gap-1.5">
+                  <Label className="flex items-center gap-1.5">
+                    <Fingerprint className="w-3.5 h-3.5 text-muted-foreground" />
+                    Phone Number ID
+                  </Label>
+                  <Input defaultValue={activeChannel?.externalId ?? ""} id="edit-externalId" />
+                </div>
 
-            <div className="flex flex-col gap-1.5">
-              <Label className="flex items-center gap-1.5">
-                <Hash className="w-3.5 h-3.5 text-muted-foreground" />
-                WABA ID
-              </Label>
-              <Input defaultValue={activeChannel?.wabaId ?? ""} id="edit-wabaId" />
-            </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label className="flex items-center gap-1.5">
+                    <Hash className="w-3.5 h-3.5 text-muted-foreground" />
+                    WABA ID
+                  </Label>
+                  <Input defaultValue={activeChannel?.wabaId ?? ""} id="edit-wabaId" />
+                </div>
 
-            <div className="flex flex-col gap-1.5">
-              <Label className="flex items-center gap-1.5">
-                <Phone className="w-3.5 h-3.5 text-muted-foreground" />
-                Phone number
-              </Label>
-              <Input defaultValue={activeChannel?.phoneNumber ?? ""} id="edit-phoneNumber" />
-            </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label className="flex items-center gap-1.5">
+                    <Phone className="w-3.5 h-3.5 text-muted-foreground" />
+                    Phone number
+                  </Label>
+                  <Input defaultValue={activeChannel?.phoneNumber ?? ""} id="edit-phoneNumber" />
+                </div>
+              </>
+            )}
+
+            {/* Facebook / Instagram fields */}
+            {(activeChannel?.channelType === "facebook" || activeChannel?.channelType === "instagram") && (
+              <div className="flex flex-col gap-1.5">
+                <Label className="flex items-center gap-1.5">
+                  <Hash className="w-3.5 h-3.5 text-muted-foreground" />
+                  {activeChannel?.channelType === "instagram" ? "Instagram" : "Facebook"} Page ID
+                </Label>
+                <Input defaultValue={activeChannel?.pageId ?? ""} id="edit-pageId" />
+              </div>
+            )}
 
             <div className="flex flex-col gap-1.5">
               <Label className="flex items-center gap-1.5">
@@ -477,6 +493,7 @@ export default function Channels() {
                 const externalId = (document.getElementById("edit-externalId") as HTMLInputElement)?.value;
                 const wabaId = (document.getElementById("edit-wabaId") as HTMLInputElement)?.value;
                 const phoneNumber = (document.getElementById("edit-phoneNumber") as HTMLInputElement)?.value;
+                const pageId = (document.getElementById("edit-pageId") as HTMLInputElement)?.value;
                 const accessToken = (document.getElementById("edit-accessToken") as HTMLInputElement)?.value;
                 const webhookVerifyToken = (document.getElementById("edit-webhookVerifyToken") as HTMLInputElement)?.value;
 
@@ -485,17 +502,24 @@ export default function Channels() {
                   return;
                 }
 
+                const data: Record<string, unknown> = {
+                  name: name.trim(),
+                  accessToken: accessToken?.trim() || undefined,
+                  webhookVerifyToken: webhookVerifyToken?.trim() || undefined,
+                };
+
+                if (activeChannel.channelType === "whatsapp") {
+                  data.externalId = externalId?.trim() || undefined;
+                  data.wabaId = wabaId?.trim() || undefined;
+                  data.phoneNumber = phoneNumber?.trim() || undefined;
+                } else {
+                  data.pageId = pageId?.trim() || undefined;
+                }
+
                 updateChannel.mutate(
                   {
                     id: activeChannel.id,
-                    data: {
-                      name: name.trim(),
-                      externalId: externalId?.trim() || undefined,
-                      wabaId: wabaId?.trim() || undefined,
-                      phoneNumber: phoneNumber?.trim() || undefined,
-                      accessToken: accessToken?.trim() || undefined,
-                      webhookVerifyToken: webhookVerifyToken?.trim() || undefined,
-                    },
+                    data,
                   },
                   {
                     onSuccess: () => {
