@@ -481,9 +481,10 @@ docker compose exec -e PGPASSWORD=$POSTGRES_PASSWORD postgres \
 ### Load demo / seed data
 
 ```bash
-docker compose exec -e PGPASSWORD=$POSTGRES_PASSWORD postgres \
-    psql -U omnichat -d omnichat -f /dev/stdin < migrations/003_seed_demo_data.sql
+pnpm --filter @workspace/scripts run seed
 ```
+
+This seeds a deterministic local fixture with test users, contacts, conversations, and messages. It is the recommended path for browser testing and local demos.
 
 ---
 

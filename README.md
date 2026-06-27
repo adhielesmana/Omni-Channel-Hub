@@ -439,7 +439,7 @@ pnpm install
 # Push DB schema to PostgreSQL (creates tables)
 pnpm --filter @workspace/db run push
 
-# (Optional) Seed demo data
+# (Optional) Seed the local demo fixture
 pnpm --filter @workspace/scripts run seed
 ```
 

@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and, or, desc } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { db, conversationsTable, contactsTable, channelsTable, usersTable, departmentsTable, messagesTable } from "@workspace/db";
 import {
   ListConversationsResponse,
@@ -19,6 +19,7 @@ import {
   ReopenConversationResponse,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/auth";
+import { canViewConversation, getAssignedAgentDepartment, getAssignedAgentDepartmentMap, loadConversationViewer } from "../lib/conversation-access";
 
 const router: IRouter = Router();
 
@@ -65,6 +66,11 @@ router.get("/conversations", requireAuth, async (req, res): Promise<void> => {
 
   const { status, channelId, departmentId, assignedAgentId, channelType } = qp.data;
   const conditions = [];
+  const viewer = await loadConversationViewer(req.userId!);
+  if (!viewer) {
+    res.status(401).json({ error: "User not found" });
+    return;
+  }
 
   if (status) conditions.push(eq(conversationsTable.status, status as "open" | "pending" | "resolved" | "snoozed"));
   if (channelId) conditions.push(eq(conversationsTable.channelId, Number(channelId)));
@@ -72,26 +78,23 @@ router.get("/conversations", requireAuth, async (req, res): Promise<void> => {
   if (assignedAgentId) conditions.push(eq(conversationsTable.assignedAgentId, Number(assignedAgentId)));
   if (channelType) conditions.push(eq(conversationsTable.channelType, channelType as "whatsapp" | "instagram" | "facebook"));
 
-  // Department-based visibility: agents see their own + department conversations
-  const [currentUser] = await db
-    .select({ role: usersTable.role, departmentId: usersTable.departmentId })
-    .from(usersTable)
-    .where(eq(usersTable.id, req.userId!));
-  if (currentUser && currentUser.role !== "admin") {
-    const visibilityConditions: ReturnType<typeof eq>[] = [
-      eq(conversationsTable.assignedAgentId, req.userId!),
-    ];
-    if (currentUser.departmentId) {
-      visibilityConditions.push(eq(conversationsTable.departmentId, currentUser.departmentId));
-    }
-    conditions.push(or(...visibilityConditions));
-  }
-
   const convs = conditions.length
     ? await db.select().from(conversationsTable).where(and(...conditions)).orderBy(desc(conversationsTable.updatedAt))
     : await db.select().from(conversationsTable).orderBy(desc(conversationsTable.updatedAt));
 
-  const dtos = await Promise.all(convs.map(buildConversationDto));
+  const visibleConvs = viewer.role === "admin"
+    ? convs
+    : await (async () => {
+        const assignedAgentIds = Array.from(
+          new Set(convs.map((conv) => conv.assignedAgentId).filter((assignedAgentId): assignedAgentId is number => assignedAgentId != null))
+        );
+        const assignedAgentDepartments = await getAssignedAgentDepartmentMap(assignedAgentIds);
+        return convs.filter((conv) =>
+          canViewConversation(conv, viewer, assignedAgentDepartments.get(conv.assignedAgentId ?? -1) ?? null)
+        );
+      })();
+
+  const dtos = await Promise.all(visibleConvs.map(buildConversationDto));
   res.json(ListConversationsResponse.parse(dtos));
 });
 
@@ -106,11 +109,16 @@ router.post("/conversations", async (req, res): Promise<void> => {
   res.status(201).json(GetConversationResponse.parse(dto));
 });
 
-router.get("/conversations/:id", async (req, res): Promise<void> => {
+router.get("/conversations/:id", requireAuth, async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const params = GetConversationParams.safeParse({ id: parseInt(raw, 10) });
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const viewer = await loadConversationViewer(req.userId!);
+  if (!viewer) {
+    res.status(401).json({ error: "User not found" });
     return;
   }
   const [conv] = await db.select().from(conversationsTable).where(eq(conversationsTable.id, params.data.id));
@@ -118,11 +126,18 @@ router.get("/conversations/:id", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Conversation not found" });
     return;
   }
+  if (viewer.role !== "admin") {
+    const assignedAgentDepartmentId = await getAssignedAgentDepartment(conv.assignedAgentId);
+    if (!canViewConversation(conv, viewer, assignedAgentDepartmentId)) {
+      res.status(404).json({ error: "Conversation not found" });
+      return;
+    }
+  }
   const dto = await buildConversationDto(conv);
   res.json(GetConversationResponse.parse(dto));
 });
 
-router.patch("/conversations/:id", async (req, res): Promise<void> => {
+router.patch("/conversations/:id", requireAuth, async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const params = UpdateConversationParams.safeParse({ id: parseInt(raw, 10) });
   if (!params.success) {
@@ -134,6 +149,23 @@ router.patch("/conversations/:id", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+  const viewer = await loadConversationViewer(req.userId!);
+  if (!viewer) {
+    res.status(401).json({ error: "User not found" });
+    return;
+  }
+  const [existing] = await db.select().from(conversationsTable).where(eq(conversationsTable.id, params.data.id));
+  if (!existing) {
+    res.status(404).json({ error: "Conversation not found" });
+    return;
+  }
+  if (viewer.role !== "admin") {
+    const assignedAgentDepartmentId = await getAssignedAgentDepartment(existing.assignedAgentId);
+    if (!canViewConversation(existing, viewer, assignedAgentDepartmentId)) {
+      res.status(404).json({ error: "Conversation not found" });
+      return;
+    }
+  }
   const [conv] = await db.update(conversationsTable).set(parsed.data).where(eq(conversationsTable.id, params.data.id)).returning();
   if (!conv) {
     res.status(404).json({ error: "Conversation not found" });
@@ -143,7 +175,7 @@ router.patch("/conversations/:id", async (req, res): Promise<void> => {
   res.json(UpdateConversationResponse.parse(dto));
 });
 
-router.post("/conversations/:id/assign", async (req, res): Promise<void> => {
+router.post("/conversations/:id/assign", requireAuth, async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const params = AssignConversationParams.safeParse({ id: parseInt(raw, 10) });
   if (!params.success) {
@@ -155,9 +187,35 @@ router.post("/conversations/:id/assign", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+  const viewer = await loadConversationViewer(req.userId!);
+  if (!viewer) {
+    res.status(401).json({ error: "User not found" });
+    return;
+  }
+  const [existing] = await db.select().from(conversationsTable).where(eq(conversationsTable.id, params.data.id));
+  if (!existing) {
+    res.status(404).json({ error: "Conversation not found" });
+    return;
+  }
+  if (viewer.role !== "admin") {
+    const assignedAgentDepartmentId = await getAssignedAgentDepartment(existing.assignedAgentId);
+    if (!canViewConversation(existing, viewer, assignedAgentDepartmentId)) {
+      res.status(404).json({ error: "Conversation not found" });
+      return;
+    }
+  }
+
+  let departmentId = parsed.data.departmentId;
+  if (parsed.data.assignedAgentId != null && departmentId === undefined) {
+    departmentId = await getAssignedAgentDepartment(parsed.data.assignedAgentId);
+  }
+
   const [conv] = await db
     .update(conversationsTable)
-    .set({ departmentId: parsed.data.departmentId ?? undefined, assignedAgentId: parsed.data.assignedAgentId ?? undefined })
+    .set({
+      departmentId: departmentId ?? undefined,
+      assignedAgentId: parsed.data.assignedAgentId ?? undefined,
+    })
     .where(eq(conversationsTable.id, params.data.id))
     .returning();
   if (!conv) {
@@ -168,12 +226,29 @@ router.post("/conversations/:id/assign", async (req, res): Promise<void> => {
   res.json(AssignConversationResponse.parse(dto));
 });
 
-router.post("/conversations/:id/resolve", async (req, res): Promise<void> => {
+router.post("/conversations/:id/resolve", requireAuth, async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const params = ResolveConversationParams.safeParse({ id: parseInt(raw, 10) });
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
     return;
+  }
+  const viewer = await loadConversationViewer(req.userId!);
+  if (!viewer) {
+    res.status(401).json({ error: "User not found" });
+    return;
+  }
+  const [existing] = await db.select().from(conversationsTable).where(eq(conversationsTable.id, params.data.id));
+  if (!existing) {
+    res.status(404).json({ error: "Conversation not found" });
+    return;
+  }
+  if (viewer.role !== "admin") {
+    const assignedAgentDepartmentId = await getAssignedAgentDepartment(existing.assignedAgentId);
+    if (!canViewConversation(existing, viewer, assignedAgentDepartmentId)) {
+      res.status(404).json({ error: "Conversation not found" });
+      return;
+    }
   }
   const [conv] = await db
     .update(conversationsTable)
@@ -188,12 +263,29 @@ router.post("/conversations/:id/resolve", async (req, res): Promise<void> => {
   res.json(ResolveConversationResponse.parse(dto));
 });
 
-router.post("/conversations/:id/reopen", async (req, res): Promise<void> => {
+router.post("/conversations/:id/reopen", requireAuth, async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const params = ReopenConversationParams.safeParse({ id: parseInt(raw, 10) });
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
     return;
+  }
+  const viewer = await loadConversationViewer(req.userId!);
+  if (!viewer) {
+    res.status(401).json({ error: "User not found" });
+    return;
+  }
+  const [existing] = await db.select().from(conversationsTable).where(eq(conversationsTable.id, params.data.id));
+  if (!existing) {
+    res.status(404).json({ error: "Conversation not found" });
+    return;
+  }
+  if (viewer.role !== "admin") {
+    const assignedAgentDepartmentId = await getAssignedAgentDepartment(existing.assignedAgentId);
+    if (!canViewConversation(existing, viewer, assignedAgentDepartmentId)) {
+      res.status(404).json({ error: "Conversation not found" });
+      return;
+    }
   }
   const [conv] = await db
     .update(conversationsTable)

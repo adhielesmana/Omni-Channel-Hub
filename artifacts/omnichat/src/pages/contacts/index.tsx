@@ -5,7 +5,7 @@ import { Search, Pencil } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -115,9 +115,10 @@ export default function Contacts() {
             ) : (
               filtered?.map((contact) => (
                 <TableRow key={contact.id} className="hover:bg-muted/30 cursor-pointer">
-                  <TableCell className="font-medium">
+                    <TableCell className="font-medium">
                     <div className="flex items-center gap-3">
                       <Avatar className="h-8 w-8">
+                        {contact.avatarUrl ? <AvatarImage src={contact.avatarUrl} alt={contact.name} /> : null}
                         <AvatarFallback className="bg-primary/10 text-primary text-xs">
                           {contact.name?.substring(0, 2).toUpperCase() || "??"}
                         </AvatarFallback>

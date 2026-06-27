@@ -4,13 +4,14 @@ import { MessageSquare, Users, Building, Share2, BarChart2, Settings, UserCircle
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/context/AuthContext";
+import { canAccessAdminFeatures } from "@/lib/permissions";
 
 const NAV_ITEMS = [
   { href: "/inbox", icon: MessageSquare, label: "Inbox" },
   { href: "/contacts", icon: Users, label: "Contacts" },
-  { href: "/departments", icon: Building, label: "Depts" },
-  { href: "/channels", icon: Share2, label: "Channels" },
-  { href: "/users", icon: UserCircle, label: "Users" },
+  { href: "/departments", icon: Building, label: "Depts", adminOnly: true },
+  { href: "/channels", icon: Share2, label: "Channels", adminOnly: true },
+  { href: "/users", icon: UserCircle, label: "Users", adminOnly: true },
   { href: "/analytics", icon: BarChart2, label: "Analytics" },
 ];
 
@@ -18,6 +19,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const { user, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const hasAdminAccess = canAccessAdminFeatures(user);
+  const visibleNavItems = NAV_ITEMS.filter((item) => !item.adminOnly || hasAdminAccess);
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background text-foreground">
@@ -31,7 +34,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </Link>
 
           <div className="flex flex-col gap-2 w-full px-2">
-            {NAV_ITEMS.map((item) => {
+            {visibleNavItems.map((item) => {
               const isActive = location.startsWith(item.href);
               return (
                 <Tooltip key={item.href} delayDuration={0}>
@@ -83,7 +86,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <Tooltip delayDuration={0}>
               <TooltipTrigger asChild>
                 <Avatar className="w-10 h-10 border border-border cursor-pointer hover:opacity-80 transition-opacity">
-                  <AvatarImage src="" />
+                  <AvatarImage src={user?.avatarUrl ?? undefined} alt={user?.name ?? "Profile"} />
                   <AvatarFallback className="bg-primary/10 text-primary font-medium text-xs">
                     {user?.initials ?? "?"}
                   </AvatarFallback>
@@ -124,6 +127,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
             <div className="flex items-center gap-3 mb-4 pb-4 border-b">
               <Avatar className="w-10 h-10 border border-border">
+                <AvatarImage src={user?.avatarUrl ?? undefined} alt={user?.name ?? "Profile"} />
                 <AvatarFallback className="bg-primary/10 text-primary font-medium text-xs">
                   {user?.initials ?? "?"}
                 </AvatarFallback>
@@ -133,7 +137,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 <p className="text-xs text-sidebar-foreground/60 capitalize">{user?.role}</p>
               </div>
             </div>
-            {NAV_ITEMS.map((item) => {
+            {visibleNavItems.map((item) => {
               const isActive = location.startsWith(item.href);
               return (
                 <Link key={item.href} href={item.href} className="block" onClick={() => setMobileMenuOpen(false)}>

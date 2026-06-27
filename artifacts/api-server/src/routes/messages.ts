@@ -9,7 +9,7 @@ import {
 } from "@workspace/api-zod";
 import { logger } from "../lib/logger";
 import { requireAuth } from "../middlewares/auth";
-import { isSuperadmin } from "../lib/auth";
+import { canViewConversation, getAssignedAgentDepartment, loadConversationViewer } from "../lib/conversation-access";
 
 const router: IRouter = Router();
 
@@ -43,12 +43,34 @@ const toDto = (m: typeof messagesTable.$inferSelect) => ({
   deliveryStatus: m.deliveryStatus ?? "pending",
 });
 
-router.get("/conversations/:conversationId/messages", async (req, res): Promise<void> => {
+router.get("/conversations/:conversationId/messages", requireAuth, async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.conversationId) ? req.params.conversationId[0] : req.params.conversationId;
   const params = ListMessagesParams.safeParse({ conversationId: parseInt(raw, 10) });
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
     return;
+  }
+
+  const viewer = await loadConversationViewer(req.userId!);
+  if (!viewer) {
+    res.status(401).json({ error: "User not found" });
+    return;
+  }
+
+  const [conversation] = await db
+    .select()
+    .from(conversationsTable)
+    .where(eq(conversationsTable.id, params.data.conversationId));
+  if (!conversation) {
+    res.status(404).json({ error: "Conversation not found" });
+    return;
+  }
+  if (viewer.role !== "admin") {
+    const assignedAgentDepartmentId = await getAssignedAgentDepartment(conversation.assignedAgentId);
+    if (!canViewConversation(conversation, viewer, assignedAgentDepartmentId)) {
+      res.status(404).json({ error: "Conversation not found" });
+      return;
+    }
   }
 
   const messages = await db
@@ -99,6 +121,26 @@ router.post("/conversations/:conversationId/messages", requireAuth, async (req, 
   const { contentType, content, mediaUrl, mediaType, senderName: bodySenderName } = parsed.data;
   const isNote = contentType === "note";
   const effectiveSenderId = req.userId!;
+  const viewer = await loadConversationViewer(effectiveSenderId);
+  if (!viewer) {
+    res.status(401).json({ error: "User not found" });
+    return;
+  }
+
+  const [conv] = await db
+    .select()
+    .from(conversationsTable)
+    .where(eq(conversationsTable.id, params.data.conversationId));
+  if (!conv) {
+    res.status(404).json({ error: "Conversation not found" });
+    return;
+  }
+
+  const assignedAgentDepartmentId = await getAssignedAgentDepartment(conv.assignedAgentId);
+  if (viewer.role !== "admin" && !canViewConversation(conv, viewer, assignedAgentDepartmentId)) {
+    res.status(404).json({ error: "Conversation not found" });
+    return;
+  }
 
   // Resolve sender name: prefer body value, then lookup from DB
   let senderName: string | null = bodySenderName ?? null;
@@ -120,12 +162,6 @@ router.post("/conversations/:conversationId/messages", requireAuth, async (req, 
     senderName,
   }).returning();
 
-  // Auto-assign conversation to the replying agent if unassigned
-  const [conv] = await db
-    .select()
-    .from(conversationsTable)
-    .where(eq(conversationsTable.id, params.data.conversationId));
-
   if (conv) {
     const updateFields: Record<string, unknown> = { lastMessageAt: new Date(), updatedAt: new Date() };
 
@@ -133,7 +169,7 @@ router.post("/conversations/:conversationId/messages", requireAuth, async (req, 
       updateFields["assignedAgentId"] = effectiveSenderId;
     }
 
-    if (!conv.departmentId && !isSuperadmin(effectiveSenderId)) {
+    if (!conv.departmentId && viewer.role !== "admin") {
       const [agentUser] = await db
         .select({ departmentId: usersTable.departmentId })
         .from(usersTable)

@@ -4,6 +4,7 @@ import { db, channelsTable, contactsTable, conversationsTable, messagesTable } f
 import { logger } from "../lib/logger";
 import { downloadWhatsAppMedia } from "../lib/whatsapp-media";
 import { toTitleCase } from "../lib/string";
+import { fetchCustomerProfile } from "../lib/meta-profile";
 
 const router: IRouter = Router();
 
@@ -161,19 +162,28 @@ async function processWhatsAppEntry(entry: Record<string, unknown>) {
         }
       }
 
-      // Extract customer profile name and picture from webhook contacts array
+      // Extract customer profile name from the webhook contacts array when available.
       const waContacts = value.contacts as Array<Record<string, unknown>>;
       const waProfile = waContacts?.find((c: Record<string, unknown>) => c.wa_id === from);
       const waProfileData = waProfile ? (waProfile.profile as Record<string, unknown>) : undefined;
       const profileName = waProfileData?.name as string | undefined;
       const profilePicture = waProfileData ? (waProfileData.picture as Record<string, unknown>)?.data as { url?: string } | undefined : undefined;
-      const avatarUrl = profilePicture?.url ?? undefined;
+      const whatsappAvatarUrl = profilePicture?.url ?? undefined;
+
+      const remoteProfile = channel.channelType === "whatsapp"
+        ? null
+        : await fetchCustomerProfile(channel.channelType, from, channel.accessToken ?? "");
+      const remoteProfileName = remoteProfile?.name ?? null;
+      const remoteAvatarUrl = remoteProfile?.avatarUrl ?? null;
+
+      const avatarUrl = remoteAvatarUrl ?? whatsappAvatarUrl;
+      const contactName = remoteProfileName ?? profileName;
 
       // Find or create contact
       let contact = (await db.select().from(contactsTable).where(eq(contactsTable.externalId, from)))[0];
       if (!contact) {
         const contacts = await db.insert(contactsTable).values({
-          name: toTitleCase(profileName || from),
+          name: toTitleCase(contactName || from),
           phone: from,
           channelType: "whatsapp",
           externalId: from,
@@ -183,8 +193,8 @@ async function processWhatsAppEntry(entry: Record<string, unknown>) {
       } else {
         const updates: Partial<typeof contactsTable.$inferSelect> = {};
         // Always update contact name if WhatsApp profile name is available and different
-        if (profileName && profileName !== contact.name) {
-          updates.name = toTitleCase(profileName);
+        if (contactName && contactName !== contact.name) {
+          updates.name = toTitleCase(contactName);
         }
         if (avatarUrl && avatarUrl !== contact.avatarUrl) {
           updates.avatarUrl = avatarUrl;
@@ -256,14 +266,31 @@ async function processMetaPageEntry(entry: Record<string, unknown>, channelType:
     const msgId = msgEvent.mid as string;
     const text = msgEvent.text as string | undefined;
 
+    const remoteProfile = channel.accessToken
+      ? await fetchCustomerProfile(channelType, senderId, channel.accessToken)
+      : null;
+
     let contact = (await db.select().from(contactsTable).where(eq(contactsTable.externalId, senderId)))[0];
     if (!contact) {
       const contacts = await db.insert(contactsTable).values({
-        name: toTitleCase(`${channelType === "instagram" ? "Instagram" : "Facebook"} User`),
+        name: toTitleCase(remoteProfile?.name ?? `${channelType === "instagram" ? "Instagram" : "Facebook"} User`),
         channelType,
         externalId: senderId,
+        avatarUrl: remoteProfile?.avatarUrl ?? undefined,
       }).returning();
       contact = contacts[0];
+    } else {
+      const updates: Partial<typeof contactsTable.$inferSelect> = {};
+      if (remoteProfile?.name && remoteProfile.name !== contact.name) {
+        updates.name = toTitleCase(remoteProfile.name);
+      }
+      if (remoteProfile?.avatarUrl && remoteProfile.avatarUrl !== contact.avatarUrl) {
+        updates.avatarUrl = remoteProfile.avatarUrl;
+      }
+      if (Object.keys(updates).length > 0) {
+        await db.update(contactsTable).set(updates).where(eq(contactsTable.id, contact.id));
+        contact = { ...contact, ...updates };
+      }
     }
 
     let conversation = (await db

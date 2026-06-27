@@ -147,6 +147,7 @@ export default function Inbox() {
   const prevConversationsRef = useRef<number>(0);
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const selectedConversationId = activeConversationId ?? -1;
 
   const { data: conversations, isLoading: isConversationsLoading } = useListConversations(
     { status: activeTab !== "all" ? activeTab : undefined },
@@ -161,13 +162,14 @@ export default function Inbox() {
   );
 
   const { data: messages, isLoading: isMessagesLoading } = useListMessages(
-    activeConversationId || 0,
+    selectedConversationId,
     {
       query: {
+        enabled: activeConversationId != null,
         refetchInterval: 3000,
         staleTime: 0,
         refetchIntervalInBackground: true,
-        queryKey: getListMessagesQueryKey(activeConversationId || 0),
+        queryKey: getListMessagesQueryKey(selectedConversationId),
       },
     }
   );
@@ -377,6 +379,9 @@ export default function Inbox() {
                 <ArrowLeft className="w-5 h-5 text-muted-foreground" />
               </button>
               <Avatar className="w-9 h-9 flex-shrink-0">
+                {activeConversation.contact?.avatarUrl ? (
+                  <AvatarImage src={activeConversation.contact.avatarUrl} alt={activeConversation.contact?.name ?? "Customer"} />
+                ) : null}
                 <AvatarFallback className="bg-primary/10 text-primary font-medium">
                   {activeConversation.contact?.name?.substring(0, 2).toUpperCase() || "??"}
                 </AvatarFallback>
@@ -569,6 +574,9 @@ export default function Inbox() {
         <div className="hidden lg:flex w-[280px] flex-shrink-0 border-l bg-card flex-col h-full overflow-y-auto">
           <div className="p-5 border-b flex flex-col items-center text-center">
             <Avatar className="w-16 h-16 mb-3 shadow-sm border-2 border-background">
+              {activeConversation.contact?.avatarUrl ? (
+                <AvatarImage src={activeConversation.contact.avatarUrl} alt={activeConversation.contact?.name ?? "Customer"} />
+              ) : null}
               <AvatarFallback className="bg-primary/10 text-primary text-lg font-medium">
                 {activeConversation.contact?.name?.substring(0, 2).toUpperCase() || "??"}
               </AvatarFallback>

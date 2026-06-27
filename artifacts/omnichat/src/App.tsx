@@ -20,6 +20,7 @@ import Settings from "@/pages/settings";
 import PrivacyPolicy from "@/pages/privacy";
 import TermsOfService from "@/pages/terms";
 import DataDeletion from "@/pages/data-deletion";
+import { canAccessAdminFeatures } from "@/lib/permissions";
 import {
   AUTH_SESSION_EXPIRED_EVENT,
   type AuthSessionExpiredDetail,
@@ -34,9 +35,10 @@ const queryClient = new QueryClient({
   },
 });
 
-function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
-  const { isAuthenticated } = useAuth();
+function ProtectedRoute({ component: Component, adminOnly = false }: { component: React.ComponentType; adminOnly?: boolean }) {
+  const { isAuthenticated, user } = useAuth();
   if (!isAuthenticated) return <Redirect to="/login" />;
+  if (adminOnly && !canAccessAdminFeatures(user)) return <Redirect to="/inbox" />;
   return (
     <AppLayout>
       <Component />
@@ -100,13 +102,13 @@ function Router() {
         <ProtectedRoute component={Contacts} />
       </Route>
       <Route path="/departments">
-        <ProtectedRoute component={Departments} />
+        <ProtectedRoute component={Departments} adminOnly />
       </Route>
       <Route path="/channels">
-        <ProtectedRoute component={Channels} />
+        <ProtectedRoute component={Channels} adminOnly />
       </Route>
       <Route path="/users">
-        <ProtectedRoute component={Users} />
+        <ProtectedRoute component={Users} adminOnly />
       </Route>
       <Route path="/analytics">
         <ProtectedRoute component={Analytics} />

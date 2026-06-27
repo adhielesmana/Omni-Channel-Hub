@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Bell, Globe, Link2, Repeat2, Shield, Sliders, Webhook, ChevronRight, Check, Copy, RefreshCw, Lock, Eye, EyeOff, Settings as SettingsIcon, User, Upload } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { customFetch, useChangePassword, useUpdateUser } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/context/AuthContext";
+import { canAccessAdminFeatures } from "@/lib/permissions";
 
 const SECTIONS = [
   { id: "profile", label: "Profile", icon: User },
@@ -23,6 +24,8 @@ const SECTIONS = [
   { id: "security", label: "Security", icon: Shield },
   { id: "advanced", label: "Advanced", icon: Sliders },
 ];
+
+const PERSONAL_SECTIONS = SECTIONS.filter((section) => section.id === "profile" || section.id === "security");
 
 function SectionHeader({ title, description }: { title: string; description: string }) {
   return (
@@ -486,6 +489,7 @@ function IntegrationsSection() {
 
 function SecuritySection() {
   const { user } = useAuth();
+  const isAdmin = canAccessAdminFeatures(user);
   const changePassword = useChangePassword();
   const [showPassDialog, setShowPassDialog] = useState(false);
   const [passForm, setPassForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
@@ -526,7 +530,7 @@ function SecuritySection() {
     <div>
       <SectionHeader
         title="Security"
-        description="Manage authentication and access control for your workspace."
+        description={isAdmin ? "Manage authentication and access control for your workspace." : "Manage your password and login security."}
       />
       <div className="space-y-1 divide-y divide-border">
         <SettingRow
@@ -538,38 +542,42 @@ function SecuritySection() {
             Change password
           </Button>
         </SettingRow>
-        <SettingRow label="Two-factor authentication" description="Require 2FA for all agents and admins.">
-          <Switch />
-        </SettingRow>
-        <SettingRow label="Single sign-on (SSO)" description="Allow agents to log in with your identity provider.">
-          <Badge variant="outline" className="text-xs">Enterprise</Badge>
-        </SettingRow>
-        <SettingRow label="IP allowlist" description="Restrict platform access to trusted IP ranges.">
-          <Badge variant="outline" className="text-xs">Enterprise</Badge>
-        </SettingRow>
-        <SettingRow label="Session timeout" description="Automatically log out inactive agents.">
-          <Select defaultValue="8h">
-            <SelectTrigger className="w-32 h-8 text-sm">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="1h">1 hour</SelectItem>
-              <SelectItem value="4h">4 hours</SelectItem>
-              <SelectItem value="8h">8 hours</SelectItem>
-              <SelectItem value="24h">24 hours</SelectItem>
-              <SelectItem value="never">Never</SelectItem>
-            </SelectContent>
-          </Select>
-        </SettingRow>
-        <SettingRow
-          label="Audit log"
-          description="Track admin actions — user changes, channel edits, and configuration updates."
-        >
-          <Switch defaultChecked />
-        </SettingRow>
-        <div className="py-4">
-          <Button size="sm">Save changes</Button>
-        </div>
+        {isAdmin ? (
+          <>
+            <SettingRow label="Two-factor authentication" description="Require 2FA for all agents and admins.">
+              <Switch />
+            </SettingRow>
+            <SettingRow label="Single sign-on (SSO)" description="Allow agents to log in with your identity provider.">
+              <Badge variant="outline" className="text-xs">Enterprise</Badge>
+            </SettingRow>
+            <SettingRow label="IP allowlist" description="Restrict platform access to trusted IP ranges.">
+              <Badge variant="outline" className="text-xs">Enterprise</Badge>
+            </SettingRow>
+            <SettingRow label="Session timeout" description="Automatically log out inactive agents.">
+              <Select defaultValue="8h">
+                <SelectTrigger className="w-32 h-8 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1h">1 hour</SelectItem>
+                  <SelectItem value="4h">4 hours</SelectItem>
+                  <SelectItem value="8h">8 hours</SelectItem>
+                  <SelectItem value="24h">24 hours</SelectItem>
+                  <SelectItem value="never">Never</SelectItem>
+                </SelectContent>
+              </Select>
+            </SettingRow>
+            <SettingRow
+              label="Audit log"
+              description="Track admin actions — user changes, channel edits, and configuration updates."
+            >
+              <Switch defaultChecked />
+            </SettingRow>
+            <div className="py-4">
+              <Button size="sm">Save changes</Button>
+            </div>
+          </>
+        ) : null}
       </div>
 
       <Dialog open={showPassDialog} onOpenChange={(v) => { if (!v) { setShowPassDialog(false); setPassError(""); setPassSuccess(false); setPassForm({ currentPassword: "", newPassword: "", confirmPassword: "" }); } }}>
@@ -715,8 +723,17 @@ const SECTION_CONTENT: Record<string, React.ReactNode> = {
 };
 
 export default function Settings() {
-  const [activeSection, setActiveSection] = useState("workspace");
+  const { user } = useAuth();
+  const isAdmin = canAccessAdminFeatures(user);
+  const visibleSections = isAdmin ? SECTIONS : PERSONAL_SECTIONS;
+  const [activeSection, setActiveSection] = useState(() => (isAdmin ? "workspace" : "profile"));
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    if (!visibleSections.some((section) => section.id === activeSection)) {
+      setActiveSection(visibleSections[0]?.id ?? "profile");
+    }
+  }, [activeSection, visibleSections]);
 
   return (
     <div className="flex h-full overflow-hidden">
@@ -725,7 +742,7 @@ export default function Settings() {
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-3">
           Settings
         </p>
-        {SECTIONS.map((section) => {
+        {visibleSections.map((section) => {
           const isActive = activeSection === section.id;
           return (
             <button
@@ -753,13 +770,13 @@ export default function Settings() {
             className="flex items-center gap-2 text-sm font-medium"
           >
             <SettingsIcon className="w-4 h-4" />
-            {SECTIONS.find(s => s.id === activeSection)?.label ?? "Settings"}
+            {visibleSections.find(s => s.id === activeSection)?.label ?? "Settings"}
             <ChevronRight className={`w-3.5 h-3.5 transition-transform ${mobileSidebarOpen ? 'rotate-90' : ''}`} />
           </button>
         </div>
         {mobileSidebarOpen && (
           <div className="flex flex-col gap-0.5 p-2 bg-card/50 border-b">
-            {SECTIONS.map((section) => {
+            {visibleSections.map((section) => {
               const isActive = activeSection === section.id;
               return (
                 <button
