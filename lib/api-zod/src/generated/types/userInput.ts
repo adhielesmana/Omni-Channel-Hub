@@ -15,4 +15,6 @@ export interface UserInput {
   departmentId?: number | null;
   /** @nullable */
   avatarUrl?: string | null;
+  /** If omitted, a random password is generated and returned in the response */
+  password?: string;
 }

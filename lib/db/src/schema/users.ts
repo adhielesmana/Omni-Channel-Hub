@@ -9,11 +9,12 @@ export const usersTable = pgTable("users", {
   role: text("role", { enum: ["admin", "supervisor", "agent"] }).notNull().default("agent"),
   departmentId: integer("department_id"),
   avatarUrl: text("avatar_url"),
+  passwordHash: text("password_hash"),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
 
-export const insertUserSchema = createInsertSchema(usersTable).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertUserSchema = createInsertSchema(usersTable).omit({ id: true, createdAt: true, updatedAt: true, passwordHash: true });
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof usersTable.$inferSelect;

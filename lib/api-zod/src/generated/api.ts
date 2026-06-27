@@ -41,7 +41,8 @@ export const CreateUserBody = zod.object({
   "name": zod.string(),
   "role": zod.enum(['admin', 'supervisor', 'agent']),
   "departmentId": zod.number().nullish(),
-  "avatarUrl": zod.string().nullish()
+  "avatarUrl": zod.string().nullish(),
+  "password": zod.string().optional().describe('If omitted, a random password is generated and returned in the response')
 })
 
 
@@ -88,6 +89,18 @@ export const UpdateUserResponse = zod.object({
   "avatarUrl": zod.string().nullish(),
   "isActive": zod.boolean(),
   "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Reset a user's password (admin). Generates a new random password.
+ */
+export const ResetUserPasswordParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ResetUserPasswordResponse = zod.object({
+  "temporaryPassword": zod.string()
 })
 
 
@@ -790,6 +803,42 @@ export const ReceiveMetaWebhookBody = zod.object({
   "entry": zod.array(zod.object({
 
 }).passthrough()).optional()
+})
+
+
+/**
+ * @summary Authenticate with email and password
+ */
+export const LoginBody = zod.object({
+  "email": zod.string(),
+  "password": zod.string()
+})
+
+export const LoginResponse = zod.object({
+  "token": zod.string(),
+  "user": zod.object({
+  "id": zod.number(),
+  "email": zod.string(),
+  "name": zod.string(),
+  "role": zod.enum(['admin', 'supervisor', 'agent']),
+  "departmentId": zod.number().nullish(),
+  "avatarUrl": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.string()
+})
+})
+
+
+/**
+ * @summary Change own password (authenticated)
+ */
+export const changePasswordBodyNewPasswordMin = 6;
+
+
+
+export const ChangePasswordBody = zod.object({
+  "currentPassword": zod.string(),
+  "newPassword": zod.string().min(changePasswordBodyNewPasswordMin)
 })
 
 

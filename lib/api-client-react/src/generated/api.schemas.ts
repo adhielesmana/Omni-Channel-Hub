@@ -48,6 +48,8 @@ export interface UserInput {
   departmentId?: number | null;
   /** @nullable */
   avatarUrl?: string | null;
+  /** If omitted, a random password is generated and returned in the response */
+  password?: string;
 }
 
 export type UserUpdateRole = typeof UserUpdateRole[keyof typeof UserUpdateRole];
@@ -479,6 +481,32 @@ export interface DepartmentCount {
   departmentId: number;
   departmentName: string;
   count: number;
+}
+
+export interface LoginInput {
+  email: string;
+  password: string;
+}
+
+export interface AuthLoginResponse {
+  token: string;
+  user: User;
+}
+
+export interface ChangePasswordInput {
+  currentPassword: string;
+  /** @minLength 6 */
+  newPassword: string;
+}
+
+export interface ResetPasswordResponse {
+  temporaryPassword: string;
+}
+
+export interface CreateUserResponse {
+  user: User;
+  /** Returned only when password was auto-generated */
+  temporaryPassword?: string;
 }
 
 export interface AgentWorkload {

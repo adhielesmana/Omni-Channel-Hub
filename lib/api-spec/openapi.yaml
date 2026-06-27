@@ -26,6 +26,8 @@ tags:
     description: Meta webhook endpoints
   - name: stats
     description: Dashboard statistics
+  - name: auth
+    description: Authentication & password management
 
 paths:
   /healthz:
@@ -73,7 +75,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/User"
+                $ref: "#/components/schemas/CreateUserResponse"
 
   /users/{id}:
     get:
@@ -118,6 +120,23 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/User"
+    post:
+      operationId: resetUserPassword
+      tags: [users]
+      summary: Reset a user's password (admin). Generates a new random password.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Password reset
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResetPasswordResponse"
     delete:
       operationId: deleteUser
       tags: [users]
@@ -641,6 +660,45 @@ paths:
           description: Acknowledged
 
   # Stats / Dashboard
+  # Auth
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Authenticate with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthLoginResponse"
+        "401":
+          description: Invalid credentials
+
+  /auth/change-password:
+    post:
+      operationId: changePassword
+      tags: [auth]
+      summary: Change own password (authenticated)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePasswordInput"
+      responses:
+        "200":
+          description: Password changed
+        "401":
+          description: Invalid current password
+
   /stats/overview:
     get:
       operationId: getStatsOverview
@@ -747,6 +805,9 @@ components:
           type: ["integer", "null"]
         avatarUrl:
           type: ["string", "null"]
+        password:
+          type: string
+          description: If omitted, a random password is generated and returned in the response
 
     UserUpdate:
       type: object
@@ -1140,6 +1201,52 @@ components:
           type: string
         count:
           type: integer
+
+    # Auth & Password
+    LoginInput:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+
+    AuthLoginResponse:
+      type: object
+      required: [token, user]
+      properties:
+        token:
+          type: string
+        user:
+          $ref: "#/components/schemas/User"
+
+    ChangePasswordInput:
+      type: object
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword:
+          type: string
+        newPassword:
+          type: string
+          minLength: 6
+
+    ResetPasswordResponse:
+      type: object
+      required: [temporaryPassword]
+      properties:
+        temporaryPassword:
+          type: string
+
+    CreateUserResponse:
+      type: object
+      required: [user]
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+        temporaryPassword:
+          type: string
+          description: Returned only when password was auto-generated
 
     AgentWorkload:
       type: object

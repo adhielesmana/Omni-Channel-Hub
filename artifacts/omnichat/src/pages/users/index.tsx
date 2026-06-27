@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { useListUsers, useCreateUser, useUpdateUser, useListDepartments } from "@workspace/api-client-react";
+import { useListUsers, useCreateUser, useUpdateUser, useListDepartments, useResetUserPassword } from "@workspace/api-client-react";
 import { UserInputRole } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { UserCircle, UserPlus, Search, Pencil } from "lucide-react";
+import { UserCircle, UserPlus, Search, Pencil, Key, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,6 +27,10 @@ export default function Users() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", role: UserInputRole.agent as string, departmentId: "" });
   const [error, setError] = useState("");
+  const [createdPassword, setCreatedPassword] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [resetUserId, setResetUserId] = useState<number | null>(null);
+  const [resetPassword, setResetPassword] = useState<string | null>(null);
 
   const [editOpen, setEditOpen] = useState(false);
   const [editUser, setEditUser] = useState<UserDto | null>(null);
@@ -38,6 +42,7 @@ export default function Users() {
   const { data: departments } = useListDepartments();
   const createUser = useCreateUser();
   const updateUser = useUpdateUser();
+  const resetUserPassword = useResetUserPassword();
 
   const filtered = users?.filter(u =>
     !search ||
@@ -51,6 +56,7 @@ export default function Users() {
       return;
     }
     setError("");
+    setCreatedPassword(null);
     createUser.mutate(
       {
         data: {
@@ -61,10 +67,14 @@ export default function Users() {
         }
       },
       {
-        onSuccess: () => {
+        onSuccess: (data: any) => {
           queryClient.invalidateQueries({ queryKey: ["/api/users"] });
-          setOpen(false);
-          setForm({ name: "", email: "", role: UserInputRole.agent, departmentId: "" });
+          if (data.temporaryPassword) {
+            setCreatedPassword(data.temporaryPassword);
+          } else {
+            setOpen(false);
+            setForm({ name: "", email: "", role: UserInputRole.agent, departmentId: "" });
+          }
         },
         onError: () => setError("Failed to create user. Please try again."),
       }
@@ -111,6 +121,43 @@ export default function Users() {
     );
   };
 
+  const handleResetPassword = (userId: number) => {
+    setResetPassword(null);
+    resetUserPassword.mutate(
+      { id: userId },
+      {
+        onSuccess: (data: any) => {
+          setResetPassword(data.temporaryPassword);
+          setResetUserId(userId);
+        },
+        onError: () => setError("Failed to reset password."),
+      }
+    );
+  };
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      const el = document.createElement("textarea");
+      el.value = text;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand("copy");
+      document.body.removeChild(el);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const closeCreateDialog = () => {
+    setOpen(false);
+    setCreatedPassword(null);
+    setForm({ name: "", email: "", role: UserInputRole.agent, departmentId: "" });
+  };
+
   return (
     <div className="p-4 md:p-8 h-full flex flex-col overflow-hidden">
       <div className="flex items-center justify-between mb-4 md:mb-8">
@@ -144,7 +191,7 @@ export default function Users() {
               <TableHead>Status</TableHead>
               <TableHead>Department</TableHead>
               <TableHead className="text-right">Joined</TableHead>
-              <TableHead className="w-[60px]"></TableHead>
+              <TableHead className="w-[100px] text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -167,6 +214,7 @@ export default function Users() {
             ) : (
               filtered?.map((user) => {
                 const dept = departments?.find(d => d.id === user.departmentId);
+                const showReset = resetUserId === user.id && resetPassword;
                 return (
                   <TableRow key={user.id}>
                     <TableCell className="font-medium">
@@ -199,10 +247,37 @@ export default function Users() {
                     <TableCell className="text-right text-muted-foreground text-sm">
                       {new Date(user.createdAt).toLocaleDateString()}
                     </TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(user)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(user)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        {showReset ? (
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs font-mono text-amber-600 bg-amber-50 px-2 py-1 rounded max-w-[120px] truncate" title={resetPassword!}>
+                              {resetPassword}
+                            </span>
+                            <button
+                              onClick={() => copyToClipboard(resetPassword!)}
+                              className="p-1 hover:bg-muted rounded cursor-pointer"
+                              title="Copy password"
+                            >
+                              {copied ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
+                            </button>
+                          </div>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="gap-1.5 text-xs h-7"
+                            onClick={() => handleResetPassword(user.id)}
+                            disabled={resetUserPassword.isPending && resetUserId === user.id}
+                          >
+                            <Key className="w-3 h-3" />
+                            Reset
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
@@ -212,64 +287,95 @@ export default function Users() {
         </Table>
       </div>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={(v) => { if (!v) closeCreateDialog(); }}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Invite Team Member</DialogTitle>
-          </DialogHeader>
-          <div className="flex flex-col gap-4 py-2">
-            {error && <p className="text-sm text-destructive">{error}</p>}
-            <div className="flex flex-col gap-1.5">
-              <Label>Full name</Label>
-              <Input
-                placeholder="Jane Smith"
-                value={form.name}
-                onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>Email address</Label>
-              <Input
-                type="email"
-                placeholder="jane@company.com"
-                value={form.email}
-                onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>Role</Label>
-              <Select value={form.role} onValueChange={v => setForm(f => ({ ...f, role: v }))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={UserInputRole.agent}>Agent</SelectItem>
-                  <SelectItem value={UserInputRole.supervisor}>Supervisor</SelectItem>
-                  <SelectItem value={UserInputRole.admin}>Admin</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>Department <span className="text-muted-foreground font-normal">(optional)</span></Label>
-              <Select value={form.departmentId || "none"} onValueChange={v => setForm(f => ({ ...f, departmentId: v === "none" ? "" : v }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select department" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No department</SelectItem>
-                  {departments?.map(d => (
-                    <SelectItem key={d.id} value={d.id.toString()}>{d.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={handleSubmit} disabled={createUser.isPending}>
-              {createUser.isPending ? "Inviting..." : "Send Invite"}
-            </Button>
-          </DialogFooter>
+          {createdPassword ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>User Created</DialogTitle>
+              </DialogHeader>
+              <div className="flex flex-col gap-4 py-2">
+                <p className="text-sm text-muted-foreground">
+                  Share this temporary password with the user. They'll need it for their first login.
+                </p>
+                <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                  <span className="text-sm font-mono font-bold text-amber-800 flex-1 break-all">{createdPassword}</span>
+                  <button
+                    onClick={() => copyToClipboard(createdPassword)}
+                    className="p-1.5 hover:bg-amber-100 rounded cursor-pointer"
+                    title="Copy password"
+                  >
+                    {copied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button onClick={closeCreateDialog}>Done</Button>
+              </DialogFooter>
+            </>
+          ) : (
+            <>
+              <DialogHeader>
+                <DialogTitle>Invite Team Member</DialogTitle>
+              </DialogHeader>
+              <div className="flex flex-col gap-4 py-2">
+                {error && <p className="text-sm text-destructive">{error}</p>}
+                <div className="flex flex-col gap-1.5">
+                  <Label>Full name</Label>
+                  <Input
+                    placeholder="Jane Smith"
+                    value={form.name}
+                    onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label>Email address</Label>
+                  <Input
+                    type="email"
+                    placeholder="jane@company.com"
+                    value={form.email}
+                    onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label>Role</Label>
+                  <Select value={form.role} onValueChange={v => setForm(f => ({ ...f, role: v }))}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={UserInputRole.agent}>Agent</SelectItem>
+                      <SelectItem value={UserInputRole.supervisor}>Supervisor</SelectItem>
+                      <SelectItem value={UserInputRole.admin}>Admin</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label>Department <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                  <Select value={form.departmentId || "none"} onValueChange={v => setForm(f => ({ ...f, departmentId: v === "none" ? "" : v }))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select department" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No department</SelectItem>
+                      {departments?.map(d => (
+                        <SelectItem key={d.id} value={d.id.toString()}>{d.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  A random password will be generated automatically. The user can change it after first login.
+                </p>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={closeCreateDialog}>Cancel</Button>
+                <Button onClick={handleSubmit} disabled={createUser.isPending}>
+                  {createUser.isPending ? "Inviting..." : "Send Invite"}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
 

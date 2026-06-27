@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Bell, Globe, Link2, Repeat2, Shield, Sliders, Webhook, ChevronRight, Check, Copy, RefreshCw, Settings as SettingsIcon } from "lucide-react";
+import { Bell, Globe, Link2, Repeat2, Shield, Sliders, Webhook, ChevronRight, Check, Copy, RefreshCw, Lock, Eye, EyeOff, Settings as SettingsIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -7,6 +7,9 @@ import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { useChangePassword } from "@workspace/api-client-react";
+import { useAuth } from "@/context/AuthContext";
 
 const SECTIONS = [
   { id: "workspace", label: "Workspace", icon: Globe },
@@ -386,6 +389,43 @@ function IntegrationsSection() {
 }
 
 function SecuritySection() {
+  const { user } = useAuth();
+  const changePassword = useChangePassword();
+  const [showPassDialog, setShowPassDialog] = useState(false);
+  const [passForm, setPassForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [passError, setPassError] = useState("");
+  const [passSuccess, setPassSuccess] = useState(false);
+
+  const handleChangePassword = () => {
+    setPassError("");
+    setPassSuccess(false);
+    if (!passForm.currentPassword || !passForm.newPassword) {
+      setPassError("Both fields are required.");
+      return;
+    }
+    if (passForm.newPassword.length < 6) {
+      setPassError("New password must be at least 6 characters.");
+      return;
+    }
+    if (passForm.newPassword !== passForm.confirmPassword) {
+      setPassError("Passwords do not match.");
+      return;
+    }
+    changePassword.mutate(
+      { data: { currentPassword: passForm.currentPassword, newPassword: passForm.newPassword } },
+      {
+        onSuccess: () => {
+          setPassSuccess(true);
+          setPassForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+          setTimeout(() => setShowPassDialog(false), 1500);
+        },
+        onError: () => setPassError("Failed to change password. Check your current password."),
+      }
+    );
+  };
+
   return (
     <div>
       <SectionHeader
@@ -393,6 +433,15 @@ function SecuritySection() {
         description="Manage authentication and access control for your workspace."
       />
       <div className="space-y-1 divide-y divide-border">
+        <SettingRow
+          label="Your password"
+          description={`Last changed — ${user?.email ?? "unknown"}`}
+        >
+          <Button variant="outline" size="sm" className="gap-2 h-8" onClick={() => setShowPassDialog(true)}>
+            <Lock className="w-3.5 h-3.5" />
+            Change password
+          </Button>
+        </SettingRow>
         <SettingRow label="Two-factor authentication" description="Require 2FA for all agents and admins.">
           <Switch />
         </SettingRow>
@@ -426,6 +475,71 @@ function SecuritySection() {
           <Button size="sm">Save changes</Button>
         </div>
       </div>
+
+      <Dialog open={showPassDialog} onOpenChange={(v) => { if (!v) { setShowPassDialog(false); setPassError(""); setPassSuccess(false); setPassForm({ currentPassword: "", newPassword: "", confirmPassword: "" }); } }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Change Password</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 py-2">
+            {passError && <p className="text-sm text-destructive">{passError}</p>}
+            {passSuccess && <p className="text-sm text-green-600 bg-green-50 border border-green-200 rounded-lg px-3 py-2">Password changed successfully.</p>}
+            <div className="flex flex-col gap-1.5">
+              <Label>Current password</Label>
+              <div className="relative">
+                <Input
+                  type={showCurrent ? "text" : "password"}
+                  value={passForm.currentPassword}
+                  onChange={e => setPassForm(f => ({ ...f, currentPassword: e.target.value }))}
+                  placeholder="Enter current password"
+                />
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  onClick={() => setShowCurrent(v => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
+                >
+                  {showCurrent ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label>New password</Label>
+              <div className="relative">
+                <Input
+                  type={showNew ? "text" : "password"}
+                  value={passForm.newPassword}
+                  onChange={e => setPassForm(f => ({ ...f, newPassword: e.target.value }))}
+                  placeholder="Min. 6 characters"
+                />
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  onClick={() => setShowNew(v => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
+                >
+                  {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label>Confirm new password</Label>
+              <Input
+                type="password"
+                value={passForm.confirmPassword}
+                onChange={e => setPassForm(f => ({ ...f, confirmPassword: e.target.value }))}
+                placeholder="Re-enter new password"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowPassDialog(false); setPassError(""); setPassSuccess(false); setPassForm({ currentPassword: "", newPassword: "", confirmPassword: "" }); }}>Cancel</Button>
+            <Button onClick={handleChangePassword} disabled={changePassword.isPending}>
+              {changePassword.isPending ? "Changing..." : "Update Password"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

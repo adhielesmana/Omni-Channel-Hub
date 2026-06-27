@@ -120,25 +120,12 @@ export default function Login() {
               <p className="mt-1.5 text-sm text-gray-500">Enter your credentials to continue</p>
             </div>
 
-            {/* Demo accounts */}
+            {/* Quick fill for the admin account */}
             <div className="mb-6 p-4 rounded-xl bg-violet-50 border border-violet-100">
               <p className="text-xs font-semibold text-violet-700 mb-2.5 flex items-center gap-1.5">
                 <Zap className="w-3 h-3" />
-                Demo accounts — password: <code className="font-mono bg-violet-100 px-1 rounded">demo</code>
+                Use your administrator credentials to sign in.
               </p>
-              <div className="flex flex-wrap gap-2">
-                {DEMO_ACCOUNTS.map((d) => (
-                  <button
-                    key={d.email}
-                    type="button"
-                    onClick={() => fillDemo(d.email)}
-                    className="flex-1 min-w-[90px] text-left px-3 py-2 rounded-lg border border-violet-200 bg-white hover:bg-violet-100 transition-colors cursor-pointer"
-                  >
-                    <div className="text-xs font-semibold text-violet-700">{d.label}</div>
-                    <div className="text-[10px] text-violet-500">{d.role}</div>
-                  </button>
-                ))}
-              </div>
             </div>
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">

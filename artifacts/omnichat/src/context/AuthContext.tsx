@@ -1,6 +1,8 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
+import { setAuthTokenGetter } from "@workspace/api-client-react";
 
 export interface AuthUser {
+  id: number;
   name: string;
   email: string;
   role: "admin" | "supervisor" | "agent";
@@ -9,74 +11,87 @@ export interface AuthUser {
 
 interface AuthContextValue {
   user: AuthUser | null;
+  token: string | null;
   login: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
   logout: () => void;
   isAuthenticated: boolean;
 }
 
-const DEMO_USERS: Record<string, AuthUser & { password: string }> = {
-  "admin@omnichat.io": {
-    name: "Alex Rivera",
-    email: "admin@omnichat.io",
-    role: "admin",
-    initials: "AR",
-    password: "demo",
-  },
-  "supervisor@omnichat.io": {
-    name: "Morgan Chen",
-    email: "supervisor@omnichat.io",
-    role: "supervisor",
-    initials: "MC",
-    password: "demo",
-  },
-  "sarah.k@omnichat.io": {
-    name: "Sarah Kim",
-    email: "sarah.k@omnichat.io",
-    role: "agent",
-    initials: "SK",
-    password: "demo",
-  },
-};
-
 const SESSION_KEY = "omnichat_session";
+const TOKEN_KEY = "omnichat_token";
 
-function loadSession(): AuthUser | null {
+function loadSession(): { user: AuthUser | null; token: string | null } {
   try {
-    const raw = localStorage.getItem(SESSION_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw) as AuthUser;
+    const userRaw = localStorage.getItem(SESSION_KEY);
+    const tokenRaw = localStorage.getItem(TOKEN_KEY);
+    return {
+      user: userRaw ? JSON.parse(userRaw) as AuthUser : null,
+      token: tokenRaw,
+    };
   } catch {
-    return null;
+    return { user: null, token: null };
   }
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(loadSession);
+  const [user, setUser] = useState<AuthUser | null>(() => loadSession().user);
+  const [token, setToken] = useState<string | null>(() => loadSession().token);
+
+  useEffect(() => {
+    if (token) {
+      setAuthTokenGetter(() => token);
+    } else {
+      setAuthTokenGetter(null);
+    }
+  }, [token]);
 
   const login = useCallback(
     async (email: string, password: string): Promise<{ ok: boolean; error?: string }> => {
-      await new Promise((r) => setTimeout(r, 600));
-      const match = DEMO_USERS[email.toLowerCase().trim()];
-      if (!match || match.password !== password) {
-        return { ok: false, error: "Invalid email or password." };
+      try {
+        const res = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          return { ok: false, error: data.error ?? "Invalid email or password." };
+        }
+        const authUser: AuthUser = {
+          id: data.user.id,
+          name: data.user.name,
+          email: data.user.email,
+          role: data.user.role,
+          initials: data.user.name
+            ?.split(" ")
+            .map((s: string) => s[0])
+            .join("")
+            .substring(0, 2)
+            .toUpperCase() ?? "??",
+        };
+        localStorage.setItem(SESSION_KEY, JSON.stringify(authUser));
+        localStorage.setItem(TOKEN_KEY, data.token);
+        setUser(authUser);
+        setToken(data.token);
+        return { ok: true };
+      } catch {
+        return { ok: false, error: "Unable to connect to server." };
       }
-      const { password: _p, ...sessionUser } = match;
-      localStorage.setItem(SESSION_KEY, JSON.stringify(sessionUser));
-      setUser(sessionUser);
-      return { ok: true };
     },
     []
   );
 
   const logout = useCallback(() => {
     localStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem(TOKEN_KEY);
     setUser(null);
+    setToken(null);
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAuthenticated: !!user }}>
+    <AuthContext.Provider value={{ user, token, login, logout, isAuthenticated: !!user }}>
       {children}
     </AuthContext.Provider>
   );
