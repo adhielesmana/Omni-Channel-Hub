@@ -518,6 +518,12 @@ export interface AgentWorkload {
   resolvedCount: number;
 }
 
+export interface StatsPeriod {
+  label: string;
+  startDate: string;
+  endDate: string;
+}
+
 export type ListContactsParams = {
 search?: string;
 channelType?: string;
@@ -535,5 +541,49 @@ export type VerifyMetaWebhookParams = {
 'hub.mode'?: string;
 'hub.verify_token'?: string;
 'hub.challenge'?: string;
+};
+
+export type GetStatsOverviewParams = {
+/**
+ * Filter start date (ISO 8601)
+ */
+startDate?: string;
+/**
+ * Filter end date (ISO 8601)
+ */
+endDate?: string;
+};
+
+export type GetConversationsByChannelParams = {
+/**
+ * Filter start date (ISO 8601)
+ */
+startDate?: string;
+/**
+ * Filter end date (ISO 8601)
+ */
+endDate?: string;
+};
+
+export type GetConversationsByDepartmentParams = {
+/**
+ * Filter start date (ISO 8601)
+ */
+startDate?: string;
+/**
+ * Filter end date (ISO 8601)
+ */
+endDate?: string;
+};
+
+export type GetAgentWorkloadParams = {
+/**
+ * Filter start date (ISO 8601)
+ */
+startDate?: string;
+/**
+ * Filter end date (ISO 8601)
+ */
+endDate?: string;
 };
 

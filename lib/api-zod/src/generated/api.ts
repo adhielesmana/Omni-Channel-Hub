@@ -845,6 +845,11 @@ export const ChangePasswordBody = zod.object({
 /**
  * @summary Dashboard overview stats
  */
+export const GetStatsOverviewQueryParams = zod.object({
+  "startDate": zod.date().optional().describe('Filter start date (ISO 8601)'),
+  "endDate": zod.date().optional().describe('Filter end date (ISO 8601)')
+})
+
 export const GetStatsOverviewResponse = zod.object({
   "totalConversations": zod.number(),
   "openConversations": zod.number(),
@@ -860,6 +865,11 @@ export const GetStatsOverviewResponse = zod.object({
 /**
  * @summary Conversation counts grouped by channel type
  */
+export const GetConversationsByChannelQueryParams = zod.object({
+  "startDate": zod.date().optional().describe('Filter start date (ISO 8601)'),
+  "endDate": zod.date().optional().describe('Filter end date (ISO 8601)')
+})
+
 export const GetConversationsByChannelResponseItem = zod.object({
   "channelType": zod.string(),
   "count": zod.number()
@@ -870,6 +880,11 @@ export const GetConversationsByChannelResponse = zod.array(GetConversationsByCha
 /**
  * @summary Conversation counts grouped by department
  */
+export const GetConversationsByDepartmentQueryParams = zod.object({
+  "startDate": zod.date().optional().describe('Filter start date (ISO 8601)'),
+  "endDate": zod.date().optional().describe('Filter end date (ISO 8601)')
+})
+
 export const GetConversationsByDepartmentResponseItem = zod.object({
   "departmentId": zod.number(),
   "departmentName": zod.string(),
@@ -881,6 +896,11 @@ export const GetConversationsByDepartmentResponse = zod.array(GetConversationsBy
 /**
  * @summary Per-agent conversation workload
  */
+export const GetAgentWorkloadQueryParams = zod.object({
+  "startDate": zod.date().optional().describe('Filter start date (ISO 8601)'),
+  "endDate": zod.date().optional().describe('Filter end date (ISO 8601)')
+})
+
 export const GetAgentWorkloadResponseItem = zod.object({
   "agentId": zod.number(),
   "agentName": zod.string(),
@@ -889,5 +909,16 @@ export const GetAgentWorkloadResponseItem = zod.object({
   "resolvedCount": zod.number()
 })
 export const GetAgentWorkloadResponse = zod.array(GetAgentWorkloadResponseItem)
+
+
+/**
+ * @summary List available monthly cut-off periods
+ */
+export const GetStatsPeriodsResponseItem = zod.object({
+  "label": zod.string(),
+  "startDate": zod.string(),
+  "endDate": zod.string()
+})
+export const GetStatsPeriodsResponse = zod.array(GetStatsPeriodsResponseItem)
 
 

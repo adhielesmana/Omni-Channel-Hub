@@ -39,6 +39,10 @@ import type {
   DepartmentCount,
   DepartmentInput,
   DepartmentUpdate,
+  GetAgentWorkloadParams,
+  GetConversationsByChannelParams,
+  GetConversationsByDepartmentParams,
+  GetStatsOverviewParams,
   HealthStatus,
   ListContactsParams,
   ListConversationsParams,
@@ -48,6 +52,7 @@ import type {
   MetaWebhookPayload,
   ResetPasswordResponse,
   StatsOverview,
+  StatsPeriod,
   User,
   UserInput,
   UserUpdate,
@@ -2581,20 +2586,27 @@ export const useChangePassword = <TError = ErrorType<void>,
       return useMutation(getChangePasswordMutationOptions(options));
     }
 
-export const getGetStatsOverviewUrl = () => {
+export const getGetStatsOverviewUrl = (params?: GetStatsOverviewParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/stats/overview`
+  return stringifiedParams.length > 0 ? `/api/stats/overview?${stringifiedParams}` : `/api/stats/overview`
 }
 
 /**
  * @summary Dashboard overview stats
  */
-export const getStatsOverview = async ( options?: RequestInit): Promise<StatsOverview> => {
+export const getStatsOverview = async (params?: GetStatsOverviewParams, options?: RequestInit): Promise<StatsOverview> => {
 
-  return customFetch<StatsOverview>(getGetStatsOverviewUrl(),
+  return customFetch<StatsOverview>(getGetStatsOverviewUrl(params),
   {
     ...options,
     method: 'GET'
@@ -2607,23 +2619,23 @@ export const getStatsOverview = async ( options?: RequestInit): Promise<StatsOve
 
 
 
-export const getGetStatsOverviewQueryKey = () => {
+export const getGetStatsOverviewQueryKey = (params?: GetStatsOverviewParams,) => {
     return [
-    `/api/stats/overview`
+    `/api/stats/overview`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getGetStatsOverviewQueryOptions = <TData = Awaited<ReturnType<typeof getStatsOverview>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStatsOverview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetStatsOverviewQueryOptions = <TData = Awaited<ReturnType<typeof getStatsOverview>>, TError = ErrorType<unknown>>(params?: GetStatsOverviewParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStatsOverview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetStatsOverviewQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getGetStatsOverviewQueryKey(params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStatsOverview>>> = ({ signal }) => getStatsOverview({ signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStatsOverview>>> = ({ signal }) => getStatsOverview(params, { signal, ...requestOptions });
 
 
 
@@ -2641,11 +2653,11 @@ export type GetStatsOverviewQueryError = ErrorType<unknown>
  */
 
 export function useGetStatsOverview<TData = Awaited<ReturnType<typeof getStatsOverview>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStatsOverview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ params?: GetStatsOverviewParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStatsOverview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getGetStatsOverviewQueryOptions(options)
+  const queryOptions = getGetStatsOverviewQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -2658,20 +2670,27 @@ export function useGetStatsOverview<TData = Awaited<ReturnType<typeof getStatsOv
 
 
 
-export const getGetConversationsByChannelUrl = () => {
+export const getGetConversationsByChannelUrl = (params?: GetConversationsByChannelParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/stats/conversations-by-channel`
+  return stringifiedParams.length > 0 ? `/api/stats/conversations-by-channel?${stringifiedParams}` : `/api/stats/conversations-by-channel`
 }
 
 /**
  * @summary Conversation counts grouped by channel type
  */
-export const getConversationsByChannel = async ( options?: RequestInit): Promise<ChannelCount[]> => {
+export const getConversationsByChannel = async (params?: GetConversationsByChannelParams, options?: RequestInit): Promise<ChannelCount[]> => {
 
-  return customFetch<ChannelCount[]>(getGetConversationsByChannelUrl(),
+  return customFetch<ChannelCount[]>(getGetConversationsByChannelUrl(params),
   {
     ...options,
     method: 'GET'
@@ -2684,23 +2703,23 @@ export const getConversationsByChannel = async ( options?: RequestInit): Promise
 
 
 
-export const getGetConversationsByChannelQueryKey = () => {
+export const getGetConversationsByChannelQueryKey = (params?: GetConversationsByChannelParams,) => {
     return [
-    `/api/stats/conversations-by-channel`
+    `/api/stats/conversations-by-channel`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getGetConversationsByChannelQueryOptions = <TData = Awaited<ReturnType<typeof getConversationsByChannel>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getConversationsByChannel>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetConversationsByChannelQueryOptions = <TData = Awaited<ReturnType<typeof getConversationsByChannel>>, TError = ErrorType<unknown>>(params?: GetConversationsByChannelParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getConversationsByChannel>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetConversationsByChannelQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getGetConversationsByChannelQueryKey(params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getConversationsByChannel>>> = ({ signal }) => getConversationsByChannel({ signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getConversationsByChannel>>> = ({ signal }) => getConversationsByChannel(params, { signal, ...requestOptions });
 
 
 
@@ -2718,11 +2737,11 @@ export type GetConversationsByChannelQueryError = ErrorType<unknown>
  */
 
 export function useGetConversationsByChannel<TData = Awaited<ReturnType<typeof getConversationsByChannel>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getConversationsByChannel>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ params?: GetConversationsByChannelParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getConversationsByChannel>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getGetConversationsByChannelQueryOptions(options)
+  const queryOptions = getGetConversationsByChannelQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -2735,20 +2754,27 @@ export function useGetConversationsByChannel<TData = Awaited<ReturnType<typeof g
 
 
 
-export const getGetConversationsByDepartmentUrl = () => {
+export const getGetConversationsByDepartmentUrl = (params?: GetConversationsByDepartmentParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/stats/conversations-by-department`
+  return stringifiedParams.length > 0 ? `/api/stats/conversations-by-department?${stringifiedParams}` : `/api/stats/conversations-by-department`
 }
 
 /**
  * @summary Conversation counts grouped by department
  */
-export const getConversationsByDepartment = async ( options?: RequestInit): Promise<DepartmentCount[]> => {
+export const getConversationsByDepartment = async (params?: GetConversationsByDepartmentParams, options?: RequestInit): Promise<DepartmentCount[]> => {
 
-  return customFetch<DepartmentCount[]>(getGetConversationsByDepartmentUrl(),
+  return customFetch<DepartmentCount[]>(getGetConversationsByDepartmentUrl(params),
   {
     ...options,
     method: 'GET'
@@ -2761,23 +2787,23 @@ export const getConversationsByDepartment = async ( options?: RequestInit): Prom
 
 
 
-export const getGetConversationsByDepartmentQueryKey = () => {
+export const getGetConversationsByDepartmentQueryKey = (params?: GetConversationsByDepartmentParams,) => {
     return [
-    `/api/stats/conversations-by-department`
+    `/api/stats/conversations-by-department`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getGetConversationsByDepartmentQueryOptions = <TData = Awaited<ReturnType<typeof getConversationsByDepartment>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getConversationsByDepartment>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetConversationsByDepartmentQueryOptions = <TData = Awaited<ReturnType<typeof getConversationsByDepartment>>, TError = ErrorType<unknown>>(params?: GetConversationsByDepartmentParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getConversationsByDepartment>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetConversationsByDepartmentQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getGetConversationsByDepartmentQueryKey(params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getConversationsByDepartment>>> = ({ signal }) => getConversationsByDepartment({ signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getConversationsByDepartment>>> = ({ signal }) => getConversationsByDepartment(params, { signal, ...requestOptions });
 
 
 
@@ -2795,11 +2821,11 @@ export type GetConversationsByDepartmentQueryError = ErrorType<unknown>
  */
 
 export function useGetConversationsByDepartment<TData = Awaited<ReturnType<typeof getConversationsByDepartment>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getConversationsByDepartment>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ params?: GetConversationsByDepartmentParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getConversationsByDepartment>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getGetConversationsByDepartmentQueryOptions(options)
+  const queryOptions = getGetConversationsByDepartmentQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -2812,20 +2838,27 @@ export function useGetConversationsByDepartment<TData = Awaited<ReturnType<typeo
 
 
 
-export const getGetAgentWorkloadUrl = () => {
+export const getGetAgentWorkloadUrl = (params?: GetAgentWorkloadParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/stats/agent-workload`
+  return stringifiedParams.length > 0 ? `/api/stats/agent-workload?${stringifiedParams}` : `/api/stats/agent-workload`
 }
 
 /**
  * @summary Per-agent conversation workload
  */
-export const getAgentWorkload = async ( options?: RequestInit): Promise<AgentWorkload[]> => {
+export const getAgentWorkload = async (params?: GetAgentWorkloadParams, options?: RequestInit): Promise<AgentWorkload[]> => {
 
-  return customFetch<AgentWorkload[]>(getGetAgentWorkloadUrl(),
+  return customFetch<AgentWorkload[]>(getGetAgentWorkloadUrl(params),
   {
     ...options,
     method: 'GET'
@@ -2838,23 +2871,23 @@ export const getAgentWorkload = async ( options?: RequestInit): Promise<AgentWor
 
 
 
-export const getGetAgentWorkloadQueryKey = () => {
+export const getGetAgentWorkloadQueryKey = (params?: GetAgentWorkloadParams,) => {
     return [
-    `/api/stats/agent-workload`
+    `/api/stats/agent-workload`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getGetAgentWorkloadQueryOptions = <TData = Awaited<ReturnType<typeof getAgentWorkload>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAgentWorkload>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetAgentWorkloadQueryOptions = <TData = Awaited<ReturnType<typeof getAgentWorkload>>, TError = ErrorType<unknown>>(params?: GetAgentWorkloadParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAgentWorkload>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetAgentWorkloadQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getGetAgentWorkloadQueryKey(params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAgentWorkload>>> = ({ signal }) => getAgentWorkload({ signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAgentWorkload>>> = ({ signal }) => getAgentWorkload(params, { signal, ...requestOptions });
 
 
 
@@ -2872,11 +2905,88 @@ export type GetAgentWorkloadQueryError = ErrorType<unknown>
  */
 
 export function useGetAgentWorkload<TData = Awaited<ReturnType<typeof getAgentWorkload>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAgentWorkload>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ params?: GetAgentWorkloadParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAgentWorkload>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getGetAgentWorkloadQueryOptions(options)
+  const queryOptions = getGetAgentWorkloadQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetStatsPeriodsUrl = () => {
+
+
+
+
+  return `/api/stats/periods`
+}
+
+/**
+ * @summary List available monthly cut-off periods
+ */
+export const getStatsPeriods = async ( options?: RequestInit): Promise<StatsPeriod[]> => {
+
+  return customFetch<StatsPeriod[]>(getGetStatsPeriodsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetStatsPeriodsQueryKey = () => {
+    return [
+    `/api/stats/periods`
+    ] as const;
+    }
+
+
+export const getGetStatsPeriodsQueryOptions = <TData = Awaited<ReturnType<typeof getStatsPeriods>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStatsPeriods>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetStatsPeriodsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStatsPeriods>>> = ({ signal }) => getStatsPeriods({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStatsPeriods>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetStatsPeriodsQueryResult = NonNullable<Awaited<ReturnType<typeof getStatsPeriods>>>
+export type GetStatsPeriodsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List available monthly cut-off periods
+ */
+
+export function useGetStatsPeriods<TData = Awaited<ReturnType<typeof getStatsPeriods>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStatsPeriods>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetStatsPeriodsQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
