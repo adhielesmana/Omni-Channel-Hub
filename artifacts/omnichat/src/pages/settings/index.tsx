@@ -9,7 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { useChangePassword } from "@workspace/api-client-react";
+import { useChangePassword, useUpdateUser } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/context/AuthContext";
 
 const SECTIONS = [
@@ -53,10 +54,12 @@ function SettingRow({
 }
 
 function ProfileSection() {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
+  const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.avatarUrl ?? null);
+  const updateUserMutation = useUpdateUser();
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
@@ -77,7 +80,20 @@ function ProfileSection() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
+
       setAvatarUrl(data.url);
+
+      if (user) {
+        updateUserMutation.mutate(
+          { id: user.id, data: { avatarUrl: data.url } },
+          {
+            onSuccess: () => {
+              updateUser({ avatarUrl: data.url });
+              queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+            },
+          }
+        );
+      }
     } catch (err) {
       console.error("Upload failed", err);
     } finally {
