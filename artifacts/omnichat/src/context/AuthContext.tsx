@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useLayoutEffect, type ReactNode } from "react";
 import { setAuthTokenGetter } from "@workspace/api-client-react";
 
 export interface AuthUser {
@@ -42,7 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(() => loadSession().user);
   const [token, setToken] = useState<string | null>(() => loadSession().token);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (token) {
       setAuthTokenGetter(() => token);
     } else {
@@ -76,6 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             .substring(0, 2)
             .toUpperCase() ?? "??",
         };
+        setAuthTokenGetter(() => data.token);
         localStorage.setItem(SESSION_KEY, JSON.stringify(authUser));
         localStorage.setItem(TOKEN_KEY, data.token);
         setUser(authUser);
