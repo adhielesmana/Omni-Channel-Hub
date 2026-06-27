@@ -31,12 +31,12 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+app.use("/api", router);
 app.use(
   "/api/media",
   express.static(MEDIA_DIR, {
     maxAge: "1y",
     immutable: true,
-    fallthrough: false,
     setHeaders: (res, filePath) => {
       res.setHeader("X-Content-Type-Options", "nosniff");
       const ext = path.extname(filePath).slice(1).toLowerCase();
@@ -46,6 +46,5 @@ app.use(
     },
   }),
 );
-app.use("/api", router);
 
 export default app;

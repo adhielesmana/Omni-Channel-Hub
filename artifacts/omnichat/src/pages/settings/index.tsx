@@ -70,7 +70,7 @@ function ProfileSection() {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const res = await fetch("/api/media/upload", {
+      const res = await fetch("/api/upload", {
         method: "POST",
         headers: { Authorization: `Bearer ${localStorage.getItem("omnichat_token")}` },
         body: formData,

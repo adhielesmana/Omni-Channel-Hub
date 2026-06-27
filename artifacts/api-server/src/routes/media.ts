@@ -29,7 +29,7 @@ const upload = multer({
   },
 });
 
-router.post("/media/upload", requireAuth, upload.single("file"), async (req, res): Promise<void> => {
+router.post("/upload", requireAuth, upload.single("file"), async (req, res): Promise<void> => {
   if (!req.file) {
     res.status(400).json({ error: "No file provided" });
     return;
