@@ -72,19 +72,25 @@ router.get("/conversations", requireAuth, async (req, res): Promise<void> => {
   if (assignedAgentId) conditions.push(eq(conversationsTable.assignedAgentId, Number(assignedAgentId)));
   if (channelType) conditions.push(eq(conversationsTable.channelType, channelType as "whatsapp" | "instagram" | "facebook"));
 
-  // Department-based visibility: agents see their own + department conversations
+  // Department-based visibility
   const [currentUser] = await db
     .select({ role: usersTable.role, departmentId: usersTable.departmentId })
     .from(usersTable)
     .where(eq(usersTable.id, req.userId!));
   if (currentUser && currentUser.role !== "admin") {
-    const visibilityConditions: ReturnType<typeof eq>[] = [
-      eq(conversationsTable.assignedAgentId, req.userId!),
-    ];
-    if (currentUser.departmentId) {
-      visibilityConditions.push(eq(conversationsTable.departmentId, currentUser.departmentId));
+    if (currentUser.role === "agent") {
+      // Agents see ONLY conversations assigned to them
+      conditions.push(eq(conversationsTable.assignedAgentId, req.userId!));
+    } else if (currentUser.role === "supervisor") {
+      // Supervisors see their own + all conversations in their department
+      const visibilityConditions: ReturnType<typeof eq>[] = [
+        eq(conversationsTable.assignedAgentId, req.userId!),
+      ];
+      if (currentUser.departmentId) {
+        visibilityConditions.push(eq(conversationsTable.departmentId, currentUser.departmentId));
+      }
+      conditions.push(or(...visibilityConditions));
     }
-    conditions.push(or(...visibilityConditions));
   }
 
   const convs = conditions.length

@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { eq, ilike, and } from "drizzle-orm";
 import { db, contactsTable } from "@workspace/db";
 import { toTitleCase } from "../lib/string";
+import { requireAuth } from "../middlewares/auth";
 import {
   ListContactsResponse,
   ListContactsQueryParams,
@@ -20,7 +21,7 @@ const toDto = (c: typeof contactsTable.$inferSelect) => ({
   createdAt: c.createdAt.toISOString(),
 });
 
-router.get("/contacts", async (req, res): Promise<void> => {
+router.get("/contacts", requireAuth, async (req, res): Promise<void> => {
   const qp = ListContactsQueryParams.safeParse(req.query);
   if (!qp.success) {
     res.status(400).json({ error: qp.error.message });
@@ -39,7 +40,7 @@ router.get("/contacts", async (req, res): Promise<void> => {
   res.json(ListContactsResponse.parse(contacts.map(toDto)));
 });
 
-router.post("/contacts", async (req, res): Promise<void> => {
+router.post("/contacts", requireAuth, async (req, res): Promise<void> => {
   const parsed = CreateContactBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -49,7 +50,7 @@ router.post("/contacts", async (req, res): Promise<void> => {
   res.status(201).json(GetContactResponse.parse(toDto(contact)));
 });
 
-router.get("/contacts/:id", async (req, res): Promise<void> => {
+router.get("/contacts/:id", requireAuth, async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const params = GetContactParams.safeParse({ id: parseInt(raw, 10) });
   if (!params.success) {
@@ -64,7 +65,7 @@ router.get("/contacts/:id", async (req, res): Promise<void> => {
   res.json(GetContactResponse.parse(toDto(contact)));
 });
 
-router.patch("/contacts/:id", async (req, res): Promise<void> => {
+router.patch("/contacts/:id", requireAuth, async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const params = UpdateContactParams.safeParse({ id: parseInt(raw, 10) });
   if (!params.success) {
