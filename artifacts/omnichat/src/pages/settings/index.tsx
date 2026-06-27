@@ -94,15 +94,20 @@ function ProfileSection() {
       setAvatarUrl(data.url);
 
       if (user) {
-        updateUserMutation.mutate(
-          { id: user.id, data: { avatarUrl: data.url } },
-          {
-            onSuccess: () => {
-              updateUser({ avatarUrl: data.url });
-              queryClient.invalidateQueries({ queryKey: ["/api/users"] });
-            },
-          }
-        );
+        if (user.id === -1) {
+          // Superadmin — update local state directly (backend returns JSON, not DB row)
+          updateUser({ avatarUrl: data.url });
+        } else {
+          updateUserMutation.mutate(
+            { id: user.id, data: { avatarUrl: data.url } },
+            {
+              onSuccess: () => {
+                updateUser({ avatarUrl: data.url });
+                queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+              },
+            }
+          );
+        }
       }
     } catch (err) {
       console.error("Upload failed", err);

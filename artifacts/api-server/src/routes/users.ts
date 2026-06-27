@@ -72,13 +72,23 @@ router.patch("/users/:id", requireAuth, async (req, res): Promise<void> => {
     res.status(400).json({ error: params.error.message });
     return;
   }
-  if (isSuperadmin(params.data.id)) {
-    res.status(403).json({ error: "Superadmin cannot be modified" });
-    return;
-  }
   const parsed = UpdateUserBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  if (isSuperadmin(params.data.id)) {
+    // Only allow avatarUrl update for superadmin (not stored in DB)
+    const allowedKeys = ["avatarUrl"];
+    const updates = Object.fromEntries(
+      Object.entries(parsed.data).filter(([key]) => allowedKeys.includes(key))
+    );
+    if (Object.keys(updates).length === 0) {
+      res.status(403).json({ error: "Superadmin can only update avatar" });
+      return;
+    }
+    const updated = { ...SUPERADMIN, ...updates, createdAt: SUPERADMIN.createdAt.toISOString() };
+    res.json(UpdateUserResponse.parse(updated));
     return;
   }
   const [user] = await db.update(usersTable).set(parsed.data).where(eq(usersTable.id, params.data.id)).returning();
