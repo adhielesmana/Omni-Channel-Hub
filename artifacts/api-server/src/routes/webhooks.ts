@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { db, channelsTable, contactsTable, conversationsTable, messagesTable } from "@workspace/db";
 import { logger } from "../lib/logger";
 import { downloadWhatsAppMedia } from "../lib/whatsapp-media";
+import { toTitleCase } from "../lib/string";
 
 const router: IRouter = Router();
 
@@ -172,7 +173,7 @@ async function processWhatsAppEntry(entry: Record<string, unknown>) {
       let contact = (await db.select().from(contactsTable).where(eq(contactsTable.externalId, from)))[0];
       if (!contact) {
         const contacts = await db.insert(contactsTable).values({
-          name: profileName || from,
+          name: toTitleCase(profileName || from),
           phone: from,
           channelType: "whatsapp",
           externalId: from,
@@ -183,7 +184,7 @@ async function processWhatsAppEntry(entry: Record<string, unknown>) {
         const updates: Partial<typeof contactsTable.$inferSelect> = {};
         // Always update contact name if WhatsApp profile name is available and different
         if (profileName && profileName !== contact.name) {
-          updates.name = profileName;
+          updates.name = toTitleCase(profileName);
         }
         if (avatarUrl && avatarUrl !== contact.avatarUrl) {
           updates.avatarUrl = avatarUrl;
@@ -258,7 +259,7 @@ async function processMetaPageEntry(entry: Record<string, unknown>, channelType:
     let contact = (await db.select().from(contactsTable).where(eq(contactsTable.externalId, senderId)))[0];
     if (!contact) {
       const contacts = await db.insert(contactsTable).values({
-        name: `${channelType === "instagram" ? "Instagram" : "Facebook"} User`,
+        name: toTitleCase(`${channelType === "instagram" ? "Instagram" : "Facebook"} User`),
         channelType,
         externalId: senderId,
       }).returning();

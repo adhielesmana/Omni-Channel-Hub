@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, ilike, and } from "drizzle-orm";
 import { db, contactsTable } from "@workspace/db";
+import { toTitleCase } from "../lib/string";
 import {
   ListContactsResponse,
   ListContactsQueryParams,
@@ -44,7 +45,7 @@ router.post("/contacts", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const [contact] = await db.insert(contactsTable).values(parsed.data).returning();
+  const [contact] = await db.insert(contactsTable).values({ ...parsed.data, name: toTitleCase(parsed.data.name) }).returning();
   res.status(201).json(GetContactResponse.parse(toDto(contact)));
 });
 
@@ -75,7 +76,8 @@ router.patch("/contacts/:id", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const [contact] = await db.update(contactsTable).set(parsed.data).where(eq(contactsTable.id, params.data.id)).returning();
+  const data = parsed.data.name ? { ...parsed.data, name: toTitleCase(parsed.data.name) } : parsed.data;
+  const [contact] = await db.update(contactsTable).set(data).where(eq(contactsTable.id, params.data.id)).returning();
   if (!contact) {
     res.status(404).json({ error: "Contact not found" });
     return;
