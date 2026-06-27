@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { Bell, Globe, Link2, Repeat2, Shield, Sliders, Webhook, ChevronRight, Check, Copy, RefreshCw, Lock, Eye, EyeOff, Settings as SettingsIcon, User, Upload } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,7 @@ import { useChangePassword, useUpdateUser } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/context/AuthContext";
 
-const SECTIONS = [
+const ALL_SECTIONS = [
   { id: "profile", label: "Profile", icon: User },
   { id: "workspace", label: "Workspace", icon: Globe },
   { id: "notifications", label: "Notifications", icon: Bell },
@@ -23,6 +23,16 @@ const SECTIONS = [
   { id: "security", label: "Security", icon: Shield },
   { id: "advanced", label: "Advanced", icon: Sliders },
 ];
+
+const USER_SECTIONS = [
+  { id: "profile", label: "Profile", icon: User },
+  { id: "security", label: "Security", icon: Shield },
+];
+
+function getSections(role?: string) {
+  if (role === "admin" || role === "supervisor") return ALL_SECTIONS;
+  return USER_SECTIONS;
+}
 
 function SectionHeader({ title, description }: { title: string; description: string }) {
   return (
@@ -712,7 +722,9 @@ const SECTION_CONTENT: Record<string, React.ReactNode> = {
 };
 
 export default function Settings() {
-  const [activeSection, setActiveSection] = useState("workspace");
+  const { user } = useAuth();
+  const sections = useMemo(() => getSections(user?.role), [user?.role]);
+  const [activeSection, setActiveSection] = useState(sections[0]?.id ?? "profile");
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   return (
@@ -722,7 +734,7 @@ export default function Settings() {
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-3">
           Settings
         </p>
-        {SECTIONS.map((section) => {
+        {sections.map((section) => {
           const isActive = activeSection === section.id;
           return (
             <button
@@ -750,13 +762,13 @@ export default function Settings() {
             className="flex items-center gap-2 text-sm font-medium"
           >
             <SettingsIcon className="w-4 h-4" />
-            {SECTIONS.find(s => s.id === activeSection)?.label ?? "Settings"}
+            {sections.find(s => s.id === activeSection)?.label ?? "Settings"}
             <ChevronRight className={`w-3.5 h-3.5 transition-transform ${mobileSidebarOpen ? 'rotate-90' : ''}`} />
           </button>
         </div>
         {mobileSidebarOpen && (
           <div className="flex flex-col gap-0.5 p-2 bg-card/50 border-b">
-            {SECTIONS.map((section) => {
+            {sections.map((section) => {
               const isActive = activeSection === section.id;
               return (
                 <button

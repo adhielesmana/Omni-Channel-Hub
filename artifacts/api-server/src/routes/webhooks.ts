@@ -238,26 +238,27 @@ async function processWhatsAppEntry(entry: Record<string, unknown>) {
 }
 
 /**
- * Fetch a user's real name from Meta's Graph API using their PSID and
- * the channel's access token. Works for Facebook Messenger; for
- * Instagram the result depends on token permissions.
+ * Fetch a user's real name and profile picture from Meta's Graph API
+ * using their PSID and the channel's access token. Works for Facebook
+ * Messenger; for Instagram the result depends on token permissions.
  */
-async function fetchMetaUserName(
+async function fetchMetaUserProfile(
   psid: string,
   accessToken: string | null | undefined
-): Promise<string | undefined> {
-  if (!accessToken) return undefined;
+): Promise<{ name?: string; profilePic?: string }> {
+  if (!accessToken) return {};
   try {
     const res = await fetch(
-      `https://graph.facebook.com/v18.0/${psid}?access_token=${encodeURIComponent(accessToken)}`
+      `https://graph.facebook.com/v18.0/${psid}?fields=name,profile_pic&access_token=${encodeURIComponent(accessToken)}`
     );
     const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
     const name = data.name as string | undefined;
-    if (name) return name;
+    const profilePic = data.profile_pic as string | undefined;
+    return { name, profilePic };
   } catch (err) {
     logger.warn({ err, psid }, "Failed to fetch Meta user profile");
   }
-  return undefined;
+  return {};
 }
 
 async function processMetaPageEntry(entry: Record<string, unknown>, channelType: "instagram" | "facebook") {
@@ -281,22 +282,28 @@ async function processMetaPageEntry(entry: Record<string, unknown>, channelType:
 
     let contact = (await db.select().from(contactsTable).where(eq(contactsTable.externalId, senderId)))[0];
     if (!contact) {
-      // Try to get real name from Graph API, fall back to placeholder
-      const realName = await fetchMetaUserName(senderId, channel.accessToken);
+      // Try to get real name + picture from Graph API, fall back to placeholder
+      const profile = await fetchMetaUserProfile(senderId, channel.accessToken);
       const contacts = await db.insert(contactsTable).values({
-        name: toTitleCase(realName || `${channelType === "instagram" ? "Instagram" : "Facebook"} User`),
+        name: toTitleCase(profile.name || `${channelType === "instagram" ? "Instagram" : "Facebook"} User`),
         channelType,
         externalId: senderId,
+        avatarUrl: profile.profilePic ?? undefined,
       }).returning();
       contact = contacts[0];
-    } else if (isPlaceholderName(contact.name, senderId)) {
-      // Update existing placeholder contact with real name if available
-      const realName = await fetchMetaUserName(senderId, channel.accessToken);
-      if (realName && realName !== contact.name) {
-        await db.update(contactsTable)
-          .set({ name: toTitleCase(realName) })
-          .where(eq(contactsTable.id, contact.id));
-        contact = { ...contact, name: toTitleCase(realName) };
+    } else if (isPlaceholderName(contact.name, senderId) || !contact.avatarUrl) {
+      // Update existing placeholder contact with real name + picture if available
+      const profile = await fetchMetaUserProfile(senderId, channel.accessToken);
+      const updates: Partial<typeof contactsTable.$inferSelect> = {};
+      if (profile.name && (isPlaceholderName(contact.name, senderId) || profile.name !== contact.name)) {
+        updates.name = toTitleCase(profile.name);
+      }
+      if (profile.profilePic && !contact.avatarUrl) {
+        updates.avatarUrl = profile.profilePic;
+      }
+      if (Object.keys(updates).length > 0) {
+        await db.update(contactsTable).set(updates).where(eq(contactsTable.id, contact.id));
+        contact = { ...contact, ...updates };
       }
     }
 
