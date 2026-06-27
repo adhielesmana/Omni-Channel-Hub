@@ -136,7 +136,7 @@ function TextWithMaps({ text }: { text: string | null | undefined }) {
 }
 
 export default function Inbox() {
-  const [activeTab, setActiveTab] = useState("all");
+  const [activeTab, setActiveTab] = useState("open");
   const [activeConversationId, setActiveConversationId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [messageText, setMessageText] = useState("");
@@ -297,10 +297,10 @@ export default function Inbox() {
           </div>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="w-full h-9 grid grid-cols-4 bg-muted/50 p-1">
-              <TabsTrigger value="all" className="text-xs">All</TabsTrigger>
               <TabsTrigger value="open" className="text-xs">Open</TabsTrigger>
               <TabsTrigger value="pending" className="text-xs">Pend</TabsTrigger>
               <TabsTrigger value="resolved" className="text-xs">Done</TabsTrigger>
+              <TabsTrigger value="all" className="text-xs">All</TabsTrigger>
             </TabsList>
           </Tabs>
         </div>

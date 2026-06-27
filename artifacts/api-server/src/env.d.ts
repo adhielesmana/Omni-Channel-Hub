@@ -6,3 +6,22 @@ declare module "bcryptjs" {
   export function compareSync(s: string, hash: string): boolean;
   export function genSaltSync(rounds?: number): string;
 }
+
+// Multer adds req.file to Express Request
+declare global {
+  namespace Express {
+    interface Request {
+      file?: {
+        fieldname: string;
+        originalname: string;
+        encoding: string;
+        mimetype: string;
+        size: number;
+        destination: string;
+        filename: string;
+        path: string;
+        buffer: Buffer;
+      };
+    }
+  }
+}
