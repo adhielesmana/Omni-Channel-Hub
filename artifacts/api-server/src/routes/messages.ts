@@ -13,7 +13,7 @@ import { isSuperadmin } from "../lib/auth";
 
 const router: IRouter = Router();
 
-async function sendWhatsAppMessage(channel: typeof channelsTable.$inferSelect, contact: typeof contactsTable.$inferSelect, content: string): Promise<{ messages?: Array<{ id: string }>; error?: { message: string } }> {
+async function sendWhatsAppMessage(channel: typeof channelsTable.$inferSelect, contact: typeof contactsTable.$inferSelect, content: string): Promise<{ messageId?: string; error?: { message: string } }> {
   const url = `https://graph.facebook.com/v18.0/${channel.externalId}/messages`;
   const res = await fetch(url, {
     method: "POST",
@@ -34,7 +34,61 @@ async function sendWhatsAppMessage(channel: typeof channelsTable.$inferSelect, c
     logger.error({ status: res.status, data }, "WhatsApp send failed");
     throw new Error(data.error?.message || `WhatsApp send failed: ${res.status}`);
   }
-  return data;
+  return { messageId: data.messages?.[0]?.id };
+}
+
+async function sendMessengerMessage(channel: typeof channelsTable.$inferSelect, contact: typeof contactsTable.$inferSelect, content: string): Promise<{ messageId?: string; error?: { message: string } }> {
+  const pageId = channel.pageId || channel.externalId;
+  const psid = contact.externalId;
+  if (!pageId || !psid) {
+    throw new Error("Missing pageId or recipient PSID for Messenger send");
+  }
+  const url = `https://graph.facebook.com/v18.0/${pageId}/messages`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${channel.accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      recipient: { id: psid },
+      message: { text: content },
+      messaging_type: "RESPONSE",
+    }),
+  });
+  const data = (await res.json().catch(() => ({}))) as { message_id?: string; error?: { message: string } };
+  if (!res.ok) {
+    logger.error({ status: res.status, data, pageId, psid }, "Messenger send failed");
+    throw new Error(data.error?.message || `Messenger send failed: ${res.status}`);
+  }
+  return { messageId: data.message_id };
+}
+
+async function sendInstagramMessage(channel: typeof channelsTable.$inferSelect, contact: typeof contactsTable.$inferSelect, content: string): Promise<{ messageId?: string; error?: { message: string } }> {
+  const pageId = channel.pageId || channel.externalId;
+  const igSid = contact.externalId;
+  if (!pageId || !igSid) {
+    throw new Error("Missing pageId or recipient IG ID for Instagram send");
+  }
+  const url = `https://graph.facebook.com/v18.0/${pageId}/messages`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${channel.accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      recipient: { id: igSid },
+      message: { text: content },
+      messaging_type: "RESPONSE",
+    }),
+  });
+  const data = (await res.json().catch(() => ({}))) as { message_id?: string; error?: { message: string } };
+  if (!res.ok) {
+    logger.error({ status: res.status, data, pageId, igSid }, "Instagram send failed");
+    throw new Error(data.error?.message || `Instagram send failed: ${res.status}`);
+  }
+  return { messageId: data.message_id };
 }
 
 const toDto = (m: typeof messagesTable.$inferSelect) => ({
@@ -149,7 +203,7 @@ router.post("/conversations/:conversationId/messages", requireAuth, async (req, 
       .where(eq(conversationsTable.id, params.data.conversationId));
   }
 
-  // Send to WhatsApp Cloud API (skip for notes and non-text for now)
+  // Send to channel API (skip for notes and non-text for now)
   if (!isNote && contentType === "text" && content) {
     try {
       const [conv] = await db
@@ -165,22 +219,30 @@ router.post("/conversations/:conversationId/messages", requireAuth, async (req, 
           .select()
           .from(contactsTable)
           .where(eq(contactsTable.id, conv.contactId));
-        if (channel && contact && channel.channelType === "whatsapp" && channel.accessToken && channel.externalId && contact.phone) {
-          const waRes = await sendWhatsAppMessage(channel, contact, content);
-          if (waRes.messages?.[0]?.id) {
+        if (channel && contact && channel.accessToken) {
+          let sendResult: { messageId?: string } = {};
+          if (channel.channelType === "whatsapp" && channel.externalId && contact.phone) {
+            sendResult = await sendWhatsAppMessage(channel, contact, content);
+            logger.info({ messageId: message.id, waId: sendResult.messageId }, "WhatsApp message sent");
+          } else if (channel.channelType === "facebook") {
+            sendResult = await sendMessengerMessage(channel, contact, content);
+            logger.info({ messageId: message.id, fbId: sendResult.messageId }, "Messenger message sent");
+          } else if (channel.channelType === "instagram") {
+            sendResult = await sendInstagramMessage(channel, contact, content);
+            logger.info({ messageId: message.id, igId: sendResult.messageId }, "Instagram message sent");
+          }
+          if (sendResult.messageId) {
             await db
               .update(messagesTable)
-              .set({ externalMessageId: waRes.messages[0].id, deliveryStatus: "sent" })
+              .set({ externalMessageId: sendResult.messageId, deliveryStatus: "sent" })
               .where(eq(messagesTable.id, message.id));
-            logger.info({ messageId: message.id, waId: waRes.messages[0].id }, "WhatsApp message sent");
-            // Reflect the updated status in the returned message so the frontend doesn't show pending
             message = { ...message, deliveryStatus: "sent" };
           }
         }
       }
     } catch (err) {
       // Log but don't fail — message is already saved
-      logger.error({ err, messageId: message.id }, "Failed to send WhatsApp message");
+      logger.error({ err, messageId: message.id }, "Failed to send channel message");
     }
   }
 

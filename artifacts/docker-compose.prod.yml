@@ -1,0 +1,96 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: omnichat-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL","pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    networks: [omnichat]
+
+  db-migrate:
+    image: postgres:16-alpine
+    container_name: omnichat-migrate
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ./migrations:/migrations:ro
+    entrypoint: >
+      sh -c "
+        psql -h postgres -U ${POSTGRES_USER} -d ${POSTGRES_DB} -f /migrations/001_initial_schema.sql &&
+        psql -h postgres -U ${POSTGRES_USER} -d ${POSTGRES_DB} -f /migrations/002_updated_at_trigger.sql &&
+        echo 'Migrations complete.'
+      "
+    networks: [omnichat]
+
+  api:
+    image: omnichat-api:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: omnichat-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      db-migrate:
+        condition: service_completed_successfully
+    environment:
+      NODE_ENV: production
+      PORT: 8080
+      DATABASE_URL: ${DATABASE_URL}
+      SESSION_SECRET: ${SESSION_SECRET}
+    volumes:
+      - media_data:/app/media
+    healthcheck:
+      test: ["CMD-SHELL","wget -qO- http://localhost:8080/api/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+      start_period: 30s
+    networks: [omnichat]
+
+  frontend:
+    image: omnichat-frontend:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: omnichat-frontend
+    restart: unless-stopped
+    networks: [omnichat]
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: omnichat-nginx
+    restart: unless-stopped
+    depends_on: [api, frontend]
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/omnichat.conf:/etc/nginx/conf.d/default.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /var/www/certbot:/var/www/certbot:ro
+    networks: [omnichat]
+
+volumes:
+  postgres_data:
+  media_data:
+
+networks:
+  omnichat:
+    driver: bridge
