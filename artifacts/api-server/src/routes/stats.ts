@@ -95,12 +95,14 @@ router.get("/stats/overview", async (req, res): Promise<void> => {
     : await db.select({ count: count() }).from(conversationsTable)
         .where(sql`${conversationsTable.assignedAgentId} IS NULL AND ${conversationsTable.status} = 'open'`);
 
+  const totalContacts = await db.select({ count: count() }).from(contactsTable);
+
   const overview = {
     totalConversations: Number(totalConvs[0]?.count ?? 0),
     openConversations: Number(openConvs[0]?.count ?? 0),
     pendingConversations: Number(pendingConvs[0]?.count ?? 0),
     resolvedConversations: Number(resolvedConvs[0]?.count ?? 0),
-    totalContacts: 0, // placeholder; contacts don't have period filtering for now
+    totalContacts: Number(totalContacts[0]?.count ?? 0),
     totalAgents: Number(totalAgents?.count ?? 0),
     avgResponseTime: 4.2,
     unassignedConversations: Number(unassigned[0]?.count ?? 0),
