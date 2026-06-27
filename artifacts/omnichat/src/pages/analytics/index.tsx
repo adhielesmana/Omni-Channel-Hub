@@ -171,6 +171,30 @@ export default function Analytics() {
             </Card>
           </div>
 
+          {/* Resolved Conversations by Agent */}
+          {workload && workload.length > 0 && (
+            <Card className="shadow-sm">
+              <CardHeader className="border-b bg-muted/20">
+                <CardTitle className="text-base">Resolved Conversations by Agent</CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 pt-6">
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={workload.map((a, i) => ({ name: a.agentName ?? `Agent #${a.agentId}`, count: a.resolvedCount, fill: DEPT_COLORS[i % DEPT_COLORS.length] }))} margin={{ top: 0, right: 16, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                    <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                    <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
+                    <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
+                    <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                      {workload.map((_, i) => (
+                        <Cell key={i} fill={DEPT_COLORS[i % DEPT_COLORS.length]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Department Distribution Bar Chart */}
           {deptData.length > 0 && (
             <Card className="shadow-sm">
