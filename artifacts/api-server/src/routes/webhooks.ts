@@ -237,6 +237,29 @@ async function processWhatsAppEntry(entry: Record<string, unknown>) {
   }
 }
 
+/**
+ * Fetch a user's real name from Meta's Graph API using their PSID and
+ * the channel's access token. Works for Facebook Messenger; for
+ * Instagram the result depends on token permissions.
+ */
+async function fetchMetaUserName(
+  psid: string,
+  accessToken: string | null | undefined
+): Promise<string | undefined> {
+  if (!accessToken) return undefined;
+  try {
+    const res = await fetch(
+      `https://graph.facebook.com/v18.0/${psid}?access_token=${encodeURIComponent(accessToken)}`
+    );
+    const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+    const name = data.name as string | undefined;
+    if (name) return name;
+  } catch (err) {
+    logger.warn({ err, psid }, "Failed to fetch Meta user profile");
+  }
+  return undefined;
+}
+
 async function processMetaPageEntry(entry: Record<string, unknown>, channelType: "instagram" | "facebook") {
   const messaging = entry.messaging as Array<Record<string, unknown>>;
   if (!messaging?.length) return;
@@ -258,12 +281,23 @@ async function processMetaPageEntry(entry: Record<string, unknown>, channelType:
 
     let contact = (await db.select().from(contactsTable).where(eq(contactsTable.externalId, senderId)))[0];
     if (!contact) {
+      // Try to get real name from Graph API, fall back to placeholder
+      const realName = await fetchMetaUserName(senderId, channel.accessToken);
       const contacts = await db.insert(contactsTable).values({
-        name: toTitleCase(`${channelType === "instagram" ? "Instagram" : "Facebook"} User`),
+        name: toTitleCase(realName || `${channelType === "instagram" ? "Instagram" : "Facebook"} User`),
         channelType,
         externalId: senderId,
       }).returning();
       contact = contacts[0];
+    } else if (isPlaceholderName(contact.name, senderId)) {
+      // Update existing placeholder contact with real name if available
+      const realName = await fetchMetaUserName(senderId, channel.accessToken);
+      if (realName && realName !== contact.name) {
+        await db.update(contactsTable)
+          .set({ name: toTitleCase(realName) })
+          .where(eq(contactsTable.id, contact.id));
+        contact = { ...contact, name: toTitleCase(realName) };
+      }
     }
 
     let conversation = (await db
