@@ -12,8 +12,14 @@ type MetaProfileResponse = {
 
 export type CustomerProfile = {
   name?: string | null;
+  username?: string | null;
   avatarUrl?: string | null;
 };
+
+function isPlaceholderProfileName(name: string | null | undefined, channelType: "instagram" | "facebook"): boolean {
+  if (!name) return true;
+  return name.trim().toLowerCase() === `${channelType} user`;
+}
 
 export async function fetchCustomerProfile(
   channelType: "instagram" | "facebook",
@@ -37,11 +43,12 @@ export async function fetchCustomerProfile(
   }
 
   const rawName = channelType === "instagram"
-    ? data.name ?? data.username ?? null
+    ? [data.name, data.username].find((name) => !isPlaceholderProfileName(name, channelType)) ?? null
     : [data.first_name, data.last_name].filter(Boolean).join(" ") || null;
 
   return {
     name: rawName ? toTitleCase(rawName) : null,
+    username: channelType === "instagram" ? data.username ?? null : null,
     avatarUrl: data.profile_pic ?? null,
   };
 }

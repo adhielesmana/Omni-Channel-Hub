@@ -10,14 +10,6 @@ const router: IRouter = Router();
 
 const WA_MEDIA_TYPES = new Set(["image", "video", "audio", "voice", "document", "sticker"]);
 
-// Whether a stored contact name is just a placeholder (phone number) we should
-// overwrite once we learn the customer's real WhatsApp profile name.
-function isPlaceholderName(name: string | null | undefined, phone: string): boolean {
-  if (!name) return true;
-  if (name === phone) return true;
-  return /^[+\d\s()-]+$/.test(name);
-}
-
 // GET — Meta webhook verification
 router.get("/webhooks/meta", async (req, res): Promise<void> => {
   const mode = req.query["hub.mode"];
@@ -173,7 +165,7 @@ async function processWhatsAppEntry(entry: Record<string, unknown>) {
       const remoteProfile = channel.channelType === "whatsapp"
         ? null
         : await fetchCustomerProfile(channel.channelType, from, channel.accessToken ?? "");
-      const remoteProfileName = remoteProfile?.name ?? null;
+      const remoteProfileName = remoteProfile?.name ?? remoteProfile?.username ?? null;
       const remoteAvatarUrl = remoteProfile?.avatarUrl ?? null;
 
       const avatarUrl = remoteAvatarUrl ?? whatsappAvatarUrl;
@@ -271,9 +263,10 @@ async function processMetaPageEntry(entry: Record<string, unknown>, channelType:
       : null;
 
     let contact = (await db.select().from(contactsTable).where(eq(contactsTable.externalId, senderId)))[0];
+    const remoteProfileName = remoteProfile?.name ?? remoteProfile?.username ?? null;
     if (!contact) {
       const contacts = await db.insert(contactsTable).values({
-        name: toTitleCase(remoteProfile?.name ?? `${channelType === "instagram" ? "Instagram" : "Facebook"} User`),
+        name: toTitleCase(remoteProfileName ?? senderId),
         channelType,
         externalId: senderId,
         avatarUrl: remoteProfile?.avatarUrl ?? undefined,
@@ -281,8 +274,8 @@ async function processMetaPageEntry(entry: Record<string, unknown>, channelType:
       contact = contacts[0];
     } else {
       const updates: Partial<typeof contactsTable.$inferSelect> = {};
-      if (remoteProfile?.name && remoteProfile.name !== contact.name) {
-        updates.name = toTitleCase(remoteProfile.name);
+      if (remoteProfileName && remoteProfileName !== contact.name) {
+        updates.name = toTitleCase(remoteProfileName);
       }
       if (remoteProfile?.avatarUrl && remoteProfile.avatarUrl !== contact.avatarUrl) {
         updates.avatarUrl = remoteProfile.avatarUrl;
