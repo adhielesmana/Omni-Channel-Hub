@@ -120,14 +120,6 @@ export default function Login() {
               <p className="mt-1.5 text-sm text-gray-500">Enter your credentials to continue</p>
             </div>
 
-            {/* Quick fill for the admin account */}
-            <div className="mb-6 p-4 rounded-xl bg-violet-50 border border-violet-100">
-              <p className="text-xs font-semibold text-violet-700 mb-2.5 flex items-center gap-1.5">
-                <Zap className="w-3 h-3" />
-                Use your administrator credentials to sign in.
-              </p>
-            </div>
-
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <div className="space-y-1.5">
                 <Label htmlFor="email" className="text-sm font-medium text-gray-700">
