@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { useListUsers, useCreateUser, useUpdateUser, useListDepartments, useResetUserPassword } from "@workspace/api-client-react";
+import { useListUsers, useCreateUser, useUpdateUser, useListDepartments, useResetUserPassword, useDeleteUser } from "@workspace/api-client-react";
 import { UserInputRole } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { UserCircle, UserPlus, Search, Pencil, Key, Copy, Check } from "lucide-react";
+import { UserCircle, UserPlus, Search, Pencil, Key, Copy, Check, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,6 +31,7 @@ export default function Users() {
   const [copied, setCopied] = useState(false);
   const [resetUserId, setResetUserId] = useState<number | null>(null);
   const [resetPassword, setResetPassword] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
 
   const [editOpen, setEditOpen] = useState(false);
   const [editUser, setEditUser] = useState<UserDto | null>(null);
@@ -43,6 +44,7 @@ export default function Users() {
   const createUser = useCreateUser();
   const updateUser = useUpdateUser();
   const resetUserPassword = useResetUserPassword();
+  const deleteUser = useDeleteUser();
 
   const filtered = users?.filter(u =>
     !search ||
@@ -117,6 +119,19 @@ export default function Users() {
           setEditUser(null);
         },
         onError: () => setEditError("Failed to update user. Please try again."),
+      }
+    );
+  };
+
+  const handleDelete = (userId: number) => {
+    deleteUser.mutate(
+      { id: userId },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+          setDeleteConfirmId(null);
+        },
+        onError: () => setError("Failed to delete user."),
       }
     );
   };
@@ -251,6 +266,9 @@ export default function Users() {
                       <div className="flex items-center justify-end gap-1">
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(user)}>
                           <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteConfirmId(user.id)}>
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                         {showReset ? (
                           <div className="flex items-center gap-1">
@@ -440,6 +458,27 @@ export default function Users() {
             <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
             <Button onClick={handleEditSubmit} disabled={updateUser.isPending}>
               {updateUser.isPending ? "Saving..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deleteConfirmId !== null} onOpenChange={(v) => { if (!v) setDeleteConfirmId(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete User</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this user? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setDeleteConfirmId(null)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={() => deleteConfirmId && handleDelete(deleteConfirmId)}
+              disabled={deleteUser.isPending}
+            >
+              {deleteUser.isPending ? "Deleting..." : "Delete"}
             </Button>
           </DialogFooter>
         </DialogContent>
