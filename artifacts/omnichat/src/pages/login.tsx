@@ -131,11 +131,11 @@ export default function Login() {
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <div className="space-y-1.5">
                 <Label htmlFor="email" className="text-sm font-medium text-gray-700">
-                  Email or username
+                  Email address
                 </Label>
                 <Input
                   id="email"
-                  type="text"
+                  type="email"
                   autoComplete="email"
                   required
                   placeholder="you@company.com"

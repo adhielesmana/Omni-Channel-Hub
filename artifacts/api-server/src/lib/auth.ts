@@ -9,7 +9,7 @@ export const SUPERADMIN_ID = -1;
 export const SUPERADMIN = {
   id: SUPERADMIN_ID,
   name: "Super Admin",
-  email: "adhielesmana",
+  email: "adhielesmana@kabeltelekom.id",
   role: "admin",
   isSuperadmin: true,
   isActive: true,
