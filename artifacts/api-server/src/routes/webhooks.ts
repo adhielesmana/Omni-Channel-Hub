@@ -303,6 +303,8 @@ async function processMetaPageEntry(entry: Record<string, unknown>, channelType:
     return;
   }
 
+  const pageId = channel.pageId || channel.externalId;
+
   for (const event of messaging) {
     const sender = event.sender as Record<string, unknown>;
     const msgEvent = event.message as Record<string, unknown>;
@@ -311,6 +313,13 @@ async function processMetaPageEntry(entry: Record<string, unknown>, channelType:
     const senderId = sender.id as string;
     const msgId = msgEvent.mid as string;
     const text = msgEvent.text as string | undefined;
+
+    // Skip auto-replies from the business page itself — these should appear
+    // as outbound messages in the customer's conversation, not create a new one.
+    if (pageId && senderId === pageId) {
+      logger.info({ senderId, channelType }, "Skipping business page auto-reply");
+      continue;
+    }
 
     let contact = (await db.select().from(contactsTable).where(eq(contactsTable.externalId, senderId)))[0];
     if (!contact) {
