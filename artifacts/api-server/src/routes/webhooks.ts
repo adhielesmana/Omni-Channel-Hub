@@ -301,24 +301,32 @@ async function fetchInstagramUserProfile(
       logger.warn({ igsid, error: directData.error }, "Instagram direct profile lookup failed");
     }
 
-    // 2. Fallback: scan page conversations to find this IGSID
-    if (pageId) {
+    // 2. Fallback: scan Instagram Business Account conversations to find this IGSID
+    // Note: the Facebook Page conversations endpoint only returns Messenger threads,
+    // not Instagram DMs. We must use the Instagram Business Account ID endpoint.
+    const igBusinessId = "17841457916872770";
+    try {
       const convRes = await fetch(
-        `https://graph.facebook.com/v21.0/${pageId}/conversations?fields=participants{name,username,id}&access_token=${encodeURIComponent(accessToken)}&limit=100`
+        `https://graph.facebook.com/v21.0/${igBusinessId}/conversations?fields=participants{name,username,id}&access_token=${encodeURIComponent(accessToken)}&limit=100`
       );
       const convData = (await convRes.json().catch(() => ({}))) as {
         data?: Array<{
           participants?: { data?: Array<{ id: string; name?: string; username?: string }> };
         }>;
       };
-      for (const conv of convData.data || []) {
-        for (const p of conv.participants?.data || []) {
-          if (p.id === igsid && (p.name || p.username)) {
-            logger.info({ igsid, name: p.name || p.username }, "Fetched Instagram user profile (conversations fallback)");
-            return { name: p.name || p.username };
+      if (convData.data) {
+        for (const conv of convData.data) {
+          for (const p of conv.participants?.data || []) {
+            if (p.id === igsid && (p.name || p.username)) {
+              logger.info({ igsid, name: p.name || p.username }, "Fetched Instagram user profile (conversations fallback)");
+              return { name: p.name || p.username };
+            }
           }
         }
       }
+      logger.warn({ igsid, igBusinessId, error: convData }, "Instagram conversation lookup returned no data");
+    } catch (convErr) {
+      logger.warn({ igsid, err: convErr }, "Instagram conversation lookup failed");
     }
   } catch (err) {
     logger.warn({ err, igsid }, "Failed to fetch Instagram user profile");
