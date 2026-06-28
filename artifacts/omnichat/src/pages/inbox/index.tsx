@@ -518,10 +518,10 @@ export default function Inbox() {
               <div className="relative flex-1">
                 <textarea
                   placeholder={composerMode === "note" ? "Write an internal note..." : "Type a message..."}
-                  className={`w-full min-h-[60px] max-h-[150px] resize-none rounded-xl border px-4 py-3 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${
+                  className={`h-12 w-full max-h-[150px] resize-none rounded-xl border px-4 py-3 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${
                     composerMode === "note" ? "bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-800" : "border-input bg-background"
                   }`}
-                  rows={2}
+                  rows={1}
                   value={messageText}
                   onChange={e => setMessageText(e.target.value)}
                   onKeyDown={handleKeyDown}
