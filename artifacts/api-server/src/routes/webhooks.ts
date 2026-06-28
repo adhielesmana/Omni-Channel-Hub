@@ -270,18 +270,20 @@ async function fetchMessengerUserProfile(
  *
  * Strategy:
  * 1. Direct IGSID lookup via graph.facebook.com/v21.0/{igsid}?fields=name,username
- *    (Instagram IGSIDs don't support profile_pic on the direct endpoint)
  * 2. Fallback: scan page conversations to find the participant name
- * 3. If all fail, return {} so caller falls back to "Instagram User"
+ * 3. If the user is NOT in any conversation thread AND the API blocks them,
+ *    this is likely a story reply/mention — return { skip: true } so the
+ *    caller can silently discard it instead of creating a fake contact.
  */
 async function fetchInstagramUserProfile(
   igsid: string,
   pageId: string | null | undefined,
   accessToken: string | null | undefined
-): Promise<{ name?: string; profilePic?: string }> {
+): Promise<{ name?: string; profilePic?: string; skip?: boolean }> {
   if (!accessToken) return {};
+  let directBlocked = false;
   try {
-    // 1. Direct IGSID lookup (v21.0 with name,username — profile_pic not supported)
+    // 1. Direct IGSID lookup (v21.0 with name,username)
     const directRes = await fetch(
       `https://graph.facebook.com/v21.0/${igsid}?fields=name,username&access_token=${encodeURIComponent(accessToken)}`
     );
@@ -298,6 +300,8 @@ async function fetchInstagramUserProfile(
         return { name: username };
       }
     } else {
+      const errCode = (directData.error as Record<string, unknown>)?.code as number;
+      if (errCode === 200) directBlocked = true;
       logger.warn({ igsid, error: directData.error }, "Instagram direct profile lookup failed");
     }
 
@@ -318,6 +322,12 @@ async function fetchInstagramUserProfile(
             return { name: p.name || p.username };
           }
         }
+      }
+      // 3. If API blocked (#200) AND user not in any conversation thread,
+      //    this is likely a story reply/mention — skip it.
+      if (directBlocked) {
+        logger.info({ igsid }, "Instagram user not in conversation threads — discarding story reply/mention");
+        return { skip: true };
       }
     }
   } catch (err) {
@@ -361,6 +371,10 @@ async function processMetaPageEntry(entry: Record<string, unknown>, channelType:
         channelType === "instagram"
           ? await fetchInstagramUserProfile(senderId, channel.pageId || channel.externalId, channel.accessToken)
           : await fetchMessengerUserProfile(senderId, channel.accessToken);
+      // Silently discard story replies/mentions where the user has no DM history
+      if ("skip" in profile && profile.skip) {
+        continue;
+      }
       const contacts = await db.insert(contactsTable).values({
         name: toTitleCase(profile.name || `${channelType === "instagram" ? "Instagram" : "Facebook"} User`),
         channelType,
@@ -374,6 +388,10 @@ async function processMetaPageEntry(entry: Record<string, unknown>, channelType:
         channelType === "instagram"
           ? await fetchInstagramUserProfile(senderId, channel.pageId || channel.externalId, channel.accessToken)
           : await fetchMessengerUserProfile(senderId, channel.accessToken);
+      // Silently discard story replies/mentions where the user has no DM history
+      if ("skip" in profile && profile.skip) {
+        continue;
+      }
       const updates: Partial<typeof contactsTable.$inferSelect> = {};
       if (profile.name && (isPlaceholderName(contact.name, senderId) || profile.name !== contact.name)) {
         updates.name = toTitleCase(profile.name);
