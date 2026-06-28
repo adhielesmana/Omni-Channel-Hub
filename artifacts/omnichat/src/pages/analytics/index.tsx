@@ -1,7 +1,7 @@
 import { useGetStatsOverview, useGetAgentWorkload, useGetConversationsByChannel, useGetConversationsByDepartment } from "@workspace/api-client-react";
 import { MessageSquare, Clock, CheckCircle2, AlertCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
 import { PieChart, Pie, Cell, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Legend } from "recharts";
@@ -31,6 +31,7 @@ export default function Analytics() {
     count: d.count,
     fill: DEPT_COLORS[i % DEPT_COLORS.length],
   }));
+  const maxOpenCount = Math.max(...(workload ?? []).map((agent) => agent.openCount), 1);
 
   return (
     <div className="p-4 md:p-8 h-full overflow-y-auto bg-muted/10">
@@ -107,10 +108,10 @@ export default function Analytics() {
                 ) : (
                   <div className="flex flex-col divide-y">
                     {workload.map((agent) => {
-                      const maxOpen = Math.max(...workload.map(a => a.openCount), 1);
                       return (
                         <div key={agent.agentId} className="p-4 flex items-center gap-4 hover:bg-muted/30 transition-colors">
                           <Avatar className="h-9 w-9 border border-border/50 flex-shrink-0">
+                            <AvatarImage src={agent.avatarUrl ?? undefined} alt={agent.agentName} />
                             <AvatarFallback className="bg-primary/10 text-primary font-medium text-sm">
                               {agent.agentName?.substring(0, 2).toUpperCase() ?? "??"}
                             </AvatarFallback>
@@ -118,7 +119,7 @@ export default function Analytics() {
                           <div className="flex-1 min-w-0">
                             <p className="font-medium text-sm truncate">{agent.agentName}</p>
                             <div className="flex items-center gap-2 mt-1">
-                              <Progress value={(agent.openCount / maxOpen) * 100} className="h-1.5 flex-1" />
+                              <Progress value={(agent.openCount / maxOpenCount) * 100} className="h-1.5 flex-1" />
                               <span className="text-xs text-muted-foreground whitespace-nowrap">{agent.openCount} open</span>
                             </div>
                           </div>
