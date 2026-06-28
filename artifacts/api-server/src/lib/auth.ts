@@ -14,7 +14,7 @@ export const SUPERADMIN = {
   isSuperadmin: true,
   isActive: true,
   departmentId: null,
-  avatarUrl: null,
+  avatarUrl: "/omnichat-logo.svg",
   createdAt: new Date("2024-01-01"),
 } as const;
 
