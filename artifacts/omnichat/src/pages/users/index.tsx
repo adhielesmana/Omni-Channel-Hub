@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -16,6 +16,7 @@ type UserDto = {
   id: number;
   name: string;
   email: string;
+  avatarUrl?: string | null;
   role: string;
   departmentId?: number | null;
   isActive: boolean;
@@ -235,6 +236,7 @@ export default function Users() {
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-3">
                         <Avatar className="h-9 w-9">
+                          <AvatarImage src={user.avatarUrl ?? undefined} alt={user.name} />
                           <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
                             {user.name?.substring(0, 2).toUpperCase() || "??"}
                           </AvatarFallback>
