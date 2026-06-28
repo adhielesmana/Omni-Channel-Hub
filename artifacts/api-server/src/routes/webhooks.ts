@@ -249,9 +249,13 @@ async function fetchMessengerUserProfile(
   if (!accessToken) return {};
   try {
     const res = await fetch(
-      `https://graph.facebook.com/v18.0/${psid}?fields=name,profile_pic&access_token=${encodeURIComponent(accessToken)}`
+      `https://graph.facebook.com/v21.0/${psid}?fields=name,profile_pic&access_token=${encodeURIComponent(accessToken)}`
     );
     const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+    if (data.error) {
+      logger.warn({ psid, error: data.error }, "Messenger profile API returned error");
+      return {};
+    }
     const name = data.name as string | undefined;
     const profilePic = data.profile_pic as string | undefined;
     return { name, profilePic };
@@ -262,31 +266,60 @@ async function fetchMessengerUserProfile(
 }
 
 /**
- * Fetch an Instagram user's name and profile picture from Meta's
- * Graph API using their IGSID.  The /{id}?fields=name,profile_pic
- * endpoint works for both Facebook PSIDs and Instagram IGSIDs.
+ * Fetch an Instagram user's name from Meta's Graph API using their IGSID.
+ *
+ * Strategy:
+ * 1. Direct IGSID lookup via graph.facebook.com/v21.0/{igsid}?fields=name,username
+ *    (Instagram IGSIDs don't support profile_pic on the direct endpoint)
+ * 2. Fallback: scan page conversations to find the participant name
+ * 3. If all fail, return {} so caller falls back to "Instagram User"
  */
 async function fetchInstagramUserProfile(
   igsid: string,
-  _pageId: string | null | undefined,
+  pageId: string | null | undefined,
   accessToken: string | null | undefined
 ): Promise<{ name?: string; profilePic?: string }> {
   if (!accessToken) return {};
   try {
-    const res = await fetch(
-      `https://graph.facebook.com/v18.0/${igsid}?fields=name,profile_pic&access_token=${encodeURIComponent(accessToken)}`
+    // 1. Direct IGSID lookup (v21.0 with name,username — profile_pic not supported)
+    const directRes = await fetch(
+      `https://graph.facebook.com/v21.0/${igsid}?fields=name,username&access_token=${encodeURIComponent(accessToken)}`
     );
-    const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-    if (data.error) {
-      logger.warn({ igsid, error: data.error }, "Instagram profile API returned error");
-      return {};
+    const directData = (await directRes.json().catch(() => ({}))) as Record<string, unknown>;
+    if (!directData.error) {
+      const name = directData.name as string | undefined;
+      const username = directData.username as string | undefined;
+      if (name) {
+        logger.info({ igsid, name }, "Fetched Instagram user profile (direct)");
+        return { name };
+      }
+      if (username) {
+        logger.info({ igsid, username }, "Fetched Instagram user profile (username fallback)");
+        return { name: username };
+      }
+    } else {
+      logger.warn({ igsid, error: directData.error }, "Instagram direct profile lookup failed");
     }
-    const name = data.name as string | undefined;
-    const profilePic = data.profile_pic as string | undefined;
-    if (name) {
-      logger.info({ igsid, name }, "Fetched Instagram user profile");
+
+    // 2. Fallback: scan page conversations to find this IGSID
+    if (pageId) {
+      const convRes = await fetch(
+        `https://graph.facebook.com/v21.0/${pageId}/conversations?fields=participants{name,username,id}&access_token=${encodeURIComponent(accessToken)}&limit=100`
+      );
+      const convData = (await convRes.json().catch(() => ({}))) as {
+        data?: Array<{
+          participants?: { data?: Array<{ id: string; name?: string; username?: string }> };
+        }>;
+      };
+      for (const conv of convData.data || []) {
+        for (const p of conv.participants?.data || []) {
+          if (p.id === igsid && (p.name || p.username)) {
+            logger.info({ igsid, name: p.name || p.username }, "Fetched Instagram user profile (conversations fallback)");
+            return { name: p.name || p.username };
+          }
+        }
+      }
     }
-    return { name, profilePic };
   } catch (err) {
     logger.warn({ err, igsid }, "Failed to fetch Instagram user profile");
   }
