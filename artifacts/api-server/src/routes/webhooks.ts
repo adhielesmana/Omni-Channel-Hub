@@ -271,17 +271,15 @@ async function fetchMessengerUserProfile(
  * Strategy:
  * 1. Direct IGSID lookup via graph.facebook.com/v21.0/{igsid}?fields=name,username
  * 2. Fallback: scan page conversations to find the participant name
- * 3. If the user is NOT in any conversation thread AND the API blocks them,
- *    this is likely a story reply/mention — return { skip: true } so the
- *    caller can silently discard it instead of creating a fake contact.
+ * 3. If nothing works, return {} so the caller falls back to "Instagram User".
+ *    We NEVER silently discard — a missing profile just means a placeholder name.
  */
 async function fetchInstagramUserProfile(
   igsid: string,
   pageId: string | null | undefined,
   accessToken: string | null | undefined
-): Promise<{ name?: string; profilePic?: string; skip?: boolean }> {
+): Promise<{ name?: string; profilePic?: string }> {
   if (!accessToken) return {};
-  let directBlocked = false;
   try {
     // 1. Direct IGSID lookup (v21.0 with name,username)
     const directRes = await fetch(
@@ -300,8 +298,6 @@ async function fetchInstagramUserProfile(
         return { name: username };
       }
     } else {
-      const errCode = (directData.error as Record<string, unknown>)?.code as number;
-      if (errCode === 200) directBlocked = true;
       logger.warn({ igsid, error: directData.error }, "Instagram direct profile lookup failed");
     }
 
@@ -323,12 +319,6 @@ async function fetchInstagramUserProfile(
           }
         }
       }
-      // 3. If API blocked (#200) AND user not in any conversation thread,
-      //    this is likely a story reply/mention — skip it.
-      if (directBlocked) {
-        logger.info({ igsid }, "Instagram user not in conversation threads — discarding story reply/mention");
-        return { skip: true };
-      }
     }
   } catch (err) {
     logger.warn({ err, igsid }, "Failed to fetch Instagram user profile");
@@ -347,6 +337,8 @@ async function processMetaPageEntry(entry: Record<string, unknown>, channelType:
   }
 
   const pageId = channel.pageId || channel.externalId;
+  // Instagram Business Account ID (used as sender.id for auto-replies from the business)
+  const igBusinessId = channelType === "instagram" ? "17841457916872770" : undefined;
 
   for (const event of messaging) {
     const sender = event.sender as Record<string, unknown>;
@@ -359,8 +351,13 @@ async function processMetaPageEntry(entry: Record<string, unknown>, channelType:
 
     // Skip auto-replies from the business page itself — these should appear
     // as outbound messages in the customer's conversation, not create a new one.
+    // For Instagram, check both the Facebook Page ID and the Instagram Business Account ID.
     if (pageId && senderId === pageId) {
       logger.info({ senderId, channelType }, "Skipping business page auto-reply");
+      continue;
+    }
+    if (channelType === "instagram" && igBusinessId && senderId === igBusinessId) {
+      logger.info({ senderId, channelType }, "Skipping Instagram business account auto-reply");
       continue;
     }
 
@@ -371,10 +368,6 @@ async function processMetaPageEntry(entry: Record<string, unknown>, channelType:
         channelType === "instagram"
           ? await fetchInstagramUserProfile(senderId, channel.pageId || channel.externalId, channel.accessToken)
           : await fetchMessengerUserProfile(senderId, channel.accessToken);
-      // Silently discard story replies/mentions where the user has no DM history
-      if ("skip" in profile && profile.skip) {
-        continue;
-      }
       const contacts = await db.insert(contactsTable).values({
         name: toTitleCase(profile.name || `${channelType === "instagram" ? "Instagram" : "Facebook"} User`),
         channelType,
@@ -388,10 +381,6 @@ async function processMetaPageEntry(entry: Record<string, unknown>, channelType:
         channelType === "instagram"
           ? await fetchInstagramUserProfile(senderId, channel.pageId || channel.externalId, channel.accessToken)
           : await fetchMessengerUserProfile(senderId, channel.accessToken);
-      // Silently discard story replies/mentions where the user has no DM history
-      if ("skip" in profile && profile.skip) {
-        continue;
-      }
       const updates: Partial<typeof contactsTable.$inferSelect> = {};
       if (profile.name && (isPlaceholderName(contact.name, senderId) || profile.name !== contact.name)) {
         updates.name = toTitleCase(profile.name);
