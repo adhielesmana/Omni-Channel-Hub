@@ -18,80 +18,61 @@ import Settings from "@/pages/settings";
 import PrivacyPolicy from "@/pages/privacy";
 import TermsOfService from "@/pages/terms";
 import DataDeletion from "@/pages/data-deletion";
+import VideoTemplate from "./components/video/VideoTemplate";
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       refetchOnWindowFocus: false,
-      retry: false,
     },
   },
 });
 
-function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
+function PrivateRoute({ component: Component }: { component: React.ComponentType }) {
   const { isAuthenticated } = useAuth();
-  if (!isAuthenticated) return <Redirect to="/login" />;
-  return (
-    <AppLayout>
-      <Component />
-    </AppLayout>
-  );
+  return isAuthenticated ? <Component /> : <Redirect to="/login" />;
 }
 
-function Router() {
-  const { isAuthenticated } = useAuth();
-
+function AppRoutes() {
   return (
     <Switch>
-      {/* Public routes */}
       <Route path="/" component={Landing} />
-      <Route path="/login">
-        {isAuthenticated ? <Redirect to="/inbox" /> : <Login />}
-      </Route>
+      <Route path="/login" component={Login} />
+      <Route path="/video" component={VideoTemplate} />
       <Route path="/privacy" component={PrivacyPolicy} />
       <Route path="/terms" component={TermsOfService} />
       <Route path="/data-deletion" component={DataDeletion} />
 
-      {/* Protected app routes */}
-      <Route path="/inbox">
-        <ProtectedRoute component={Inbox} />
+      <Route>
+        <AppLayout>
+          <Switch>
+            <Route path="/inbox" component={() => <PrivateRoute component={Inbox} />} />
+            <Route path="/contacts" component={() => <PrivateRoute component={Contacts} />} />
+            <Route path="/departments" component={() => <PrivateRoute component={Departments} />} />
+            <Route path="/channels" component={() => <PrivateRoute component={Channels} />} />
+            <Route path="/users" component={() => <PrivateRoute component={Users} />} />
+            <Route path="/analytics" component={() => <PrivateRoute component={Analytics} />} />
+            <Route path="/settings" component={() => <PrivateRoute component={Settings} />} />
+            <Route component={NotFound} />
+          </Switch>
+        </AppLayout>
       </Route>
-      <Route path="/contacts">
-        <ProtectedRoute component={Contacts} />
-      </Route>
-      <Route path="/departments">
-        <ProtectedRoute component={Departments} />
-      </Route>
-      <Route path="/channels">
-        <ProtectedRoute component={Channels} />
-      </Route>
-      <Route path="/users">
-        <ProtectedRoute component={Users} />
-      </Route>
-      <Route path="/analytics">
-        <ProtectedRoute component={Analytics} />
-      </Route>
-      <Route path="/settings">
-        <ProtectedRoute component={Settings} />
-      </Route>
-
-      <Route component={NotFound} />
     </Switch>
   );
 }
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <TooltipProvider>
-          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-            <Router />
-          </WouterRouter>
-          <Toaster />
-        </TooltipProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+    <WouterRouter>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <TooltipProvider>
+            <AppRoutes />
+            <Toaster />
+          </TooltipProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </WouterRouter>
   );
 }
 
