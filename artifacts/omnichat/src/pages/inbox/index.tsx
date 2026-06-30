@@ -22,6 +22,35 @@ import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/context/AuthContext";
 
+function formatChatDate(dateValue: string | Date | null | undefined): string {
+  if (!dateValue) return "";
+  const d = new Date(dateValue);
+  const now = new Date();
+  const diffMs = now.getTime() - d.getTime();
+  const diffHrs = diffMs / (1000 * 60 * 60);
+
+  const timeStr = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true });
+
+  if (diffHrs < 24) {
+    return timeStr;
+  }
+
+  // Check if "Yesterday" (between 24 and 48 hours ago, and calendar day is one before)
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const msgDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const dayDiff = (today.getTime() - msgDay.getTime()) / (1000 * 60 * 60 * 24);
+
+  if (dayDiff === 1) {
+    return `Yesterday ${timeStr}`;
+  }
+
+  // Older: "30 Jun 2026 2:30 PM"
+  const day = d.getDate();
+  const month = d.toLocaleString("en-US", { month: "short" });
+  const year = d.getFullYear();
+  return `${day} ${month} ${year} ${timeStr}`;
+}
+
 const GOOGLE_MAPS_RE =
   /https?:\/\/(?:www\.)?(?:maps\.google\.com|google\.com\/maps|maps\.app\.goo\.gl|goo\.gl\/maps)(?:\/[^\s]*)?/i;
 
@@ -345,7 +374,7 @@ export default function Inbox() {
                     <div className="flex justify-between items-start mb-1">
                       <span className="font-semibold text-sm truncate">{conv.contact?.name || "Unknown Contact"}</span>
                       <span className="text-[10px] text-muted-foreground whitespace-nowrap ml-2">
-                        {conv.lastMessageAt ? new Date(conv.lastMessageAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}
+                        {formatChatDate(conv.lastMessageAt)}
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
@@ -482,7 +511,7 @@ export default function Inbox() {
                           {!isInbound && !isNote && msg.senderName && (
                             <span className="font-medium opacity-80">{msg.senderName}</span>
                           )}
-                          {new Date(msg.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                          {formatChatDate(msg.createdAt)}
                           {!isInbound && !isNote && (
                             msg.deliveryStatus === 'read' ? (
                               <CheckCheck className="w-3.5 h-3.5 text-sky-400" />
