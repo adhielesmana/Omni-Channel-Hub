@@ -1,8 +1,8 @@
-import { Link } from "wouter";
+import { Link, useSearch } from "wouter";
 import {
   MessageSquare, Zap, Users, BarChart2, Shield,
   CheckCircle, ArrowRight, Star, ChevronRight,
-  Inbox, BotMessageSquare, SlidersHorizontal,
+  Inbox, BotMessageSquare, SlidersHorizontal, AlertCircle,
   Globe, Phone, Clock, TrendingUp, HeartHandshake, Layers,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -274,6 +274,9 @@ const LOGOS = ["Shopify", "Zendesk", "Salesforce", "HubSpot", "Slack", "Zapier"]
 
 /* ─── Page ───────────────────────────────────────────────────────────────── */
 export default function Landing() {
+  const search = useSearch();
+  const sessionExpired = new URLSearchParams(search).get("reason") === "session-expired";
+
   return (
     <div className="min-h-screen bg-[#07080f] text-white antialiased">
 
@@ -311,6 +314,27 @@ export default function Landing() {
           </div>
         </div>
       </header>
+
+      {sessionExpired && (
+        <div className="px-6 pt-4">
+          <div className="mx-auto flex max-w-7xl flex-col gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-4 text-amber-50 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-400/20 text-amber-200">
+                <AlertCircle className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold">Your session expired.</p>
+                <p className="text-sm text-amber-100/80">Please log in again to continue.</p>
+              </div>
+            </div>
+            <Link href="/login">
+              <button className="inline-flex items-center justify-center rounded-xl bg-amber-300 px-4 py-2 text-sm font-semibold text-amber-950 transition-colors hover:bg-amber-200">
+                Log in again
+              </button>
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* ── HERO ───────────────────────────────────────────────────────── */}
       <section className="relative overflow-hidden pt-24 pb-16 px-6">

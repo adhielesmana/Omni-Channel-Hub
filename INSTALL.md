@@ -56,7 +56,7 @@ newgrp docker
 ├── migrations/                 ← SQL files (copied from repo)
 │   ├── 001_initial_schema.sql
 │   ├── 002_updated_at_trigger.sql
-│   └── 003_seed_demo_data.sql  ← optional
+│   └── 003_seed_real_data.sql  ← template if you want to add your own data
 └── data/
     └── postgres/               ← Postgres volume (auto-created)
 ```
@@ -478,13 +478,6 @@ docker compose exec -e PGPASSWORD=$POSTGRES_PASSWORD postgres \
     psql -U omnichat -d omnichat -f /dev/stdin < migrations/001_initial_schema.sql
 ```
 
-### Load demo / seed data
-
-```bash
-docker compose exec -e PGPASSWORD=$POSTGRES_PASSWORD postgres \
-    psql -U omnichat -d omnichat -f /dev/stdin < migrations/003_seed_demo_data.sql
-```
-
 ---
 
 ## Verify the Installation
@@ -494,7 +487,7 @@ docker compose exec -e PGPASSWORD=$POSTGRES_PASSWORD postgres \
 curl -s http://localhost/api/healthz
 # → {"status":"ok"}
 
-# List users (should return demo data if seeded)
+# List users
 curl -s http://localhost/api/users | python3 -m json.tool
 
 # Check container status

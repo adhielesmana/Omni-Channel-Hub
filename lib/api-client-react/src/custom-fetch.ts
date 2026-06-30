@@ -8,6 +8,14 @@ export type BodyType<T> = T;
 
 export type AuthTokenGetter = () => Promise<string | null> | string | null;
 
+export type AuthSessionExpiredDetail = {
+  method: string;
+  status: number;
+  url: string;
+};
+
+export const AUTH_SESSION_EXPIRED_EVENT = "omnichat:auth-session-expired";
+
 const NO_BODY_STATUS = new Set([204, 205, 304]);
 const DEFAULT_JSON_ACCEPT = "application/json, application/problem+json";
 
@@ -89,6 +97,20 @@ function mergeHeaders(...sources: Array<HeadersInit | undefined>): Headers {
   }
 
   return headers;
+}
+
+function notifyAuthSessionExpired(requestInfo: { method: string; url: string }, response: Response): void {
+  if (typeof window === "undefined") return;
+
+  window.dispatchEvent(
+    new CustomEvent<AuthSessionExpiredDetail>(AUTH_SESSION_EXPIRED_EVENT, {
+      detail: {
+        method: requestInfo.method,
+        status: response.status,
+        url: requestInfo.url,
+      },
+    }),
+  );
 }
 
 function getMediaType(headers: Headers): string | null {
@@ -363,6 +385,9 @@ export async function customFetch<T = unknown>(
   const response = await fetch(input, { ...init, method, headers });
 
   if (!response.ok) {
+    if (response.status === 401) {
+      notifyAuthSessionExpired(requestInfo, response);
+    }
     const errorData = await parseErrorBody(response, method);
     throw new ApiError(response, errorData, requestInfo);
   }

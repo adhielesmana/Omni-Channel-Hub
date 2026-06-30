@@ -125,7 +125,7 @@ omnichat/
 │           ├── messages.ts
 │           └── index.ts
 │
-├── scripts/                      # Utility scripts (seed data, migrations, etc.)
+├── scripts/                      # Utility scripts (migrations, maintenance, etc.)
 ├── pnpm-workspace.yaml           # Workspace package catalog
 ├── tsconfig.base.json            # Shared strict TS config
 └── tsconfig.json                 # Solution file for composite libs
@@ -439,8 +439,6 @@ pnpm install
 # Push DB schema to PostgreSQL (creates tables)
 pnpm --filter @workspace/db run push
 
-# (Optional) Seed demo data
-pnpm --filter @workspace/scripts run seed
 ```
 
 ### Regenerate API types after changing the OpenAPI spec

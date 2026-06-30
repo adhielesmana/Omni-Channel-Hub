@@ -6,7 +6,8 @@
 |---|---|
 | `001_initial_schema.sql` | Full schema — all 6 tables, indexes, FK constraints |
 | `002_updated_at_trigger.sql` | Trigger that auto-updates `updated_at` on every row change |
-| `003_seed_demo_data.sql` | Optional demo data (departments, users, channels, contacts, conversations, messages) |
+| `003_seed_real_data.sql` | Template for seeding your own departments, users, channels, contacts, conversations, and messages |
+| `007_add_users_password_hash.sql` | Adds `users.password_hash` for auth and user management |
 
 ## How to run
 
@@ -14,9 +15,9 @@
 ```bash
 psql "$DATABASE_URL" -f migrations/001_initial_schema.sql
 psql "$DATABASE_URL" -f migrations/002_updated_at_trigger.sql
-# Optional demo data:
-psql "$DATABASE_URL" -f migrations/003_seed_demo_data.sql
 ```
+
+If you need starter data, adapt `migrations/003_seed_real_data.sql` for your own environment before running it manually.
 
 ### Docker Compose
 ```bash

@@ -16,10 +16,9 @@ export type CustomerProfile = {
   avatarUrl?: string | null;
 };
 
-function isPlaceholderProfileName(name: string | null | undefined): boolean {
+function isPlaceholderProfileName(name: string | null | undefined, channelType: "instagram" | "facebook"): boolean {
   if (!name) return true;
-  const lower = name.trim().toLowerCase();
-  return lower === "instagram user" || lower === "facebook user";
+  return name.trim().toLowerCase() === `${channelType} user`;
 }
 
 /**
@@ -46,18 +45,13 @@ export async function fetchCustomerProfile(
   const res = await fetch(url);
   const data = (await res.json().catch(() => ({}))) as MetaProfileResponse;
 
-  if (data.error) {
-    logger.warn({ channelType, senderId, error: data.error.message }, "Meta profile lookup returned error");
-    return null;
-  }
-
   if (!res.ok) {
-    logger.warn({ channelType, senderId, status: res.status }, "Meta profile lookup failed");
+    logger.warn({ channelType, senderId, status: res.status, error: data.error?.message }, "Meta profile lookup failed");
     return null;
   }
 
   const rawName = channelType === "instagram"
-    ? [data.name, data.username].find((name) => !isPlaceholderProfileName(name)) ?? null
+    ? [data.name, data.username].find((name) => !isPlaceholderProfileName(name, channelType)) ?? null
     : [data.first_name, data.last_name].filter(Boolean).join(" ") || null;
 
   return {

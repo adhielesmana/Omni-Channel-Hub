@@ -147,6 +147,7 @@ export default function Inbox() {
   const prevConversationsRef = useRef<number>(0);
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const selectedConversationId = activeConversationId ?? -1;
 
   const { data: conversations, isLoading: isConversationsLoading } = useListConversations(
     { status: activeTab !== "all" ? activeTab : undefined },
@@ -161,13 +162,14 @@ export default function Inbox() {
   );
 
   const { data: messages, isLoading: isMessagesLoading } = useListMessages(
-    activeConversationId || 0,
+    selectedConversationId,
     {
       query: {
+        enabled: activeConversationId != null,
         refetchInterval: 3000,
         staleTime: 0,
         refetchIntervalInBackground: true,
-        queryKey: getListMessagesQueryKey(activeConversationId || 0),
+        queryKey: getListMessagesQueryKey(selectedConversationId),
       },
     }
   );
@@ -377,6 +379,9 @@ export default function Inbox() {
                 <ArrowLeft className="w-5 h-5 text-muted-foreground" />
               </button>
               <Avatar className="w-9 h-9 flex-shrink-0">
+                {activeConversation.contact?.avatarUrl ? (
+                  <AvatarImage src={activeConversation.contact.avatarUrl} alt={activeConversation.contact?.name ?? "Customer"} />
+                ) : null}
                 <AvatarFallback className="bg-primary/10 text-primary font-medium">
                   {activeConversation.contact?.name?.substring(0, 2).toUpperCase() || "??"}
                 </AvatarFallback>
@@ -509,29 +514,27 @@ export default function Inbox() {
                 <span className="text-xs font-medium text-amber-700">Internal note — not visible to customer</span>
               </div>
             )}
-            <div className="flex gap-2">
+            <div className="flex items-start gap-2">
               <div className="relative flex-1">
                 <textarea
                   placeholder={composerMode === "note" ? "Write an internal note..." : "Type a message..."}
-                  className={`w-full min-h-[60px] max-h-[150px] resize-none rounded-xl border px-4 py-3 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${
+                  className={`h-12 w-full max-h-[150px] resize-none rounded-xl border px-4 py-3 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${
                     composerMode === "note" ? "bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-800" : "border-input bg-background"
                   }`}
-                  rows={2}
+                  rows={1}
                   value={messageText}
                   onChange={e => setMessageText(e.target.value)}
                   onKeyDown={handleKeyDown}
                 />
               </div>
-              <div className="flex flex-col justify-end gap-2">
-                <Button
-                  className="w-12 h-12 rounded-xl"
-                  size="icon"
-                  onClick={handleSend}
-                  disabled={!messageText.trim() || sendMessage.isPending}
-                >
-                  <Send className="w-5 h-5" />
-                </Button>
-              </div>
+              <Button
+                className="w-12 h-12 shrink-0 rounded-xl"
+                size="icon"
+                onClick={handleSend}
+                disabled={!messageText.trim() || sendMessage.isPending}
+              >
+                <Send className="w-5 h-5" />
+              </Button>
             </div>
             <div className="flex items-center justify-between mt-2 px-1 text-xs text-muted-foreground">
               <div className="flex gap-3">
@@ -569,6 +572,9 @@ export default function Inbox() {
         <div className="hidden lg:flex w-[280px] flex-shrink-0 border-l bg-card flex-col h-full overflow-y-auto">
           <div className="p-5 border-b flex flex-col items-center text-center">
             <Avatar className="w-16 h-16 mb-3 shadow-sm border-2 border-background">
+              {activeConversation.contact?.avatarUrl ? (
+                <AvatarImage src={activeConversation.contact.avatarUrl} alt={activeConversation.contact?.name ?? "Customer"} />
+              ) : null}
               <AvatarFallback className="bg-primary/10 text-primary text-lg font-medium">
                 {activeConversation.contact?.name?.substring(0, 2).toUpperCase() || "??"}
               </AvatarFallback>

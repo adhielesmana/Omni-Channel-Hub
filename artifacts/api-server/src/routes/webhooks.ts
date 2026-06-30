@@ -4,19 +4,11 @@ import { db, channelsTable, contactsTable, conversationsTable, messagesTable } f
 import { logger } from "../lib/logger";
 import { downloadWhatsAppMedia } from "../lib/whatsapp-media";
 import { toTitleCase } from "../lib/string";
+import { fetchCustomerProfile } from "../lib/meta-profile";
 
 const router: IRouter = Router();
 
 const WA_MEDIA_TYPES = new Set(["image", "video", "audio", "voice", "document", "sticker"]);
-
-// Whether a stored contact name is just a placeholder we should overwrite
-// once we learn the customer's real profile name from the platform.
-function isPlaceholderName(name: string | null | undefined, phone: string): boolean {
-  if (!name) return true;
-  if (name === phone) return true;
-  if (name === "Instagram User" || name === "Facebook User") return true;
-  return /^[+\d\s()-]+$/.test(name);
-}
 
 // GET — Meta webhook verification
 router.get("/webhooks/meta", async (req, res): Promise<void> => {
@@ -162,19 +154,28 @@ async function processWhatsAppEntry(entry: Record<string, unknown>) {
         }
       }
 
-      // Extract customer profile name and picture from webhook contacts array
+      // Extract customer profile name from the webhook contacts array when available.
       const waContacts = value.contacts as Array<Record<string, unknown>>;
       const waProfile = waContacts?.find((c: Record<string, unknown>) => c.wa_id === from);
       const waProfileData = waProfile ? (waProfile.profile as Record<string, unknown>) : undefined;
       const profileName = waProfileData?.name as string | undefined;
       const profilePicture = waProfileData ? (waProfileData.picture as Record<string, unknown>)?.data as { url?: string } | undefined : undefined;
-      const avatarUrl = profilePicture?.url ?? undefined;
+      const whatsappAvatarUrl = profilePicture?.url ?? undefined;
+
+      const remoteProfile = channel.channelType === "whatsapp"
+        ? null
+        : await fetchCustomerProfile(channel.channelType, from, channel.accessToken ?? "");
+      const remoteProfileName = remoteProfile?.name ?? remoteProfile?.username ?? null;
+      const remoteAvatarUrl = remoteProfile?.avatarUrl ?? null;
+
+      const avatarUrl = remoteAvatarUrl ?? whatsappAvatarUrl;
+      const contactName = remoteProfileName ?? profileName;
 
       // Find or create contact
       let contact = (await db.select().from(contactsTable).where(eq(contactsTable.externalId, from)))[0];
       if (!contact) {
         const contacts = await db.insert(contactsTable).values({
-          name: toTitleCase(profileName || from),
+          name: toTitleCase(contactName || from),
           phone: from,
           channelType: "whatsapp",
           externalId: from,
@@ -184,8 +185,8 @@ async function processWhatsAppEntry(entry: Record<string, unknown>) {
       } else {
         const updates: Partial<typeof contactsTable.$inferSelect> = {};
         // Always update contact name if WhatsApp profile name is available and different
-        if (profileName && profileName !== contact.name) {
-          updates.name = toTitleCase(profileName);
+        if (contactName && contactName !== contact.name) {
+          updates.name = toTitleCase(contactName);
         }
         if (avatarUrl && avatarUrl !== contact.avatarUrl) {
           updates.avatarUrl = avatarUrl;
@@ -238,135 +239,6 @@ async function processWhatsAppEntry(entry: Record<string, unknown>) {
   }
 }
 
-/**
- * Fetch a Facebook Messenger user's real name and profile picture.
- *
- * Strategy:
- * 1. Direct PSID lookup via graph.facebook.com/v21.0/{psid}?fields=first_name,last_name,profile_pic
- *    This works for most users but fails with code 100 for some.
- * 2. Fallback: scan page conversations (senders{name,id}) — this returns
- *    all conversation participants including users blocked from direct lookup.
- */
-async function fetchMessengerUserProfile(
-  psid: string,
-  pageId: string | null | undefined,
-  accessToken: string | null | undefined
-): Promise<{ name?: string; profilePic?: string }> {
-  if (!accessToken) return {};
-  try {
-    // 1. Direct PSID profile lookup
-    const directRes = await fetch(
-      `https://graph.facebook.com/v21.0/${psid}?fields=first_name,last_name,profile_pic&access_token=${encodeURIComponent(accessToken)}`
-    );
-    const directData = (await directRes.json().catch(() => ({}))) as Record<string, unknown>;
-    if (!directData.error) {
-      const first = directData.first_name as string | undefined;
-      const last = directData.last_name as string | undefined;
-      const fullName = [first, last].filter(Boolean).join(" ") || (directData.name as string | undefined);
-      const profilePic = directData.profile_pic as string | undefined;
-      if (fullName) {
-        logger.info({ psid, name: fullName }, "Fetched Messenger user profile (direct)");
-        return { name: fullName, profilePic };
-      }
-    } else {
-      logger.warn({ psid, error: directData.error }, "Messenger direct profile lookup failed");
-    }
-
-    // 2. Fallback: scan page conversations to find this PSID
-    if (pageId) {
-      const convRes = await fetch(
-        `https://graph.facebook.com/v21.0/${pageId}/conversations?fields=senders%7Bname,id%7D&access_token=${encodeURIComponent(accessToken)}&limit=100`
-      );
-      const convData = (await convRes.json().catch(() => ({}))) as {
-        data?: Array<{
-          senders?: { data?: Array<{ id: string; name?: string }> };
-        }>;
-      };
-      for (const conv of convData.data || []) {
-        for (const s of conv.senders?.data || []) {
-          if (s.id === psid && s.name) {
-            logger.info({ psid, name: s.name }, "Fetched Messenger user profile (conversations fallback)");
-            return { name: s.name };
-          }
-        }
-      }
-      logger.warn({ psid, pageId }, "Messenger user not found in page conversations");
-    }
-  } catch (err) {
-    logger.warn({ err, psid }, "Failed to fetch Messenger user profile");
-  }
-  return {};
-}
-
-/**
- * Fetch an Instagram user's name from Meta's Graph API using their IGSID.
- *
- * Strategy:
- * 1. Direct IGSID lookup via graph.facebook.com/v21.0/{igsid}?fields=first_name,last_name
- *    This requires Advanced Access to instagram_manage_messages; without it,
- *    Meta returns error #200 for all non-app users.
- * 2. Fallback: scan Facebook Page conversations (senders{name,id}) with the
- *    connected page's access token. This returns all page conversation
- *    participants and may include Instagram users who have also messaged
- *    via the linked Facebook Page.
- * 3. If nothing works, return {} so the caller falls back to "Instagram User".
- *
- * IMPORTANT: To fully resolve Instagram names for ALL users, you must request
- * Advanced Access for "instagram_manage_messages" in your Meta Developer Portal
- * (App Review → Permissions → instagram_manage_messages).
- */
-async function fetchInstagramUserProfile(
-  igsid: string,
-  pageId: string | null | undefined,
-  accessToken: string | null | undefined
-): Promise<{ name?: string; profilePic?: string }> {
-  if (!accessToken) return {};
-  try {
-    // 1. Direct IGSID profile lookup (requires Advanced Access)
-    const directRes = await fetch(
-      `https://graph.facebook.com/v21.0/${igsid}?fields=first_name,last_name,profile_pic&access_token=${encodeURIComponent(accessToken)}`
-    );
-    const directData = (await directRes.json().catch(() => ({}))) as Record<string, unknown>;
-    if (!directData.error) {
-      const first = directData.first_name as string | undefined;
-      const last = directData.last_name as string | undefined;
-      const fullName = [first, last].filter(Boolean).join(" ") || (directData.name as string | undefined);
-      const profilePic = directData.profile_pic as string | undefined;
-      if (fullName) {
-        logger.info({ igsid, name: fullName }, "Fetched Instagram user profile (direct)");
-        return { name: fullName, profilePic };
-      }
-    } else {
-      logger.warn({ igsid, error: directData.error }, "Instagram direct profile lookup failed (Advanced Access required)");
-    }
-
-    // 2. Fallback: scan Facebook Page conversations for this IGSID
-    //    The page is connected to the Instagram Business Account, so
-    //    some Instagram DMs may appear in the page's conversation list.
-    if (pageId) {
-      const convRes = await fetch(
-        `https://graph.facebook.com/v21.0/${pageId}/conversations?fields=senders%7Bname,id%7D&access_token=${encodeURIComponent(accessToken)}&limit=100`
-      );
-      const convData = (await convRes.json().catch(() => ({}))) as {
-        data?: Array<{
-          senders?: { data?: Array<{ id: string; name?: string }> };
-        }>;
-      };
-      for (const conv of convData.data || []) {
-        for (const s of conv.senders?.data || []) {
-          if (s.id === igsid && s.name) {
-            logger.info({ igsid, name: s.name }, "Fetched Instagram user profile (page conversations fallback)");
-            return { name: s.name };
-          }
-        }
-      }
-    }
-  } catch (err) {
-    logger.warn({ err, igsid }, "Failed to fetch Instagram user profile");
-  }
-  return {};
-}
-
 async function processMetaPageEntry(entry: Record<string, unknown>, channelType: "instagram" | "facebook") {
   const messaging = entry.messaging as Array<Record<string, unknown>>;
   if (!messaging?.length) return;
@@ -377,10 +249,6 @@ async function processMetaPageEntry(entry: Record<string, unknown>, channelType:
     return;
   }
 
-  const pageId = channel.pageId || channel.externalId;
-  // Instagram Business Account ID (used as sender.id for auto-replies from the business)
-  const igBusinessId = channelType === "instagram" ? "17841457916872770" : undefined;
-
   for (const event of messaging) {
     const sender = event.sender as Record<string, unknown>;
     const msgEvent = event.message as Record<string, unknown>;
@@ -390,46 +258,27 @@ async function processMetaPageEntry(entry: Record<string, unknown>, channelType:
     const msgId = msgEvent.mid as string;
     const text = msgEvent.text as string | undefined;
 
-    // Skip auto-replies from the business page itself — these should appear
-    // as outbound messages in the customer's conversation, not create a new one.
-    // For Instagram, check both the Facebook Page ID and the Instagram Business Account ID.
-    if (pageId && senderId === pageId) {
-      logger.info({ senderId, channelType }, "Skipping business page auto-reply");
-      continue;
-    }
-    if (channelType === "instagram" && igBusinessId && senderId === igBusinessId) {
-      logger.info({ senderId, channelType }, "Skipping Instagram business account auto-reply");
-      continue;
-    }
+    const remoteProfile = channel.accessToken
+      ? await fetchCustomerProfile(channelType, senderId, channel.accessToken)
+      : null;
 
     let contact = (await db.select().from(contactsTable).where(eq(contactsTable.externalId, senderId)))[0];
+    const remoteProfileName = remoteProfile?.name ?? remoteProfile?.username ?? null;
     if (!contact) {
-      // Fetch real name + picture with the right API for each channel
-      const pageId = channel.pageId || channel.externalId;
-      const profile =
-        channelType === "instagram"
-          ? await fetchInstagramUserProfile(senderId, pageId, channel.accessToken)
-          : await fetchMessengerUserProfile(senderId, pageId, channel.accessToken);
       const contacts = await db.insert(contactsTable).values({
-        name: toTitleCase(profile.name || `${channelType === "instagram" ? "Instagram" : "Facebook"} User`),
+        name: toTitleCase(remoteProfileName ?? senderId),
         channelType,
         externalId: senderId,
-        avatarUrl: profile.profilePic ?? undefined,
+        avatarUrl: remoteProfile?.avatarUrl ?? undefined,
       }).returning();
       contact = contacts[0];
-    } else if (isPlaceholderName(contact.name, senderId) || !contact.avatarUrl) {
-      // Update existing placeholder contact with real name + picture if available
-      const pageId = channel.pageId || channel.externalId;
-      const profile =
-        channelType === "instagram"
-          ? await fetchInstagramUserProfile(senderId, pageId, channel.accessToken)
-          : await fetchMessengerUserProfile(senderId, pageId, channel.accessToken);
+    } else {
       const updates: Partial<typeof contactsTable.$inferSelect> = {};
-      if (profile.name && (isPlaceholderName(contact.name, senderId) || profile.name !== contact.name)) {
-        updates.name = toTitleCase(profile.name);
+      if (remoteProfileName && remoteProfileName !== contact.name) {
+        updates.name = toTitleCase(remoteProfileName);
       }
-      if (profile.profilePic && !contact.avatarUrl) {
-        updates.avatarUrl = profile.profilePic;
+      if (remoteProfile?.avatarUrl && remoteProfile.avatarUrl !== contact.avatarUrl) {
+        updates.avatarUrl = remoteProfile.avatarUrl;
       }
       if (Object.keys(updates).length > 0) {
         await db.update(contactsTable).set(updates).where(eq(contactsTable.id, contact.id));
