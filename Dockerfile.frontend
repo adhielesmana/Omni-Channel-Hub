@@ -4,6 +4,7 @@ WORKDIR /build
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY tsconfig.base.json tsconfig.json ./
 COPY lib/ ./lib/
+COPY attached_assets/ ./attached_assets/
 COPY artifacts/omnichat/ ./artifacts/omnichat/
 RUN pnpm install --frozen-lockfile
 RUN pnpm run typecheck:libs
