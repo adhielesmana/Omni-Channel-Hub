@@ -36,3 +36,9 @@ id = "7tVKC1zk4SN84Ys9EW8hR"
 uri = "file://macbook-ssh.tar.gz"
 type = "unspecified"
 title = "MacBook SSH Key Files (tar.gz)"
+
+[[outputs]]
+id = "9V09Mogc8pYj0UmawTnqu"
+uri = "file://omnichat_video_export/omnichat_facebook.mp4"
+type = "video"
+title = "OmniChat Facebook Submission Video (MP4, 51s, 1280x720)"
