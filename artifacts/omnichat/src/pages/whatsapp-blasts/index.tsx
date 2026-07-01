@@ -586,7 +586,7 @@ function BlastDetailView({ blast, onBack }: { blast: WhatsappBlast; onBack: () =
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-4 gap-4 mb-6">
         <div className="text-center p-3 border rounded-lg bg-card">
           <p className="text-2xl font-bold">{blast.totalRecipients}</p>
           <p className="text-xs text-muted-foreground">Total</p>
@@ -598,6 +598,10 @@ function BlastDetailView({ blast, onBack }: { blast: WhatsappBlast; onBack: () =
         <div className="text-center p-3 border rounded-lg bg-card">
           <p className="text-2xl font-bold text-green-600">{blast.deliveredCount}</p>
           <p className="text-xs text-muted-foreground">Delivered</p>
+        </div>
+        <div className="text-center p-3 border rounded-lg bg-card">
+          <p className="text-2xl font-bold text-red-600">{blast.failedCount}</p>
+          <p className="text-xs text-muted-foreground">Failed</p>
         </div>
       </div>
 
