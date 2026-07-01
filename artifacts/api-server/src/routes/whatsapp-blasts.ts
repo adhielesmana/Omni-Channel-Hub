@@ -56,7 +56,7 @@ const toRecipientDto = (r: typeof whatsappBlastRecipientsTable.$inferSelect) => 
   phone: r.phone,
   templateParams: r.templateParams,
   content: r.content,
-  status: r.status as "pending" | "sent" | "delivered" | "failed",
+  status: r.status as "queued" | "pending" | "processing" | "sent" | "delivered" | "failed",
   externalMessageId: r.externalMessageId,
   errorMessage: r.errorMessage,
   sentAt: r.sentAt?.toISOString() ?? null,
