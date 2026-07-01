@@ -351,7 +351,7 @@ export default function Inbox() {
                 <button
                   key={conv.id}
                   onClick={() => { setActiveConversationId(conv.id); setMobileShowChat(true); }}
-                  className={`w-full text-left p-4 border-b transition-colors flex gap-3 hover:bg-muted/30 ${
+                  className={`w-full text-left p-4 border-b transition-colors flex gap-3 overflow-hidden hover:bg-muted/30 ${
                     activeConversationId === conv.id ? 'bg-primary/5 border-l-2 border-l-primary' : 'border-l-2 border-l-transparent'
                   }`}
                 >
@@ -370,7 +370,7 @@ export default function Inbox() {
                       {conv.channelType === 'facebook' && <span className="w-3 h-3 bg-blue-500 rounded-full" />}
                     </div>
                   </div>
-                  <div className="flex-1 min-w-0 pr-2">
+                  <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-start mb-1">
                       <span className="font-semibold text-sm truncate">{conv.contact?.name || "Unknown Contact"}</span>
                       <span className="text-[10px] text-muted-foreground whitespace-nowrap ml-2">
@@ -378,7 +378,7 @@ export default function Inbox() {
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <p className="text-xs text-muted-foreground truncate">
+                      <p className="text-xs text-muted-foreground truncate min-w-0">
                         {conv.lastMessage || "No messages yet"}
                       </p>
                       {conv.unreadCount ? (
