@@ -1611,7 +1611,7 @@ components:
           type: ["string", "null"]
         status:
           type: string
-          enum: [pending, sent, delivered, failed]
+          enum: [queued, pending, sent, delivered, failed, processing]
         externalMessageId:
           type: ["string", "null"]
         errorMessage:

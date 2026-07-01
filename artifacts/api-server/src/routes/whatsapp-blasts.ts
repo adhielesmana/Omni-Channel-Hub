@@ -189,7 +189,7 @@ router.post("/whatsapp-blasts", requireAuth, async (req, res): Promise<void> => 
     phone: c.phone ?? c.externalId,
     templateParams: null as string | null,
     content: null as string | null,
-    status: "pending" as const,
+    status: "queued" as const,
   }));
 
   await db.insert(whatsappBlastRecipientsTable).values(recipientValues);
@@ -387,7 +387,7 @@ router.post("/external/whatsapp-blast", requireApiKey, async (req, res): Promise
     phone: r.phone,
     templateParams: r.templateParams ? JSON.stringify(r.templateParams) : null,
     content: r.content ?? null,
-    status: "pending" as const,
+    status: "queued" as const,
   }));
 
   await db.insert(whatsappBlastRecipientsTable).values(recipientValues);

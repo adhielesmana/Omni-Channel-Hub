@@ -579,10 +579,12 @@ export type WhatsappBlastRecipientStatus = typeof WhatsappBlastRecipientStatus[k
 
 
 export const WhatsappBlastRecipientStatus = {
+  queued: 'queued',
   pending: 'pending',
   sent: 'sent',
   delivered: 'delivered',
   failed: 'failed',
+  processing: 'processing',
 } as const;
 
 export interface WhatsappBlastRecipient {

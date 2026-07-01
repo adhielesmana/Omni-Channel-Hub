@@ -61,7 +61,9 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const RECIPIENT_STATUS_COLORS: Record<string, string> = {
+  queued: "bg-gray-100 text-gray-700",
   pending: "bg-yellow-100 text-yellow-700",
+  processing: "bg-blue-100 text-blue-700",
   sent: "bg-blue-100 text-blue-700",
   delivered: "bg-green-100 text-green-700",
   failed: "bg-red-100 text-red-700",
@@ -139,29 +141,29 @@ export default function WhatsappBlastsPage() {
         <Table>
           <TableHeader className="bg-muted/50">
             <TableRow>
-              <TableHead>Destination</TableHead>
-              <TableHead>Message</TableHead>
+              <TableHead>Blast Name</TableHead>
+              <TableHead>Template</TableHead>
               <TableHead>Created By</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className="w-[140px]"></TableHead>
+              <TableHead>Recipients</TableHead>
+              <TableHead>Date</TableHead>
+              <TableHead className="w-[80px]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center h-32 text-muted-foreground">Loading blasts...</TableCell>
+                <TableCell colSpan={7} className="text-center h-32 text-muted-foreground">Loading blasts...</TableCell>
               </TableRow>
             ) : !data?.data || data.data.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center h-32 text-muted-foreground">
-                  {search ? `No blasts matching "${search}"` : "No blast messages yet"}
+                <TableCell colSpan={7} className="text-center h-32 text-muted-foreground">
+                  {search ? `No blasts matching "${search}"` : "No blast campaigns yet"}
                 </TableCell>
               </TableRow>
             ) : (
               data.data.map((item) => {
                 const b = item;
-                const firstRecipient = b.recipients?.[0];
-                const moreCount = (b.totalRecipients ?? 0) - 1;
                 return (
                   <TableRow
                     key={b.id}
@@ -169,27 +171,13 @@ export default function WhatsappBlastsPage() {
                     onClick={() => setSelectedBlast(b as unknown as WhatsappBlast)}
                   >
                     <TableCell>
-                      <div className="font-mono text-sm">
-                        {firstRecipient?.phone ?? "-"}
-                        {moreCount > 0 && (
-                          <span className="text-muted-foreground ml-1">+{moreCount} more</span>
-                        )}
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium">{b.name}</span>
+                        <span className="text-xs text-muted-foreground capitalize">#{b.id} · {b.source}</span>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="flex flex-col">
-                        <span className="text-sm font-medium">{b.templateName || "Text message"}</span>
-                        <div className="flex items-center gap-1 mt-0.5">
-                          {b.templateParams && (
-                            <span className="text-xs text-muted-foreground truncate max-w-[200px]">
-                              {b.templateParams}
-                            </span>
-                          )}
-                          <span className="text-xs text-muted-foreground ml-auto">
-                            {new Date(b.createdAt).toLocaleDateString()} {new Date(b.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                          </span>
-                        </div>
-                      </div>
+                      <span className="text-sm font-mono">{b.templateName || "Text message"}</span>
                     </TableCell>
                     <TableCell>
                       <span className="text-sm">
@@ -210,10 +198,21 @@ export default function WhatsappBlastsPage() {
                       )}
                     </TableCell>
                     <TableCell>
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="font-medium">{b.totalRecipients}</span>
+                        {b.sentCount > 0 && (
+                          <span className="text-blue-600 text-xs">{b.sentCount} sent</span>
+                        )}
+                        {b.failedCount > 0 && (
+                          <span className="text-red-500 text-xs">{b.failedCount} failed</span>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {new Date(b.createdAt).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>
                       <div className="flex items-center gap-1">
-                        <span className="text-xs text-muted-foreground">
-                          {b.sentCount}/{b.totalRecipients}
-                        </span>
                         {b.status === "pending" && (
                           <Button
                             variant="ghost"

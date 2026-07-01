@@ -91,7 +91,7 @@ async function processBlast(blast: typeof whatsappBlastsTable.$inferSelect): Pro
       .where(
         and(
           eq(whatsappBlastRecipientsTable.blastId, blast.id),
-          eq(whatsappBlastRecipientsTable.status, "pending")
+          eq(whatsappBlastRecipientsTable.status, "queued")
         )
       )
       .orderBy(sql`${whatsappBlastRecipientsTable.id} ASC`)
@@ -101,6 +101,12 @@ async function processBlast(blast: typeof whatsappBlastsTable.$inferSelect): Pro
     if (recipients.length === 0) break;
 
     for (const recipient of recipients) {
+      // Mark as pending (in-flight)
+      await db
+        .update(whatsappBlastRecipientsTable)
+        .set({ status: "pending" })
+        .where(eq(whatsappBlastRecipientsTable.id, recipient.id));
+
       try {
         // Determine template params: use per-recipient if available, else blast-level
         let templateParams: string[] = [];

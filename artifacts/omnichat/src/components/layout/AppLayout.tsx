@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { MessageSquare, Users, Building, Share2, BarChart2, Send, Settings, UserCircle, LogOut, Menu, X } from "lucide-react";
+import { MessageSquare, Users, Building, Share2, BarChart2, Send, FileText, Settings, UserCircle, LogOut, Menu, X } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/context/AuthContext";
@@ -14,6 +14,7 @@ const NAV_ITEMS = [
   { href: "/users", icon: UserCircle, label: "Users", adminOnly: true },
   { href: "/analytics", icon: BarChart2, label: "Analytics" },
   { href: "/whatsapp-blasts", icon: Send, label: "WA Blast" },
+  { href: "/whatsapp-templates", icon: FileText, label: "WA Templates" },
 ];
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
