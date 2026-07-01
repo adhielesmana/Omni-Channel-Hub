@@ -35,10 +35,12 @@ import type {
   ConversationInput,
   ConversationUpdate,
   CreateUserResponse,
+  CreateWhatsappBlastInput,
   Department,
   DepartmentCount,
   DepartmentInput,
   DepartmentUpdate,
+  ExternalWhatsappBlastInput,
   GetAgentWorkloadParams,
   GetConversationsByChannelParams,
   GetConversationsByDepartmentParams,
@@ -46,6 +48,9 @@ import type {
   HealthStatus,
   ListContactsParams,
   ListConversationsParams,
+  ListWhatsappBlastTemplatesParams,
+  ListWhatsappBlasts200,
+  ListWhatsappBlastsParams,
   LoginInput,
   Message,
   MessageInput,
@@ -56,7 +61,12 @@ import type {
   User,
   UserInput,
   UserUpdate,
-  VerifyMetaWebhookParams
+  VerifyMetaWebhookParams,
+  WhatsAppTemplate,
+  WhatsappBlast,
+  WhatsappBlastDetail,
+  WhatsappBlastSettings,
+  WhatsappBlastSettingsInput
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -2987,6 +2997,688 @@ export function useGetStatsPeriods<TData = Awaited<ReturnType<typeof getStatsPer
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetStatsPeriodsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getListWhatsappBlastsUrl = (params?: ListWhatsappBlastsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/whatsapp-blasts?${stringifiedParams}` : `/api/whatsapp-blasts`
+}
+
+/**
+ * @summary List WhatsApp blast messages (paginated, searchable)
+ */
+export const listWhatsappBlasts = async (params?: ListWhatsappBlastsParams, options?: RequestInit): Promise<ListWhatsappBlasts200> => {
+
+  return customFetch<ListWhatsappBlasts200>(getListWhatsappBlastsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListWhatsappBlastsQueryKey = (params?: ListWhatsappBlastsParams,) => {
+    return [
+    `/api/whatsapp-blasts`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListWhatsappBlastsQueryOptions = <TData = Awaited<ReturnType<typeof listWhatsappBlasts>>, TError = ErrorType<unknown>>(params?: ListWhatsappBlastsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listWhatsappBlasts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListWhatsappBlastsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listWhatsappBlasts>>> = ({ signal }) => listWhatsappBlasts(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listWhatsappBlasts>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListWhatsappBlastsQueryResult = NonNullable<Awaited<ReturnType<typeof listWhatsappBlasts>>>
+export type ListWhatsappBlastsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List WhatsApp blast messages (paginated, searchable)
+ */
+
+export function useListWhatsappBlasts<TData = Awaited<ReturnType<typeof listWhatsappBlasts>>, TError = ErrorType<unknown>>(
+ params?: ListWhatsappBlastsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listWhatsappBlasts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListWhatsappBlastsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateWhatsappBlastUrl = () => {
+
+
+
+
+  return `/api/whatsapp-blasts`
+}
+
+/**
+ * @summary Create a manual WhatsApp blast
+ */
+export const createWhatsappBlast = async (createWhatsappBlastInput: CreateWhatsappBlastInput, options?: RequestInit): Promise<WhatsappBlast> => {
+
+  return customFetch<WhatsappBlast>(getCreateWhatsappBlastUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      createWhatsappBlastInput,)
+  }
+);}
+
+
+
+
+export const getCreateWhatsappBlastMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createWhatsappBlast>>, TError,{data: BodyType<CreateWhatsappBlastInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createWhatsappBlast>>, TError,{data: BodyType<CreateWhatsappBlastInput>}, TContext> => {
+
+const mutationKey = ['createWhatsappBlast'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createWhatsappBlast>>, {data: BodyType<CreateWhatsappBlastInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createWhatsappBlast(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateWhatsappBlastMutationResult = NonNullable<Awaited<ReturnType<typeof createWhatsappBlast>>>
+    export type CreateWhatsappBlastMutationBody = BodyType<CreateWhatsappBlastInput>
+    export type CreateWhatsappBlastMutationError = ErrorType<void>
+
+    /**
+ * @summary Create a manual WhatsApp blast
+ */
+export const useCreateWhatsappBlast = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createWhatsappBlast>>, TError,{data: BodyType<CreateWhatsappBlastInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createWhatsappBlast>>,
+        TError,
+        {data: BodyType<CreateWhatsappBlastInput>},
+        TContext
+      > => {
+      return useMutation(getCreateWhatsappBlastMutationOptions(options));
+    }
+
+export const getGetWhatsappBlastUrl = (id: number,) => {
+
+
+
+
+  return `/api/whatsapp-blasts/${id}`
+}
+
+/**
+ * @summary Get a blast with recipient details
+ */
+export const getWhatsappBlast = async (id: number, options?: RequestInit): Promise<WhatsappBlastDetail> => {
+
+  return customFetch<WhatsappBlastDetail>(getGetWhatsappBlastUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetWhatsappBlastQueryKey = (id: number,) => {
+    return [
+    `/api/whatsapp-blasts/${id}`
+    ] as const;
+    }
+
+
+export const getGetWhatsappBlastQueryOptions = <TData = Awaited<ReturnType<typeof getWhatsappBlast>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWhatsappBlast>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetWhatsappBlastQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWhatsappBlast>>> = ({ signal }) => getWhatsappBlast(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getWhatsappBlast>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetWhatsappBlastQueryResult = NonNullable<Awaited<ReturnType<typeof getWhatsappBlast>>>
+export type GetWhatsappBlastQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get a blast with recipient details
+ */
+
+export function useGetWhatsappBlast<TData = Awaited<ReturnType<typeof getWhatsappBlast>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWhatsappBlast>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetWhatsappBlastQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCancelWhatsappBlastUrl = (id: number,) => {
+
+
+
+
+  return `/api/whatsapp-blasts/${id}`
+}
+
+/**
+ * @summary Cancel a pending blast
+ */
+export const cancelWhatsappBlast = async (id: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getCancelWhatsappBlastUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getCancelWhatsappBlastMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelWhatsappBlast>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof cancelWhatsappBlast>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['cancelWhatsappBlast'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof cancelWhatsappBlast>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  cancelWhatsappBlast(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CancelWhatsappBlastMutationResult = NonNullable<Awaited<ReturnType<typeof cancelWhatsappBlast>>>
+
+    export type CancelWhatsappBlastMutationError = ErrorType<void>
+
+    /**
+ * @summary Cancel a pending blast
+ */
+export const useCancelWhatsappBlast = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelWhatsappBlast>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof cancelWhatsappBlast>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getCancelWhatsappBlastMutationOptions(options));
+    }
+
+export const getListWhatsappBlastTemplatesUrl = (params: ListWhatsappBlastTemplatesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/whatsapp-blasts/templates?${stringifiedParams}` : `/api/whatsapp-blasts/templates`
+}
+
+/**
+ * @summary Fetch approved WhatsApp templates from Meta
+ */
+export const listWhatsappBlastTemplates = async (params: ListWhatsappBlastTemplatesParams, options?: RequestInit): Promise<WhatsAppTemplate[]> => {
+
+  return customFetch<WhatsAppTemplate[]>(getListWhatsappBlastTemplatesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListWhatsappBlastTemplatesQueryKey = (params?: ListWhatsappBlastTemplatesParams,) => {
+    return [
+    `/api/whatsapp-blasts/templates`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListWhatsappBlastTemplatesQueryOptions = <TData = Awaited<ReturnType<typeof listWhatsappBlastTemplates>>, TError = ErrorType<unknown>>(params: ListWhatsappBlastTemplatesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listWhatsappBlastTemplates>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListWhatsappBlastTemplatesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listWhatsappBlastTemplates>>> = ({ signal }) => listWhatsappBlastTemplates(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listWhatsappBlastTemplates>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListWhatsappBlastTemplatesQueryResult = NonNullable<Awaited<ReturnType<typeof listWhatsappBlastTemplates>>>
+export type ListWhatsappBlastTemplatesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Fetch approved WhatsApp templates from Meta
+ */
+
+export function useListWhatsappBlastTemplates<TData = Awaited<ReturnType<typeof listWhatsappBlastTemplates>>, TError = ErrorType<unknown>>(
+ params: ListWhatsappBlastTemplatesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listWhatsappBlastTemplates>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListWhatsappBlastTemplatesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetWhatsappBlastSettingsUrl = () => {
+
+
+
+
+  return `/api/whatsapp-blasts/settings`
+}
+
+/**
+ * @summary Get blast rate limit settings
+ */
+export const getWhatsappBlastSettings = async ( options?: RequestInit): Promise<WhatsappBlastSettings> => {
+
+  return customFetch<WhatsappBlastSettings>(getGetWhatsappBlastSettingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetWhatsappBlastSettingsQueryKey = () => {
+    return [
+    `/api/whatsapp-blasts/settings`
+    ] as const;
+    }
+
+
+export const getGetWhatsappBlastSettingsQueryOptions = <TData = Awaited<ReturnType<typeof getWhatsappBlastSettings>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWhatsappBlastSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetWhatsappBlastSettingsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWhatsappBlastSettings>>> = ({ signal }) => getWhatsappBlastSettings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getWhatsappBlastSettings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetWhatsappBlastSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getWhatsappBlastSettings>>>
+export type GetWhatsappBlastSettingsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get blast rate limit settings
+ */
+
+export function useGetWhatsappBlastSettings<TData = Awaited<ReturnType<typeof getWhatsappBlastSettings>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWhatsappBlastSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetWhatsappBlastSettingsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUpdateWhatsappBlastSettingsUrl = () => {
+
+
+
+
+  return `/api/whatsapp-blasts/settings`
+}
+
+/**
+ * @summary Update blast rate limit settings
+ */
+export const updateWhatsappBlastSettings = async (whatsappBlastSettingsInput: WhatsappBlastSettingsInput, options?: RequestInit): Promise<WhatsappBlastSettings> => {
+
+  return customFetch<WhatsappBlastSettings>(getUpdateWhatsappBlastSettingsUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      whatsappBlastSettingsInput,)
+  }
+);}
+
+
+
+
+export const getUpdateWhatsappBlastSettingsMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateWhatsappBlastSettings>>, TError,{data: BodyType<WhatsappBlastSettingsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateWhatsappBlastSettings>>, TError,{data: BodyType<WhatsappBlastSettingsInput>}, TContext> => {
+
+const mutationKey = ['updateWhatsappBlastSettings'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateWhatsappBlastSettings>>, {data: BodyType<WhatsappBlastSettingsInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateWhatsappBlastSettings(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateWhatsappBlastSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof updateWhatsappBlastSettings>>>
+    export type UpdateWhatsappBlastSettingsMutationBody = BodyType<WhatsappBlastSettingsInput>
+    export type UpdateWhatsappBlastSettingsMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update blast rate limit settings
+ */
+export const useUpdateWhatsappBlastSettings = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateWhatsappBlastSettings>>, TError,{data: BodyType<WhatsappBlastSettingsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateWhatsappBlastSettings>>,
+        TError,
+        {data: BodyType<WhatsappBlastSettingsInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateWhatsappBlastSettingsMutationOptions(options));
+    }
+
+export const getExternalCreateWhatsappBlastUrl = () => {
+
+
+
+
+  return `/api/external/whatsapp-blast`
+}
+
+/**
+ * @summary Receive blast from external app (different content per destination)
+ */
+export const externalCreateWhatsappBlast = async (externalWhatsappBlastInput: ExternalWhatsappBlastInput, options?: RequestInit): Promise<WhatsappBlast> => {
+
+  return customFetch<WhatsappBlast>(getExternalCreateWhatsappBlastUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      externalWhatsappBlastInput,)
+  }
+);}
+
+
+
+
+export const getExternalCreateWhatsappBlastMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof externalCreateWhatsappBlast>>, TError,{data: BodyType<ExternalWhatsappBlastInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof externalCreateWhatsappBlast>>, TError,{data: BodyType<ExternalWhatsappBlastInput>}, TContext> => {
+
+const mutationKey = ['externalCreateWhatsappBlast'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof externalCreateWhatsappBlast>>, {data: BodyType<ExternalWhatsappBlastInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  externalCreateWhatsappBlast(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ExternalCreateWhatsappBlastMutationResult = NonNullable<Awaited<ReturnType<typeof externalCreateWhatsappBlast>>>
+    export type ExternalCreateWhatsappBlastMutationBody = BodyType<ExternalWhatsappBlastInput>
+    export type ExternalCreateWhatsappBlastMutationError = ErrorType<void>
+
+    /**
+ * @summary Receive blast from external app (different content per destination)
+ */
+export const useExternalCreateWhatsappBlast = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof externalCreateWhatsappBlast>>, TError,{data: BodyType<ExternalWhatsappBlastInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof externalCreateWhatsappBlast>>,
+        TError,
+        {data: BodyType<ExternalWhatsappBlastInput>},
+        TContext
+      > => {
+      return useMutation(getExternalCreateWhatsappBlastMutationOptions(options));
+    }
+
+export const getExternalGetWhatsappBlastStatusUrl = (id: number,) => {
+
+
+
+
+  return `/api/external/whatsapp-blast/${id}`
+}
+
+/**
+ * @summary Check external blast status
+ */
+export const externalGetWhatsappBlastStatus = async (id: number, options?: RequestInit): Promise<WhatsappBlast> => {
+
+  return customFetch<WhatsappBlast>(getExternalGetWhatsappBlastStatusUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getExternalGetWhatsappBlastStatusQueryKey = (id: number,) => {
+    return [
+    `/api/external/whatsapp-blast/${id}`
+    ] as const;
+    }
+
+
+export const getExternalGetWhatsappBlastStatusQueryOptions = <TData = Awaited<ReturnType<typeof externalGetWhatsappBlastStatus>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof externalGetWhatsappBlastStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExternalGetWhatsappBlastStatusQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof externalGetWhatsappBlastStatus>>> = ({ signal }) => externalGetWhatsappBlastStatus(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof externalGetWhatsappBlastStatus>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ExternalGetWhatsappBlastStatusQueryResult = NonNullable<Awaited<ReturnType<typeof externalGetWhatsappBlastStatus>>>
+export type ExternalGetWhatsappBlastStatusQueryError = ErrorType<void>
+
+
+/**
+ * @summary Check external blast status
+ */
+
+export function useExternalGetWhatsappBlastStatus<TData = Awaited<ReturnType<typeof externalGetWhatsappBlastStatus>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof externalGetWhatsappBlastStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getExternalGetWhatsappBlastStatusQueryOptions(id,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

@@ -28,6 +28,8 @@ tags:
     description: Dashboard statistics
   - name: auth
     description: Authentication & password management
+  - name: whatsapp-blast
+    description: WhatsApp blast messaging
 
 paths:
   /healthz:
@@ -824,6 +826,196 @@ paths:
                 items:
                   $ref: "#/components/schemas/StatsPeriod"
 
+  # WhatsApp Blast
+  /whatsapp-blasts:
+    get:
+      operationId: listWhatsappBlasts
+      tags: [whatsapp-blast]
+      summary: List WhatsApp blast messages (paginated, searchable)
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of blast messages
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/WhatsappBlastWithRecipients"
+                  total:
+                    type: integer
+                  page:
+                    type: integer
+                  limit:
+                    type: integer
+    post:
+      operationId: createWhatsappBlast
+      tags: [whatsapp-blast]
+      summary: Create a manual WhatsApp blast
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateWhatsappBlastInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WhatsappBlast"
+        "400":
+          description: Validation error
+
+  /whatsapp-blasts/{id}:
+    get:
+      operationId: getWhatsappBlast
+      tags: [whatsapp-blast]
+      summary: Get a blast with recipient details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Blast detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WhatsappBlastDetail"
+        "404":
+          description: Not found
+    delete:
+      operationId: cancelWhatsappBlast
+      tags: [whatsapp-blast]
+      summary: Cancel a pending blast
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Cancelled
+        "404":
+          description: Not found
+
+  /whatsapp-blasts/templates:
+    get:
+      operationId: listWhatsappBlastTemplates
+      tags: [whatsapp-blast]
+      summary: Fetch approved WhatsApp templates from Meta
+      parameters:
+        - name: channelId
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of approved templates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WhatsAppTemplate"
+
+  /whatsapp-blasts/settings:
+    get:
+      operationId: getWhatsappBlastSettings
+      tags: [whatsapp-blast]
+      summary: Get blast rate limit settings
+      responses:
+        "200":
+          description: Blast settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WhatsappBlastSettings"
+    put:
+      operationId: updateWhatsappBlastSettings
+      tags: [whatsapp-blast]
+      summary: Update blast rate limit settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WhatsappBlastSettingsInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WhatsappBlastSettings"
+
+  /external/whatsapp-blast:
+    post:
+      operationId: externalCreateWhatsappBlast
+      tags: [whatsapp-blast]
+      summary: Receive blast from external app (different content per destination)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExternalWhatsappBlastInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WhatsappBlast"
+        "400":
+          description: Validation error
+        "401":
+          description: Invalid API key
+
+  /external/whatsapp-blast/{id}:
+    get:
+      operationId: externalGetWhatsappBlastStatus
+      tags: [whatsapp-blast]
+      summary: Check external blast status
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Blast status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WhatsappBlast"
+        "404":
+          description: Not found
+
 components:
   schemas:
     HealthStatus:
@@ -1340,3 +1532,191 @@ components:
           type: string
         endDate:
           type: string
+
+    # WhatsApp Blast
+    WhatsappBlast:
+      type: object
+      required: [id, name, channelId, templateName, templateLanguage, source, totalRecipients, sentCount, deliveredCount, failedCount, status, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        channelId:
+          type: integer
+        templateName:
+          type: string
+        templateLanguage:
+          type: string
+        templateParams:
+          type: ["string", "null"]
+        source:
+          type: string
+          enum: [manual, external]
+        createdByUserId:
+          type: ["integer", "null"]
+        createdByUserName:
+          type: ["string", "null"]
+        externalApiKey:
+          type: ["string", "null"]
+        externalSourceIp:
+          type: ["string", "null"]
+        scheduledAt:
+          type: ["string", "null"]
+        startedAt:
+          type: ["string", "null"]
+        completedAt:
+          type: ["string", "null"]
+        totalRecipients:
+          type: integer
+        sentCount:
+          type: integer
+        deliveredCount:
+          type: integer
+        failedCount:
+          type: integer
+        status:
+          type: string
+          enum: [pending, processing, completed, failed, cancelled]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+
+    WhatsappBlastWithRecipients:
+      allOf:
+        - $ref: "#/components/schemas/WhatsappBlast"
+        - type: object
+          properties:
+            recipients:
+              type: array
+              items:
+                $ref: "#/components/schemas/WhatsappBlastRecipient"
+
+    WhatsappBlastRecipient:
+      type: object
+      required: [id, blastId, phone, status, createdAt]
+      properties:
+        id:
+          type: integer
+        blastId:
+          type: integer
+        contactId:
+          type: ["integer", "null"]
+        phone:
+          type: string
+        templateParams:
+          type: ["string", "null"]
+        content:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [pending, sent, delivered, failed]
+        externalMessageId:
+          type: ["string", "null"]
+        errorMessage:
+          type: ["string", "null"]
+        sentAt:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    CreateWhatsappBlastInput:
+      type: object
+      required: [name, channelId, templateName, templateLanguage]
+      properties:
+        name:
+          type: string
+        channelId:
+          type: integer
+        templateName:
+          type: string
+        templateLanguage:
+          type: string
+        templateParams:
+          type: array
+          items:
+            type: string
+        scheduledAt:
+          type: ["string", "null"]
+        contactIds:
+          type: array
+          items:
+            type: integer
+          description: Specific contacts to blast. If omitted, targets all WhatsApp contacts.
+
+    ExternalWhatsappBlastInput:
+      type: object
+      required: [channelId, recipients]
+      properties:
+        channelId:
+          type: integer
+        recipients:
+          type: array
+          items:
+            type: object
+            required: [phone]
+            properties:
+              phone:
+                type: string
+              templateParams:
+                type: array
+                items:
+                  type: string
+              content:
+                type: ["string", "null"]
+            description: Recipient with optional per-destination params/content
+
+    WhatsappBlastDetail:
+      type: object
+      properties:
+        blast:
+          $ref: "#/components/schemas/WhatsappBlast"
+        recipients:
+          type: array
+          items:
+            $ref: "#/components/schemas/WhatsappBlastRecipient"
+        total:
+          type: integer
+
+    WhatsAppTemplate:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        language:
+          type: string
+        status:
+          type: string
+        category:
+          type: string
+        components:
+          type: array
+          items:
+            type: object
+        channelId:
+          type: integer
+        channelName:
+          type: string
+
+    WhatsappBlastSettings:
+      type: object
+      properties:
+        batchSize:
+          type: integer
+        delayBetweenBatchesMs:
+          type: integer
+        maxRetries:
+          type: integer
+
+    WhatsappBlastSettingsInput:
+      type: object
+      properties:
+        batchSize:
+          type: integer
+        delayBetweenBatchesMs:
+          type: integer
+        maxRetries:
+          type: integer

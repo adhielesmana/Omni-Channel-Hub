@@ -524,6 +524,149 @@ export interface StatsPeriod {
   endDate: string;
 }
 
+export type WhatsappBlastSource = typeof WhatsappBlastSource[keyof typeof WhatsappBlastSource];
+
+
+export const WhatsappBlastSource = {
+  manual: 'manual',
+  external: 'external',
+} as const;
+
+export type WhatsappBlastStatus = typeof WhatsappBlastStatus[keyof typeof WhatsappBlastStatus];
+
+
+export const WhatsappBlastStatus = {
+  pending: 'pending',
+  processing: 'processing',
+  completed: 'completed',
+  failed: 'failed',
+  cancelled: 'cancelled',
+} as const;
+
+export interface WhatsappBlast {
+  id: number;
+  name: string;
+  channelId: number;
+  templateName: string;
+  templateLanguage: string;
+  /** @nullable */
+  templateParams?: string | null;
+  source: WhatsappBlastSource;
+  /** @nullable */
+  createdByUserId?: number | null;
+  /** @nullable */
+  createdByUserName?: string | null;
+  /** @nullable */
+  externalApiKey?: string | null;
+  /** @nullable */
+  externalSourceIp?: string | null;
+  /** @nullable */
+  scheduledAt?: string | null;
+  /** @nullable */
+  startedAt?: string | null;
+  /** @nullable */
+  completedAt?: string | null;
+  totalRecipients: number;
+  sentCount: number;
+  deliveredCount: number;
+  failedCount: number;
+  status: WhatsappBlastStatus;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export type WhatsappBlastRecipientStatus = typeof WhatsappBlastRecipientStatus[keyof typeof WhatsappBlastRecipientStatus];
+
+
+export const WhatsappBlastRecipientStatus = {
+  pending: 'pending',
+  sent: 'sent',
+  delivered: 'delivered',
+  failed: 'failed',
+} as const;
+
+export interface WhatsappBlastRecipient {
+  id: number;
+  blastId: number;
+  /** @nullable */
+  contactId?: number | null;
+  phone: string;
+  /** @nullable */
+  templateParams?: string | null;
+  /** @nullable */
+  content?: string | null;
+  status: WhatsappBlastRecipientStatus;
+  /** @nullable */
+  externalMessageId?: string | null;
+  /** @nullable */
+  errorMessage?: string | null;
+  /** @nullable */
+  sentAt?: string | null;
+  createdAt: string;
+}
+
+export type WhatsappBlastWithRecipients = WhatsappBlast & {
+  recipients?: WhatsappBlastRecipient[];
+};
+
+export interface CreateWhatsappBlastInput {
+  name: string;
+  channelId: number;
+  templateName: string;
+  templateLanguage: string;
+  templateParams?: string[];
+  /** @nullable */
+  scheduledAt?: string | null;
+  /** Specific contacts to blast. If omitted, targets all WhatsApp contacts. */
+  contactIds?: number[];
+}
+
+/**
+ * Recipient with optional per-destination params/content
+ */
+export type ExternalWhatsappBlastInputRecipientsItem = {
+  phone: string;
+  templateParams?: string[];
+  /** @nullable */
+  content?: string | null;
+};
+
+export interface ExternalWhatsappBlastInput {
+  channelId: number;
+  recipients: ExternalWhatsappBlastInputRecipientsItem[];
+}
+
+export interface WhatsappBlastDetail {
+  blast?: WhatsappBlast;
+  recipients?: WhatsappBlastRecipient[];
+  total?: number;
+}
+
+export type WhatsAppTemplateComponentsItem = { [key: string]: unknown };
+
+export interface WhatsAppTemplate {
+  id?: string;
+  name?: string;
+  language?: string;
+  status?: string;
+  category?: string;
+  components?: WhatsAppTemplateComponentsItem[];
+  channelId?: number;
+  channelName?: string;
+}
+
+export interface WhatsappBlastSettings {
+  batchSize?: number;
+  delayBetweenBatchesMs?: number;
+  maxRetries?: number;
+}
+
+export interface WhatsappBlastSettingsInput {
+  batchSize?: number;
+  delayBetweenBatchesMs?: number;
+  maxRetries?: number;
+}
+
 export type ListContactsParams = {
 search?: string;
 channelType?: string;
@@ -585,5 +728,22 @@ startDate?: string;
  * Filter end date (ISO 8601)
  */
 endDate?: string;
+};
+
+export type ListWhatsappBlastsParams = {
+page?: number;
+limit?: number;
+search?: string;
+};
+
+export type ListWhatsappBlasts200 = {
+  data?: WhatsappBlastWithRecipients[];
+  total?: number;
+  page?: number;
+  limit?: number;
+};
+
+export type ListWhatsappBlastTemplatesParams = {
+channelId: number;
 };
 

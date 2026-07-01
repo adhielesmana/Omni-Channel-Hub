@@ -16,6 +16,7 @@ import Departments from "@/pages/departments";
 import Channels from "@/pages/channels";
 import Users from "@/pages/users";
 import Analytics from "@/pages/analytics";
+import WhatsappBlasts from "@/pages/whatsapp-blasts";
 import Settings from "@/pages/settings";
 import PrivacyPolicy from "@/pages/privacy";
 import TermsOfService from "@/pages/terms";
@@ -114,6 +115,9 @@ function Router() {
       </Route>
       <Route path="/analytics">
         <ProtectedRoute component={Analytics} />
+      </Route>
+      <Route path="/whatsapp-blasts">
+        <ProtectedRoute component={WhatsappBlasts} />
       </Route>
       <Route path="/settings">
         <ProtectedRoute component={Settings} />

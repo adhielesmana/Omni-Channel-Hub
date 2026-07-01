@@ -10,6 +10,7 @@ import messagesRouter from "./messages";
 import webhooksRouter from "./webhooks";
 import statsRouter from "./stats";
 import mediaRouter from "./media";
+import whatsappBlastRouter from "./whatsapp-blasts";
 
 const router: IRouter = Router();
 
@@ -24,5 +25,6 @@ router.use(messagesRouter);
 router.use(webhooksRouter);
 router.use(statsRouter);
 router.use(mediaRouter);
+router.use(whatsappBlastRouter);
 
 export default router;

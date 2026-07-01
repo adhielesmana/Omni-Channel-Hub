@@ -922,3 +922,222 @@ export const GetStatsPeriodsResponseItem = zod.object({
 export const GetStatsPeriodsResponse = zod.array(GetStatsPeriodsResponseItem)
 
 
+/**
+ * @summary List WhatsApp blast messages (paginated, searchable)
+ */
+export const listWhatsappBlastsQueryPageDefault = 1;
+export const listWhatsappBlastsQueryLimitDefault = 20;
+
+export const ListWhatsappBlastsQueryParams = zod.object({
+  "page": zod.coerce.number().default(listWhatsappBlastsQueryPageDefault),
+  "limit": zod.coerce.number().default(listWhatsappBlastsQueryLimitDefault),
+  "search": zod.coerce.string().optional()
+})
+
+export const ListWhatsappBlastsResponse = zod.object({
+  "data": zod.array(zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "channelId": zod.number(),
+  "templateName": zod.string(),
+  "templateLanguage": zod.string(),
+  "templateParams": zod.string().nullish(),
+  "source": zod.enum(['manual', 'external']),
+  "createdByUserId": zod.number().nullish(),
+  "createdByUserName": zod.string().nullish(),
+  "externalApiKey": zod.string().nullish(),
+  "externalSourceIp": zod.string().nullish(),
+  "scheduledAt": zod.string().nullish(),
+  "startedAt": zod.string().nullish(),
+  "completedAt": zod.string().nullish(),
+  "totalRecipients": zod.number(),
+  "sentCount": zod.number(),
+  "deliveredCount": zod.number(),
+  "failedCount": zod.number(),
+  "status": zod.enum(['pending', 'processing', 'completed', 'failed', 'cancelled']),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string().optional()
+}).and(zod.object({
+  "recipients": zod.array(zod.object({
+  "id": zod.number(),
+  "blastId": zod.number(),
+  "contactId": zod.number().nullish(),
+  "phone": zod.string(),
+  "templateParams": zod.string().nullish(),
+  "content": zod.string().nullish(),
+  "status": zod.enum(['pending', 'sent', 'delivered', 'failed']),
+  "externalMessageId": zod.string().nullish(),
+  "errorMessage": zod.string().nullish(),
+  "sentAt": zod.string().nullish(),
+  "createdAt": zod.string()
+})).optional()
+}))).optional(),
+  "total": zod.number().optional(),
+  "page": zod.number().optional(),
+  "limit": zod.number().optional()
+})
+
+
+/**
+ * @summary Create a manual WhatsApp blast
+ */
+export const CreateWhatsappBlastBody = zod.object({
+  "name": zod.string(),
+  "channelId": zod.number(),
+  "templateName": zod.string(),
+  "templateLanguage": zod.string(),
+  "templateParams": zod.array(zod.string()).optional(),
+  "scheduledAt": zod.string().nullish(),
+  "contactIds": zod.array(zod.number()).optional().describe('Specific contacts to blast. If omitted, targets all WhatsApp contacts.')
+})
+
+
+/**
+ * @summary Get a blast with recipient details
+ */
+export const GetWhatsappBlastParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetWhatsappBlastResponse = zod.object({
+  "blast": zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "channelId": zod.number(),
+  "templateName": zod.string(),
+  "templateLanguage": zod.string(),
+  "templateParams": zod.string().nullish(),
+  "source": zod.enum(['manual', 'external']),
+  "createdByUserId": zod.number().nullish(),
+  "createdByUserName": zod.string().nullish(),
+  "externalApiKey": zod.string().nullish(),
+  "externalSourceIp": zod.string().nullish(),
+  "scheduledAt": zod.string().nullish(),
+  "startedAt": zod.string().nullish(),
+  "completedAt": zod.string().nullish(),
+  "totalRecipients": zod.number(),
+  "sentCount": zod.number(),
+  "deliveredCount": zod.number(),
+  "failedCount": zod.number(),
+  "status": zod.enum(['pending', 'processing', 'completed', 'failed', 'cancelled']),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string().optional()
+}).optional(),
+  "recipients": zod.array(zod.object({
+  "id": zod.number(),
+  "blastId": zod.number(),
+  "contactId": zod.number().nullish(),
+  "phone": zod.string(),
+  "templateParams": zod.string().nullish(),
+  "content": zod.string().nullish(),
+  "status": zod.enum(['pending', 'sent', 'delivered', 'failed']),
+  "externalMessageId": zod.string().nullish(),
+  "errorMessage": zod.string().nullish(),
+  "sentAt": zod.string().nullish(),
+  "createdAt": zod.string()
+})).optional(),
+  "total": zod.number().optional()
+})
+
+
+/**
+ * @summary Cancel a pending blast
+ */
+export const CancelWhatsappBlastParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+/**
+ * @summary Fetch approved WhatsApp templates from Meta
+ */
+export const ListWhatsappBlastTemplatesQueryParams = zod.object({
+  "channelId": zod.coerce.number()
+})
+
+export const ListWhatsappBlastTemplatesResponseItem = zod.object({
+  "id": zod.string().optional(),
+  "name": zod.string().optional(),
+  "language": zod.string().optional(),
+  "status": zod.string().optional(),
+  "category": zod.string().optional(),
+  "components": zod.array(zod.object({
+
+}).passthrough()).optional(),
+  "channelId": zod.number().optional(),
+  "channelName": zod.string().optional()
+})
+export const ListWhatsappBlastTemplatesResponse = zod.array(ListWhatsappBlastTemplatesResponseItem)
+
+
+/**
+ * @summary Get blast rate limit settings
+ */
+export const GetWhatsappBlastSettingsResponse = zod.object({
+  "batchSize": zod.number().optional(),
+  "delayBetweenBatchesMs": zod.number().optional(),
+  "maxRetries": zod.number().optional()
+})
+
+
+/**
+ * @summary Update blast rate limit settings
+ */
+export const UpdateWhatsappBlastSettingsBody = zod.object({
+  "batchSize": zod.number().optional(),
+  "delayBetweenBatchesMs": zod.number().optional(),
+  "maxRetries": zod.number().optional()
+})
+
+export const UpdateWhatsappBlastSettingsResponse = zod.object({
+  "batchSize": zod.number().optional(),
+  "delayBetweenBatchesMs": zod.number().optional(),
+  "maxRetries": zod.number().optional()
+})
+
+
+/**
+ * @summary Receive blast from external app (different content per destination)
+ */
+export const ExternalCreateWhatsappBlastBody = zod.object({
+  "channelId": zod.number(),
+  "recipients": zod.array(zod.object({
+  "phone": zod.string(),
+  "templateParams": zod.array(zod.string()).optional(),
+  "content": zod.string().nullish()
+}).describe('Recipient with optional per-destination params\/content'))
+})
+
+
+/**
+ * @summary Check external blast status
+ */
+export const ExternalGetWhatsappBlastStatusParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ExternalGetWhatsappBlastStatusResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "channelId": zod.number(),
+  "templateName": zod.string(),
+  "templateLanguage": zod.string(),
+  "templateParams": zod.string().nullish(),
+  "source": zod.enum(['manual', 'external']),
+  "createdByUserId": zod.number().nullish(),
+  "createdByUserName": zod.string().nullish(),
+  "externalApiKey": zod.string().nullish(),
+  "externalSourceIp": zod.string().nullish(),
+  "scheduledAt": zod.string().nullish(),
+  "startedAt": zod.string().nullish(),
+  "completedAt": zod.string().nullish(),
+  "totalRecipients": zod.number(),
+  "sentCount": zod.number(),
+  "deliveredCount": zod.number(),
+  "failedCount": zod.number(),
+  "status": zod.enum(['pending', 'processing', 'completed', 'failed', 'cancelled']),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string().optional()
+})
+
+

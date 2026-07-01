@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { Bell, Globe, Link2, Repeat2, Shield, Sliders, Webhook, ChevronRight, Check, Copy, RefreshCw, Lock, Eye, EyeOff, Settings as SettingsIcon, User, Upload } from "lucide-react";
+import { Bell, Globe, Link2, Repeat2, Shield, Sliders, Webhook, ChevronRight, Check, Copy, RefreshCw, Lock, Eye, EyeOff, Settings as SettingsIcon, User, Upload, Send } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -9,9 +9,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { customFetch, useChangePassword, useUpdateUser } from "@workspace/api-client-react";
+import { customFetch, useChangePassword, useUpdateUser, useGetWhatsappBlastSettings, useUpdateWhatsappBlastSettings } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/context/AuthContext";
+import { toast } from "@/hooks/use-toast";
 import { canAccessAdminFeatures } from "@/lib/permissions";
 
 const SECTIONS = [
@@ -23,6 +24,7 @@ const SECTIONS = [
   { id: "integrations", label: "Integrations", icon: Link2 },
   { id: "security", label: "Security", icon: Shield },
   { id: "advanced", label: "Advanced", icon: Sliders },
+  { id: "blast", label: "WA Blast", icon: Send },
 ];
 
 const PERSONAL_SECTIONS = SECTIONS.filter((section) => section.id === "profile" || section.id === "security");
@@ -711,6 +713,96 @@ function AdvancedSection() {
   );
 }
 
+function BlastSettingsSection() {
+  const { data: settings, isLoading } = useGetWhatsappBlastSettings();
+  const updateMutation = useUpdateWhatsappBlastSettings();
+  const [form, setForm] = useState({ batchSize: 50, delayBetweenBatchesMs: 1000, maxRetries: 2 });
+
+  useEffect(() => {
+    if (settings) {
+      setForm({
+        batchSize: settings.batchSize ?? 50,
+        delayBetweenBatchesMs: settings.delayBetweenBatchesMs ?? 1000,
+        maxRetries: settings.maxRetries ?? 2,
+      });
+    }
+  }, [settings]);
+
+  const handleSave = () => {
+    updateMutation.mutate(
+      { data: form },
+      {
+        onSuccess: () => {
+          toast({ title: "Blast settings saved" });
+        },
+      }
+    );
+  };
+
+  return (
+    <div>
+      <SectionHeader
+        title="WA Blast Settings"
+        description="Configure rate limiting and retry behavior for WhatsApp blast messages."
+      />
+      {isLoading ? (
+        <p className="text-sm text-muted-foreground">Loading settings...</p>
+      ) : (
+        <div className="space-y-1 divide-y divide-border">
+          <SettingRow
+            label="Batch size"
+            description="Number of messages sent per batch. Lower values reduce Meta API throttling risk."
+          >
+            <Input
+              type="number"
+              min={1}
+              max={500}
+              className="w-24 h-8 text-sm text-center"
+              value={form.batchSize}
+              onChange={(e) => setForm((f) => ({ ...f, batchSize: Number(e.target.value) }))}
+            />
+          </SettingRow>
+          <SettingRow
+            label="Delay between batches"
+            description="Milliseconds to wait between each batch. Higher values reduce send rate."
+          >
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                min={100}
+                max={30000}
+                step={100}
+                className="w-24 h-8 text-sm text-center"
+                value={form.delayBetweenBatchesMs}
+                onChange={(e) => setForm((f) => ({ ...f, delayBetweenBatchesMs: Number(e.target.value) }))}
+              />
+              <span className="text-sm text-muted-foreground">ms</span>
+            </div>
+          </SettingRow>
+          <SettingRow
+            label="Max retries"
+            description="Number of times to retry a failed send before marking it as failed."
+          >
+            <Input
+              type="number"
+              min={0}
+              max={10}
+              className="w-24 h-8 text-sm text-center"
+              value={form.maxRetries}
+              onChange={(e) => setForm((f) => ({ ...f, maxRetries: Number(e.target.value) }))}
+            />
+          </SettingRow>
+          <div className="py-4">
+            <Button size="sm" onClick={handleSave} disabled={updateMutation.isPending}>
+              {updateMutation.isPending ? "Saving..." : "Save changes"}
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const SECTION_CONTENT: Record<string, React.ReactNode> = {
   profile: <ProfileSection />,
   workspace: <WorkspaceSection />,
@@ -720,6 +812,7 @@ const SECTION_CONTENT: Record<string, React.ReactNode> = {
   integrations: <IntegrationsSection />,
   security: <SecuritySection />,
   advanced: <AdvancedSection />,
+  blast: <BlastSettingsSection />,
 };
 
 export default function Settings() {
