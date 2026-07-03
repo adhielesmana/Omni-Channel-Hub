@@ -336,8 +336,8 @@ export default function Inbox() {
           </Tabs>
         </div>
 
-        <ScrollArea className="flex-1">
-          <div className="flex flex-col w-full">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden">
+          <div className="flex flex-col">
             {isConversationsLoading ? (
               <div className="p-8 text-center text-muted-foreground text-sm">Loading conversations...</div>
             ) : filteredConversations?.length === 0 ? (
@@ -392,7 +392,7 @@ export default function Inbox() {
               ))
             )}
           </div>
-        </ScrollArea>
+        </div>
       </div>
 
       {/* Empty state on mobile when no chat selected */}
