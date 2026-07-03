@@ -351,7 +351,7 @@ export default function Inbox() {
                 <button
                   key={conv.id}
                   onClick={() => { setActiveConversationId(conv.id); setMobileShowChat(true); }}
-                  className={`w-full text-left p-4 border-b transition-colors flex gap-3 overflow-hidden hover:bg-muted/30 ${
+                  className={`w-full text-left pl-4 pr-5 py-4 border-b transition-colors flex gap-3 hover:bg-muted/30 ${
                     activeConversationId === conv.id ? 'bg-primary/5 border-l-2 border-l-primary' : 'border-l-2 border-l-transparent'
                   }`}
                 >
