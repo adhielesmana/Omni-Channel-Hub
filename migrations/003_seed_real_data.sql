@@ -39,9 +39,9 @@ ON CONFLICT (email) DO NOTHING;
 
 -- WhatsApp Channels (requires phone_number and external_id)
 INSERT INTO channels (name, channel_type, phone_number, external_id, webhook_verify_token, is_active) VALUES
-    -- ('Channel Name', 'whatsapp', '+1234567890', 'waba_id', 'webhook_token', TRUE),
+    -- ('Channel Name', 'whatsapp', '+1234567890', 'phone_number_id', 'webhook_token', TRUE),
     -- Example:
-    -- ('WhatsApp Business', 'whatsapp', '+1 555 123 4567', 'waba_business', 'verify_token_1', TRUE),
+    -- ('WhatsApp Business', 'whatsapp', '+1 555 123 4567', 'phone_number_id_1', 'verify_token_1', TRUE),
 ON CONFLICT DO NOTHING;
 
 -- Instagram/Facebook Channels (requires page_id and external_id)

@@ -262,67 +262,35 @@ router.post("/conversations/:conversationId/messages", requireAuth, async (req, 
           return;
         }
 
-        // Collect candidate channels: primary (last inbound) first, then fallback to other channels of same type
-        const candidates: Array<typeof channelsTable.$inferSelect> = [];
-        if (channel && channel.accessToken) {
-          candidates.push(channel);
-        }
-        const sameTypeChannels = await db
-          .select()
-          .from(channelsTable)
-          .where(eq(channelsTable.channelType, conv.channelType));
-        for (const c of sameTypeChannels) {
-          if (c.id !== channel?.id && c.accessToken && c.externalId) {
-            candidates.push(c);
-          }
+        if (!channel || !channel.accessToken || !channel.externalId) {
+          logger.warn({ messageId: message.id, channelId: conv.channelId }, "Conversation channel is missing send configuration");
+          await db.update(messagesTable).set({ deliveryStatus: "failed" }).where(eq(messagesTable.id, message.id));
+          return;
         }
 
-        let usedChannel: typeof channelsTable.$inferSelect | null = null;
         let sendResult: { messageId?: string } = {};
 
-        for (const candidate of candidates) {
-          try {
-            if (candidate.channelType === "whatsapp" && candidate.externalId && contact.phone) {
-              sendResult = await sendWhatsAppMessage(candidate, contact, content);
-              if (sendResult.messageId) {
-                usedChannel = candidate;
-                break;
-              }
-            } else if (candidate.channelType === "facebook") {
-              sendResult = await sendMessengerMessage(candidate, contact, content);
-              if (sendResult.messageId) {
-                usedChannel = candidate;
-                break;
-              }
-            } else if (candidate.channelType === "instagram") {
-              sendResult = await sendInstagramMessage(candidate, contact, content);
-              if (sendResult.messageId) {
-                usedChannel = candidate;
-                break;
-              }
-            }
-          } catch (candidateErr) {
-            logger.warn({ err: candidateErr, channelId: candidate.id, channelName: candidate.name }, "Candidate channel failed");
+        if (channel.channelType === "whatsapp") {
+          if (!contact.phone) {
+            throw new Error("Missing contact phone number for WhatsApp reply");
           }
+          sendResult = await sendWhatsAppMessage(channel, contact, content);
+        } else if (channel.channelType === "facebook") {
+          sendResult = await sendMessengerMessage(channel, contact, content);
+        } else if (channel.channelType === "instagram") {
+          sendResult = await sendInstagramMessage(channel, contact, content);
+        } else {
+          throw new Error(`Unsupported channel type: ${channel.channelType}`);
         }
 
-        if (sendResult.messageId && usedChannel) {
+        if (sendResult.messageId) {
           await db
             .update(messagesTable)
             .set({ externalMessageId: sendResult.messageId, deliveryStatus: "sent" })
             .where(eq(messagesTable.id, message.id));
-          logger.info({ messageId: message.id, channelId: usedChannel.id, channelName: usedChannel.name, waId: sendResult.messageId }, "Message sent via channel");
-
-          // Update conversation channelId to the working channel for future replies
-          if (usedChannel.id !== channel?.id) {
-            await db
-              .update(conversationsTable)
-              .set({ channelId: usedChannel.id })
-              .where(eq(conversationsTable.id, params.data.conversationId));
-            logger.info({ conversationId: params.data.conversationId, fromChannelId: channel?.id, toChannelId: usedChannel.id }, "Conversation channel fallback updated");
-          }
+          logger.info({ messageId: message.id, channelId: channel.id, channelName: channel.name, waId: sendResult.messageId }, "Message sent via channel");
         } else {
-          logger.warn({ messageId: message.id }, "All channel candidates failed to send");
+          logger.warn({ messageId: message.id, channelId: channel.id, channelName: channel.name }, "Channel failed to send");
           await db
             .update(messagesTable)
             .set({ deliveryStatus: "failed" })

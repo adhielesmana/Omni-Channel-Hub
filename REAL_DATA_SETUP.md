@@ -104,7 +104,7 @@ curl -X POST http://localhost:8080/api/channels \
     "name": "WhatsApp Business",
     "channel_type": "whatsapp",
     "phone_number": "+1 555 123 4567",
-    "external_id": "waba_12345",
+    "external_id": "phone_number_id_12345",
     "webhook_verify_token": "verify_token_123",
     "is_active": true
   }'
