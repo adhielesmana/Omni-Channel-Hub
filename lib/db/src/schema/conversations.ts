@@ -7,6 +7,8 @@ export const conversationsTable = pgTable("conversations", {
   contactId: integer("contact_id").notNull(),
   channelId: integer("channel_id").notNull(),
   channelType: text("channel_type", { enum: ["whatsapp", "instagram", "facebook"] }).notNull(),
+  phoneNumberId: text("phone_number_id"),
+  wabaId: text("waba_id"),
   departmentId: integer("department_id"),
   assignedAgentId: integer("assigned_agent_id"),
   status: text("status", { enum: ["open", "pending", "resolved", "snoozed"] }).notNull().default("open"),

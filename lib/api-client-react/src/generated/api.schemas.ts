@@ -290,6 +290,10 @@ export interface Conversation {
   channelId?: number;
   channelType: ConversationChannelType;
   /** @nullable */
+  phoneNumberId?: string | null;
+  /** @nullable */
+  wabaId?: string | null;
+  /** @nullable */
   departmentId?: number | null;
   /** @nullable */
   assignedAgentId?: number | null;

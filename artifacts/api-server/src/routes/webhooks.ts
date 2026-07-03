@@ -203,22 +203,31 @@ async function processWhatsAppEntry(entry: Record<string, unknown>) {
         .from(conversationsTable)
         .where(eq(conversationsTable.contactId, contact.id)))[0];
 
+      const wabaId = entry.id as string | undefined;
+
       if (!conversation) {
         const convs = await db.insert(conversationsTable).values({
           contactId: contact.id,
           channelId: channel.id,
           channelType: "whatsapp",
+          phoneNumberId,
+          wabaId: wabaId ?? channel.wabaId ?? null,
           status: "open",
           lastMessageAt: new Date(),
           unreadCount: 1,
         }).returning();
         conversation = convs[0];
       } else {
-        await db.update(conversationsTable).set({
+        const updates: Record<string, unknown> = {
           status: "open",
           lastMessageAt: new Date(),
           unreadCount: (conversation.unreadCount ?? 0) + 1,
-        }).where(eq(conversationsTable.id, conversation.id));
+        };
+        // Update routing info if missing or changed
+        if (phoneNumberId && !conversation.phoneNumberId) updates.phoneNumberId = phoneNumberId;
+        if (wabaId && !conversation.wabaId) updates.wabaId = wabaId;
+        if (conversation.channelId !== channel.id) updates.channelId = channel.id;
+        await db.update(conversationsTable).set(updates).where(eq(conversationsTable.id, conversation.id));
       }
 
       // Store message
