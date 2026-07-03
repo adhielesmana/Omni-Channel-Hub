@@ -337,7 +337,7 @@ export default function Inbox() {
         </div>
 
         <ScrollArea className="flex-1">
-          <div className="flex flex-col">
+          <div className="flex flex-col w-full">
             {isConversationsLoading ? (
               <div className="p-8 text-center text-muted-foreground text-sm">Loading conversations...</div>
             ) : filteredConversations?.length === 0 ? (
