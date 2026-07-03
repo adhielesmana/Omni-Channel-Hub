@@ -201,79 +201,6 @@ router.post("/whatsapp-blasts", requireAuth, async (req, res): Promise<void> => 
   res.status(201).json(dto);
 });
 
-// Internal: Get blast detail
-router.get("/whatsapp-blasts/:id", requireAuth, async (req, res): Promise<void> => {
-  const params = GetWhatsappBlastParams.safeParse({ id: parseInt(req.params.id as string, 10) });
-  if (!params.success) {
-    res.status(400).json({ error: params.error.message });
-    return;
-  }
-
-  const [blast] = await db
-    .select()
-    .from(whatsappBlastsTable)
-    .where(eq(whatsappBlastsTable.id, params.data.id));
-
-  if (!blast) {
-    res.status(404).json({ error: "Blast not found" });
-    return;
-  }
-
-  const recipients = await db
-    .select()
-    .from(whatsappBlastRecipientsTable)
-    .where(eq(whatsappBlastRecipientsTable.blastId, blast.id))
-    .orderBy(asc(whatsappBlastRecipientsTable.id));
-
-  const dto = toBlastDto(blast);
-  if (blast.createdByUserId) {
-    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, blast.createdByUserId));
-    dto.createdByUserName = user?.name ?? null;
-  }
-
-  res.json(GetWhatsappBlastResponse.parse({
-    blast: dto,
-    recipients: recipients.map(toRecipientDto),
-    total: recipients.length,
-  }));
-});
-
-// Internal: Cancel pending blast
-router.delete("/whatsapp-blasts/:id", requireAuth, async (req, res): Promise<void> => {
-  const params = CancelWhatsappBlastParams.safeParse({ id: parseInt(req.params.id as string, 10) });
-  if (!params.success) {
-    res.status(400).json({ error: params.error.message });
-    return;
-  }
-
-  const [blast] = await db
-    .select()
-    .from(whatsappBlastsTable)
-    .where(eq(whatsappBlastsTable.id, params.data.id));
-
-  if (!blast) {
-    res.status(404).json({ error: "Blast not found" });
-    return;
-  }
-
-  if (blast.status !== "pending") {
-    res.status(400).json({ error: "Can only cancel pending blasts" });
-    return;
-  }
-
-  await db
-    .update(whatsappBlastsTable)
-    .set({ status: "cancelled" })
-    .where(eq(whatsappBlastsTable.id, blast.id));
-
-  await db
-    .update(whatsappBlastRecipientsTable)
-    .set({ status: "failed", errorMessage: "Blast was cancelled" })
-    .where(eq(whatsappBlastRecipientsTable.blastId, blast.id));
-
-  res.json({ status: "cancelled" });
-});
-
 // Internal: Fetch approved templates from Meta
 router.get("/whatsapp-blasts/templates", requireAuth, async (req, res): Promise<void> => {
   const params = ListWhatsappBlastTemplatesQueryParams.safeParse(req.query);
@@ -363,6 +290,79 @@ router.put("/whatsapp-blasts/settings", requireAuth, async (req, res): Promise<v
 
   const settings = updateBlastSettings(parsed.data);
   res.json(UpdateWhatsappBlastSettingsResponse.parse(settings));
+});
+
+// Internal: Get blast detail
+router.get("/whatsapp-blasts/:id", requireAuth, async (req, res): Promise<void> => {
+  const params = GetWhatsappBlastParams.safeParse({ id: parseInt(req.params.id as string, 10) });
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+
+  const [blast] = await db
+    .select()
+    .from(whatsappBlastsTable)
+    .where(eq(whatsappBlastsTable.id, params.data.id));
+
+  if (!blast) {
+    res.status(404).json({ error: "Blast not found" });
+    return;
+  }
+
+  const recipients = await db
+    .select()
+    .from(whatsappBlastRecipientsTable)
+    .where(eq(whatsappBlastRecipientsTable.blastId, blast.id))
+    .orderBy(asc(whatsappBlastRecipientsTable.id));
+
+  const dto = toBlastDto(blast);
+  if (blast.createdByUserId) {
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, blast.createdByUserId));
+    dto.createdByUserName = user?.name ?? null;
+  }
+
+  res.json(GetWhatsappBlastResponse.parse({
+    blast: dto,
+    recipients: recipients.map(toRecipientDto),
+    total: recipients.length,
+  }));
+});
+
+// Internal: Cancel pending blast
+router.delete("/whatsapp-blasts/:id", requireAuth, async (req, res): Promise<void> => {
+  const params = CancelWhatsappBlastParams.safeParse({ id: parseInt(req.params.id as string, 10) });
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+
+  const [blast] = await db
+    .select()
+    .from(whatsappBlastsTable)
+    .where(eq(whatsappBlastsTable.id, params.data.id));
+
+  if (!blast) {
+    res.status(404).json({ error: "Blast not found" });
+    return;
+  }
+
+  if (blast.status !== "pending") {
+    res.status(400).json({ error: "Can only cancel pending blasts" });
+    return;
+  }
+
+  await db
+    .update(whatsappBlastsTable)
+    .set({ status: "cancelled" })
+    .where(eq(whatsappBlastsTable.id, blast.id));
+
+  await db
+    .update(whatsappBlastRecipientsTable)
+    .set({ status: "failed", errorMessage: "Blast was cancelled" })
+    .where(eq(whatsappBlastRecipientsTable.blastId, blast.id));
+
+  res.json({ status: "cancelled" });
 });
 
 // External: Receive blast from external app
