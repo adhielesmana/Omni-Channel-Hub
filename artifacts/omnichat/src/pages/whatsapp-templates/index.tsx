@@ -95,10 +95,8 @@ export default function WhatsappTemplatesPage() {
               <TableRow>
                 <TableCell colSpan={6} className="text-center h-32">
                   <p className="text-red-500 font-medium">Failed to load templates</p>
-                  <p className="text-muted-foreground text-xs mt-1">
-                    {(error as { message?: string })?.message?.includes("permission")
-                      ? "Your access token needs 'whatsapp_business_management' permission. Update it in Channels > Configure."
-                      : (error as { message?: string })?.message || "Unknown error. Check the channel configuration."}
+                  <p className="text-muted-foreground text-xs mt-1 max-w-md mx-auto">
+                    {(error as { message?: string })?.message || "Unknown error. Check the channel configuration."}
                   </p>
                 </TableCell>
               </TableRow>
