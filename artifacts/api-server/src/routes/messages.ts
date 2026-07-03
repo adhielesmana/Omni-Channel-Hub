@@ -10,6 +10,7 @@ import {
 import { logger } from "../lib/logger";
 import { requireAuth } from "../middlewares/auth";
 import { canViewConversation, getAssignedAgentDepartment, loadConversationViewer } from "../lib/conversation-access";
+import { isSuperadmin } from "../lib/auth";
 
 const router: IRouter = Router();
 
@@ -219,7 +220,7 @@ router.post("/conversations/:conversationId/messages", requireAuth, async (req, 
   if (conv) {
     const updateFields: Record<string, unknown> = { lastMessageAt: new Date(), updatedAt: new Date() };
 
-    if (!conv.assignedAgentId) {
+    if (!isSuperadmin(effectiveSenderId)) {
       updateFields["assignedAgentId"] = effectiveSenderId;
     }
 
@@ -239,14 +240,13 @@ router.post("/conversations/:conversationId/messages", requireAuth, async (req, 
       .where(eq(conversationsTable.id, params.data.conversationId));
   }
 
+  // Return response immediately — channel send is async
+  res.status(201).json({ ...toDto(message), senderName });
+
   // Send to channel API (skip for notes and non-text for now)
   if (!isNote && contentType === "text" && content) {
-    try {
-      const [conv] = await db
-        .select()
-        .from(conversationsTable)
-        .where(eq(conversationsTable.id, params.data.conversationId));
-      if (conv) {
+    (async () => {
+      try {
         const [channel] = await db
           .select()
           .from(channelsTable)
@@ -255,34 +255,47 @@ router.post("/conversations/:conversationId/messages", requireAuth, async (req, 
           .select()
           .from(contactsTable)
           .where(eq(contactsTable.id, conv.contactId));
-        if (channel && contact && channel.accessToken) {
-          let sendResult: { messageId?: string } = {};
-          if (channel.channelType === "whatsapp" && channel.externalId && contact.phone) {
-            sendResult = await sendWhatsAppMessage(channel, contact, content);
-            logger.info({ messageId: message.id, waId: sendResult.messageId }, "WhatsApp message sent");
-          } else if (channel.channelType === "facebook") {
-            sendResult = await sendMessengerMessage(channel, contact, content);
-            logger.info({ messageId: message.id, fbId: sendResult.messageId }, "Messenger message sent");
-          } else if (channel.channelType === "instagram") {
-            sendResult = await sendInstagramMessage(channel, contact, content);
-            logger.info({ messageId: message.id, igId: sendResult.messageId }, "Instagram message sent");
-          }
-          if (sendResult.messageId) {
-            await db
-              .update(messagesTable)
-              .set({ externalMessageId: sendResult.messageId, deliveryStatus: "sent" })
-              .where(eq(messagesTable.id, message.id));
-            message = { ...message, deliveryStatus: "sent" };
-          }
+        if (!channel || !contact || !channel.accessToken) {
+          logger.warn({ messageId: message.id, channelId: conv.channelId }, "Channel or contact missing for send");
+          await db
+            .update(messagesTable)
+            .set({ deliveryStatus: "failed" })
+            .where(eq(messagesTable.id, message.id));
+          return;
         }
-      }
-    } catch (err) {
-      // Log but don't fail — message is already saved
-      logger.error({ err, messageId: message.id }, "Failed to send channel message");
-    }
-  }
 
-  res.status(201).json({ ...toDto(message), senderName });
+        let sendResult: { messageId?: string } = {};
+        if (channel.channelType === "whatsapp" && channel.externalId && contact.phone) {
+          sendResult = await sendWhatsAppMessage(channel, contact, content);
+          logger.info({ messageId: message.id, channelId: channel.id, channelName: channel.name, waId: sendResult.messageId }, "WhatsApp message sent");
+        } else if (channel.channelType === "facebook") {
+          sendResult = await sendMessengerMessage(channel, contact, content);
+          logger.info({ messageId: message.id, channelId: channel.id, channelName: channel.name, fbId: sendResult.messageId }, "Messenger message sent");
+        } else if (channel.channelType === "instagram") {
+          sendResult = await sendInstagramMessage(channel, contact, content);
+          logger.info({ messageId: message.id, channelId: channel.id, channelName: channel.name, igId: sendResult.messageId }, "Instagram message sent");
+        }
+
+        if (sendResult.messageId) {
+          await db
+            .update(messagesTable)
+            .set({ externalMessageId: sendResult.messageId, deliveryStatus: "sent" })
+            .where(eq(messagesTable.id, message.id));
+        } else {
+          await db
+            .update(messagesTable)
+            .set({ deliveryStatus: "failed" })
+            .where(eq(messagesTable.id, message.id));
+        }
+      } catch (err) {
+        logger.error({ err, messageId: message.id, channelId: conv.channelId }, "Failed to send channel message");
+        await db
+          .update(messagesTable)
+          .set({ deliveryStatus: "failed" })
+          .where(eq(messagesTable.id, message.id));
+      }
+    })();
+  }
 });
 
 export default router;

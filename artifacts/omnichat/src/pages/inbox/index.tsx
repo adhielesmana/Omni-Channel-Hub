@@ -505,9 +505,11 @@ export default function Inbox() {
                       }`}>
                         {isNote && <div className="text-[10px] font-bold uppercase tracking-wider mb-1 opacity-70">Internal Note</div>}
                         {renderMessageContent(msg)}
-                        <div className={`flex items-center justify-end gap-1.5 mt-1 text-[10px] ${
+                        <div className={`flex items-center justify-between gap-1.5 mt-1 text-[10px] ${
                           isInbound ? 'text-muted-foreground' : 'text-primary-foreground/70'
                         }`}>
+                          <span className="italic opacity-70">{activeConversation.channel?.name}</span>
+                          <div className="flex items-center gap-1.5">
                           {!isInbound && !isNote && msg.senderName && (
                             <span className="font-medium opacity-80">{msg.senderName}</span>
                           )}
@@ -525,6 +527,7 @@ export default function Inbox() {
                               <Clock className="w-3.5 h-3.5 text-primary-foreground/70" />
                             )
                           )}
+                          </div>
                         </div>
                       </div>
                     </div>
