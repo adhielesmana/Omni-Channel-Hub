@@ -292,26 +292,76 @@ router.get("/whatsapp-blasts/templates", requireAuth, async (req, res): Promise<
     return;
   }
 
-  if (!channel.wabaId || !channel.accessToken) {
-    res.status(400).json({ error: "Channel missing WABA ID or access token" });
+  if (!channel.accessToken) {
+    res.status(400).json({ error: "Channel missing access token" });
+    return;
+  }
+
+  if (!channel.wabaId && !channel.externalId) {
+    res.status(400).json({ error: "Channel missing WABA ID and Phone Number ID" });
     return;
   }
 
   try {
-    const url = `https://graph.facebook.com/v18.0/${channel.wabaId}/message_templates?status=APPROVED`;
-    const response = await fetch(url, {
-      headers: { "Authorization": `Bearer ${channel.accessToken}` },
-    });
+    // Try fetching templates from Meta using WABA ID first
+    let templates: Array<Record<string, unknown>> = [];
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      logger.error({ status: response.status, data: errorData }, "Meta template fetch failed");
-      res.status(502).json({ error: "Failed to fetch templates from Meta" });
+    if (channel.wabaId) {
+      const url = `https://graph.facebook.com/v18.0/${channel.wabaId}/message_templates?status=APPROVED`;
+      const response = await fetch(url, {
+        headers: { "Authorization": `Bearer ${channel.accessToken}` },
+      });
+
+      if (response.ok) {
+        const data = (await response.json()) as { data?: Array<Record<string, unknown>> };
+        templates = data.data ?? [];
+      } else {
+        const errorData = (await response.json().catch(() => ({}))) as { error?: { message?: string; code?: number } };
+        const metaError = errorData.error?.message || `Meta API error: ${response.status}`;
+        const errorCode = errorData.error?.code;
+        logger.warn({ status: response.status, errorCode, metaError, wabaId: channel.wabaId }, "Meta template fetch failed via WABA ID");
+
+        // If WABA ID failed, try phone number ID as fallback
+        if (channel.externalId) {
+          const fallbackUrl = `https://graph.facebook.com/v18.0/${channel.externalId}/message_templates?status=APPROVED`;
+          const fallbackRes = await fetch(fallbackUrl, {
+            headers: { "Authorization": `Bearer ${channel.accessToken}` },
+          });
+
+          if (fallbackRes.ok) {
+            const fallbackData = (await fallbackRes.json()) as { data?: Array<Record<string, unknown>> };
+            templates = fallbackData.data ?? [];
+          } else {
+            const fbErr = (await fallbackRes.json().catch(() => ({}))) as { error?: { message?: string; code?: number } };
+            res.status(502).json({ error: `Meta API: ${fbErr.error?.message || metaError}` });
+            return;
+          }
+        } else {
+          res.status(502).json({ error: `Meta API: ${metaError}` });
+          return;
+        }
+      }
+    } else if (channel.externalId) {
+      // No WABA ID — try phone number ID directly
+      const url = `https://graph.facebook.com/v18.0/${channel.externalId}/message_templates?status=APPROVED`;
+      const response = await fetch(url, {
+        headers: { "Authorization": `Bearer ${channel.accessToken}` },
+      });
+
+      if (!response.ok) {
+        const errorData = (await response.json().catch(() => ({}))) as { error?: { message?: string; code?: number } };
+        res.status(502).json({ error: `Meta API: ${errorData.error?.message || `Error ${response.status}`}` });
+        return;
+      }
+
+      const data = (await response.json()) as { data?: Array<Record<string, unknown>> };
+      templates = data.data ?? [];
+    } else {
+      res.status(400).json({ error: "Channel missing WABA ID and Phone Number ID" });
       return;
     }
 
-    const data = (await response.json()) as { data?: Array<Record<string, unknown>> };
-    const templates = (data.data ?? []).map((t: Record<string, unknown>) =>
+    const result = (templates).map((t: Record<string, unknown>) =>
       ListWhatsappBlastTemplatesResponseItem.parse({
         id: t.id as string,
         name: t.name as string,
@@ -324,7 +374,7 @@ router.get("/whatsapp-blasts/templates", requireAuth, async (req, res): Promise<
       })
     );
 
-    res.json(ListWhatsappBlastTemplatesResponse.parse(templates));
+    res.json(ListWhatsappBlastTemplatesResponse.parse(result));
   } catch (err) {
     logger.error({ err }, "Meta template fetch error");
     res.status(502).json({ error: "Failed to connect to Meta API" });

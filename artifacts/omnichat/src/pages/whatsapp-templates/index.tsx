@@ -14,9 +14,9 @@ export default function WhatsappTemplatesPage() {
   const { data: channels } = useListChannels({});
   const whatsappChannels = channels?.filter((c) => c.channelType === "whatsapp") ?? [];
 
-  const { data: templates, isLoading } = useListWhatsappBlastTemplates(
+  const { data: templates, isLoading, error } = useListWhatsappBlastTemplates(
     { channelId: Number(channelId) },
-    { query: { enabled: !!channelId, queryKey: ["listWhatsappBlastTemplates", channelId] } }
+    { query: { enabled: !!channelId, queryKey: ["listWhatsappBlastTemplates", channelId], retry: false } }
   );
 
   const filtered = templates?.filter((t) =>
@@ -90,6 +90,17 @@ export default function WhatsappTemplatesPage() {
             ) : isLoading ? (
               <TableRow>
                 <TableCell colSpan={6} className="text-center h-32 text-muted-foreground">Loading templates...</TableCell>
+              </TableRow>
+            ) : error ? (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center h-32">
+                  <p className="text-red-500 font-medium">Failed to load templates</p>
+                  <p className="text-muted-foreground text-xs mt-1">
+                    {(error as { message?: string })?.message?.includes("permission")
+                      ? "Your access token needs 'whatsapp_business_management' permission. Update it in Channels > Configure."
+                      : (error as { message?: string })?.message || "Unknown error. Check the channel configuration."}
+                  </p>
+                </TableCell>
               </TableRow>
             ) : !filtered || filtered.length === 0 ? (
               <TableRow>
