@@ -31,7 +31,7 @@ type ImportResult = {
   errors: { row?: number; message?: string }[];
 };
 
-const ITEMS_PER_PAGE = 10;
+const ITEMS_PER_PAGE = 15;
 
 export default function Contacts() {
   const [search, setSearch] = useState("");
@@ -70,7 +70,7 @@ export default function Contacts() {
     c.name?.toLowerCase().includes(search.toLowerCase()) ||
     c.phone?.includes(search) ||
     c.email?.toLowerCase().includes(search.toLowerCase())
-  );
+  ).sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
   const totalPages = Math.ceil((filtered?.length || 0) / ITEMS_PER_PAGE);
   const paginatedContacts = filtered?.slice(
