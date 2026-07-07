@@ -178,14 +178,15 @@ export default function Inbox() {
   const { user } = useAuth();
   const selectedConversationId = activeConversationId ?? -1;
 
+  const params = { status: activeTab !== "all" ? activeTab : undefined, daysOld: 30 };
   const { data: conversations, isLoading: isConversationsLoading } = useListConversations(
-    { status: activeTab !== "all" ? activeTab : undefined },
+    params,
     {
       query: {
         refetchInterval: 3000,
         staleTime: 0,
         refetchIntervalInBackground: true,
-        queryKey: getListConversationsQueryKey({ status: activeTab !== "all" ? activeTab : undefined }),
+        queryKey: getListConversationsQueryKey(params),
       },
     }
   );

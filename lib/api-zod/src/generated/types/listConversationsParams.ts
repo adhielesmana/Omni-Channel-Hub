@@ -12,4 +12,8 @@ channelId?: number;
 departmentId?: number;
 assignedAgentId?: number;
 channelType?: string;
+/**
+ * Only return conversations updated within the last N days
+ */
+daysOld?: number;
 };

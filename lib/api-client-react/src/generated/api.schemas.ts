@@ -253,6 +253,42 @@ export interface ContactUpdate {
   customFields?: string | null;
 }
 
+export type ContactImportInputChannelType = typeof ContactImportInputChannelType[keyof typeof ContactImportInputChannelType];
+
+
+export const ContactImportInputChannelType = {
+  whatsapp: 'whatsapp',
+  instagram: 'instagram',
+  facebook: 'facebook',
+} as const;
+
+export interface ContactImportItem {
+  name: string;
+  phone: string;
+  /** @nullable */
+  email?: string | null;
+}
+
+export interface ContactImportInput {
+  channelType: ContactImportInputChannelType;
+  /** Array of contacts to import */
+  contacts: ContactImportItem[];
+}
+
+export type ContactImportResponseErrorsItem = {
+  row?: number;
+  message?: string;
+};
+
+export interface ContactImportResponse {
+  /** Number of new contacts created */
+  created: number;
+  /** Number of existing contacts updated (name only) */
+  updated: number;
+  /** List of errors for rows that failed to import */
+  errors: ContactImportResponseErrorsItem[];
+}
+
 export type ConversationChannelType = typeof ConversationChannelType[keyof typeof ConversationChannelType];
 
 
@@ -684,6 +720,10 @@ channelId?: number;
 departmentId?: number;
 assignedAgentId?: number;
 channelType?: string;
+/**
+ * Only return conversations updated within the last N days
+ */
+daysOld?: number;
 };
 
 export type VerifyMetaWebhookParams = {

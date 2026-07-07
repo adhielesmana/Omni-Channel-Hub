@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, gte } from "drizzle-orm";
 import { db, conversationsTable, contactsTable, channelsTable, usersTable, departmentsTable, messagesTable } from "@workspace/db";
 import {
   ListConversationsResponse,
@@ -64,8 +64,14 @@ router.get("/conversations", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
-  const { status, channelId, departmentId, assignedAgentId, channelType } = qp.data;
+  const { status, channelId, departmentId, assignedAgentId, channelType, daysOld } = qp.data;
   const conditions = [];
+
+  if (daysOld) {
+    const threshold = new Date();
+    threshold.setDate(threshold.getDate() - daysOld);
+    conditions.push(gte(conversationsTable.updatedAt, threshold));
+  }
   const viewer = await loadConversationViewer(req.userId!);
   if (!viewer) {
     res.status(401).json({ error: "User not found" });

@@ -29,6 +29,8 @@ import type {
   ChannelInput,
   ChannelUpdate,
   Contact,
+  ContactImportInput,
+  ContactImportResponse,
   ContactInput,
   ContactUpdate,
   Conversation,
@@ -1483,6 +1485,79 @@ export const useCreateContact = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getCreateContactMutationOptions(options));
+    }
+
+export const getImportContactsUrl = () => {
+
+
+
+
+  return `/api/contacts/import`
+}
+
+/**
+ * Import a list of contacts. If a contact with the same phone number already exists, only the name is updated. New contacts are created with the provided details.
+
+ * @summary Import contacts from CSV (upsert by phone)
+ */
+export const importContacts = async (contactImportInput: ContactImportInput, options?: RequestInit): Promise<ContactImportResponse> => {
+
+  return customFetch<ContactImportResponse>(getImportContactsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      contactImportInput,)
+  }
+);}
+
+
+
+
+export const getImportContactsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importContacts>>, TError,{data: BodyType<ContactImportInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof importContacts>>, TError,{data: BodyType<ContactImportInput>}, TContext> => {
+
+const mutationKey = ['importContacts'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof importContacts>>, {data: BodyType<ContactImportInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  importContacts(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ImportContactsMutationResult = NonNullable<Awaited<ReturnType<typeof importContacts>>>
+    export type ImportContactsMutationBody = BodyType<ContactImportInput>
+    export type ImportContactsMutationError = ErrorType<void>
+
+    /**
+ * @summary Import contacts from CSV (upsert by phone)
+ */
+export const useImportContacts = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importContacts>>, TError,{data: BodyType<ContactImportInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof importContacts>>,
+        TError,
+        {data: BodyType<ContactImportInput>},
+        TContext
+      > => {
+      return useMutation(getImportContactsMutationOptions(options));
     }
 
 export const getGetContactUrl = (id: number,) => {

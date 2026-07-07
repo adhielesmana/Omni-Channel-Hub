@@ -322,6 +322,30 @@ export const CreateContactBody = zod.object({
 
 
 /**
+ * Import a list of contacts. If a contact with the same phone number already exists, only the name is updated. New contacts are created with the provided details.
+
+ * @summary Import contacts from CSV (upsert by phone)
+ */
+export const ImportContactsBody = zod.object({
+  "channelType": zod.enum(['whatsapp', 'instagram', 'facebook']),
+  "contacts": zod.array(zod.object({
+  "name": zod.string(),
+  "phone": zod.string(),
+  "email": zod.string().nullish()
+})).describe('Array of contacts to import')
+})
+
+export const ImportContactsResponse = zod.object({
+  "created": zod.number().describe('Number of new contacts created'),
+  "updated": zod.number().describe('Number of existing contacts updated (name only)'),
+  "errors": zod.array(zod.object({
+  "row": zod.number().optional(),
+  "message": zod.string().optional()
+})).describe('List of errors for rows that failed to import')
+})
+
+
+/**
  * @summary Get a contact
  */
 export const GetContactParams = zod.object({
@@ -377,7 +401,8 @@ export const ListConversationsQueryParams = zod.object({
   "channelId": zod.coerce.number().optional(),
   "departmentId": zod.coerce.number().optional(),
   "assignedAgentId": zod.coerce.number().optional(),
-  "channelType": zod.coerce.string().optional()
+  "channelType": zod.coerce.string().optional(),
+  "daysOld": zod.coerce.number().optional()
 })
 
 export const ListConversationsResponseItem = zod.object({

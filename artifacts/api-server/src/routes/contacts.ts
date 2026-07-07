@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, ilike, and } from "drizzle-orm";
+import { eq, ilike, and, inArray } from "drizzle-orm";
 import { db, contactsTable } from "@workspace/db";
 import { toTitleCase } from "../lib/string";
 import { requireAuth } from "../middlewares/auth";
@@ -12,6 +12,7 @@ import {
   UpdateContactParams,
   UpdateContactBody,
   UpdateContactResponse,
+  ImportContactsBody,
 } from "@workspace/api-zod";
 
 const router: IRouter = Router();
@@ -48,6 +49,72 @@ router.post("/contacts", requireAuth, async (req, res): Promise<void> => {
   }
   const [contact] = await db.insert(contactsTable).values({ ...parsed.data, name: toTitleCase(parsed.data.name) }).returning();
   res.status(201).json(GetContactResponse.parse(toDto(contact)));
+});
+
+router.post("/contacts/import", requireAuth, async (req, res): Promise<void> => {
+  const parsed = ImportContactsBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  const { channelType, contacts: importContacts } = parsed.data;
+  let created = 0;
+  let updated = 0;
+  const errors: { row: number; message: string }[] = [];
+
+  // Extract all phone numbers from the import
+  const phoneNumbers = importContacts.map((c: { phone: string }) => c.phone).filter(Boolean);
+
+  // Find existing contacts with these phone numbers
+  const existingContacts = phoneNumbers.length > 0
+    ? await db.select().from(contactsTable).where(
+        and(
+          eq(contactsTable.channelType, channelType),
+          inArray(contactsTable.phone, phoneNumbers)
+        )
+      )
+    : [];
+
+  // Create a map of existing contacts by phone number
+  const existingByPhone = new Map(existingContacts.map((c: typeof contactsTable.$inferSelect) => [c.phone, c]));
+
+  // Process each contact
+  for (let i = 0; i < importContacts.length; i++) {
+    const row = importContacts[i];
+    const rowNum = i + 2; // Excel rows start at 2 (1 is header)
+
+    try {
+      const existingContact = existingByPhone.get(row.phone);
+
+      if (existingContact) {
+        // Update name if different
+        if (existingContact.name !== toTitleCase(row.name)) {
+          await db.update(contactsTable)
+            .set({ name: toTitleCase(row.name) })
+            .where(eq(contactsTable.id, existingContact.id));
+          updated++;
+        }
+      } else {
+        // Create new contact
+        await db.insert(contactsTable).values({
+          name: toTitleCase(row.name),
+          phone: row.phone,
+          email: row.email || null,
+          channelType: channelType,
+          externalId: row.phone, // Use phone as externalId for manual imports
+        });
+        created++;
+      }
+    } catch (err) {
+      errors.push({
+        row: rowNum,
+        message: err instanceof Error ? err.message : "Unknown error",
+      });
+    }
+  }
+
+  res.json({ created, updated, errors });
 });
 
 router.get("/contacts/:id", requireAuth, async (req, res): Promise<void> => {
