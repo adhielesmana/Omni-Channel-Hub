@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import { useListContacts, useUpdateContact, useCreateContact, useImportContacts } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Search, Pencil, Plus, Upload, Download, AlertCircle, CheckCircle } from "lucide-react";
@@ -31,8 +31,11 @@ type ImportResult = {
   errors: { row?: number; message?: string }[];
 };
 
+const ITEMS_PER_PAGE = 10;
+
 export default function Contacts() {
   const [search, setSearch] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
   const [editOpen, setEditOpen] = useState(false);
   const [editContact, setEditContact] = useState<ContactDto | null>(null);
   const [editForm, setEditForm] = useState({ name: "", phone: "", email: "", customFields: "" });
@@ -57,11 +60,22 @@ export default function Contacts() {
   const createContact = useCreateContact();
   const importContacts = useImportContacts();
 
+  // Reset to page 1 when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search]);
+
   const filtered = contacts?.filter(c =>
     !search ||
     c.name?.toLowerCase().includes(search.toLowerCase()) ||
     c.phone?.includes(search) ||
     c.email?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const totalPages = Math.ceil((filtered?.length || 0) / ITEMS_PER_PAGE);
+  const paginatedContacts = filtered?.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
   );
 
   const handleEdit = (contact: ContactDto) => {
@@ -263,7 +277,7 @@ export default function Contacts() {
                 </TableCell>
               </TableRow>
             ) : (
-              filtered?.map((contact) => (
+              paginatedContacts?.map((contact) => (
                 <TableRow key={contact.id} className="hover:bg-muted/30 cursor-pointer">
                     <TableCell className="font-medium">
                     <div className="flex items-center gap-3">
@@ -303,6 +317,61 @@ export default function Contacts() {
           </TableBody>
         </Table>
       </div>
+
+      {/* Pagination */}
+      {!isLoading && filtered && filtered.length > ITEMS_PER_PAGE && (
+        <div className="flex items-center justify-between mt-4">
+          <p className="text-sm text-muted-foreground">
+            Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, filtered.length)} of {filtered.length} contacts
+          </p>
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                />
+              </PaginationItem>
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter(page => {
+                  if (totalPages <= 5) return true;
+                  if (page === 1 || page === totalPages) return true;
+                  if (Math.abs(page - currentPage) <= 1) return true;
+                  return false;
+                })
+                .reduce<(number | "ellipsis")[]>((acc, page, i, arr) => {
+                  if (i > 0 && page - (arr[i - 1] as number) > 1) {
+                    acc.push("ellipsis");
+                  }
+                  acc.push(page);
+                  return acc;
+                }, [])
+                .map((item, i) => (
+                  <PaginationItem key={i}>
+                    {item === "ellipsis" ? (
+                      <PaginationEllipsis />
+                    ) : (
+                      <PaginationLink
+                        isActive={item === currentPage}
+                        onClick={() => setCurrentPage(item as number)}
+                        className="cursor-pointer"
+                      >
+                        {item}
+                      </PaginationLink>
+                    )}
+                  </PaginationItem>
+                ))
+              }
+              <PaginationItem>
+                <PaginationNext
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
+      )}
 
       {/* Add Contact Dialog */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
