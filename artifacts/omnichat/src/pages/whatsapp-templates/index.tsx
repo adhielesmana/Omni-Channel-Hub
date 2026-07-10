@@ -6,10 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export default function WhatsappTemplatesPage() {
   const [channelId, setChannelId] = useState("");
   const [search, setSearch] = useState("");
+  const [selectedTemplate, setSelectedTemplate] = useState<WhatsAppTemplate | null>(null);
 
   const { data: channels } = useListChannels({});
   const whatsappChannels = channels?.filter((c) => c.channelType === "whatsapp") ?? [];
@@ -109,7 +111,15 @@ export default function WhatsappTemplatesPage() {
             ) : (
               filtered.map((t, i) => (
                 <TableRow key={t.id ?? i} className="hover:bg-muted/30">
-                  <TableCell className="font-mono text-sm font-medium">{t.name}</TableCell>
+                  <TableCell>
+                    <button
+                      type="button"
+                      className="font-mono text-sm font-medium text-blue-600 hover:underline cursor-pointer text-left"
+                      onClick={() => setSelectedTemplate(t)}
+                    >
+                      {t.name}
+                    </button>
+                  </TableCell>
                   <TableCell className="text-sm">{t.language}</TableCell>
                   <TableCell>
                     <Badge variant="outline" className="text-xs capitalize">{t.category?.toLowerCase()}</Badge>
@@ -129,6 +139,77 @@ export default function WhatsappTemplatesPage() {
           </TableBody>
         </Table>
       </div>
+
+      <Dialog open={!!selectedTemplate} onOpenChange={(open) => { if (!open) setSelectedTemplate(null); }}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-mono">{selectedTemplate?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <span className="text-muted-foreground">Language</span>
+                <p className="font-medium">{selectedTemplate?.language}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Category</span>
+                <p className="font-medium capitalize">{selectedTemplate?.category?.toLowerCase()}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Status</span>
+                <p><Badge variant="outline" className={`text-xs ${statusVariant(selectedTemplate?.status)}`}>{selectedTemplate?.status}</Badge></p>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Channel</span>
+                <p className="font-medium">{selectedTemplate?.channelName}</p>
+              </div>
+            </div>
+
+            {selectedTemplate?.components?.map((comp, ci) => {
+              const type = comp.type as string;
+              if (type === "HEADER") {
+                return (
+                  <div key={ci}>
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Header</span>
+                    <p className="text-sm mt-1 bg-muted/50 rounded-md p-3">{comp.text as string ?? comp.format as string ?? "-"}</p>
+                  </div>
+                );
+              }
+              if (type === "BODY") {
+                return (
+                  <div key={ci}>
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Body</span>
+                    <p className="text-sm mt-1 bg-muted/50 rounded-md p-3 whitespace-pre-wrap leading-relaxed">{comp.text as string ?? "-"}</p>
+                  </div>
+                );
+              }
+              if (type === "FOOTER") {
+                return (
+                  <div key={ci}>
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Footer</span>
+                    <p className="text-sm mt-1 text-muted-foreground">{comp.text as string ?? "-"}</p>
+                  </div>
+                );
+              }
+              if (type === "BUTTONS" && Array.isArray(comp.buttons)) {
+                return (
+                  <div key={ci}>
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Buttons</span>
+                    <div className="mt-1 space-y-1">
+                      {(comp.buttons as Array<Record<string, unknown>>).map((btn, bi) => (
+                        <div key={bi} className="text-sm bg-muted/50 rounded-md px-3 py-2">
+                          {btn.text as string ?? btn.type as string}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              }
+              return null;
+            })}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
