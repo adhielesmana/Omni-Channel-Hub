@@ -1178,3 +1178,76 @@ export const ExternalGetWhatsappBlastStatusResponse = zod.object({
 })
 
 
+/**
+ * @summary List synced WhatsApp templates from local DB
+ */
+export const ListWaTemplatesQueryParams = zod.object({
+  "channelId": zod.coerce.number()
+})
+
+export const ListWaTemplatesResponseItem = zod.object({
+  "id": zod.number(),
+  "metaTemplateId": zod.string().nullish(),
+  "name": zod.string(),
+  "language": zod.string(),
+  "category": zod.string().nullish(),
+  "channelId": zod.number(),
+  "channelName": zod.string().nullish(),
+  "status": zod.enum(['APPROVED', 'PENDING', 'REJECTED', 'PAUSED', 'DISABLED']),
+  "components": zod.array(zod.object({
+
+}).passthrough()).nullish(),
+  "rejectReason": zod.string().nullish(),
+  "lastSyncedAt": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+export const ListWaTemplatesResponse = zod.array(ListWaTemplatesResponseItem)
+
+
+/**
+ * @summary Create a new template on Meta (does not save locally)
+ */
+export const CreateWaTemplateBody = zod.object({
+  "channelId": zod.number(),
+  "name": zod.string(),
+  "language": zod.string(),
+  "category": zod.enum(['MARKETING', 'UTILITY', 'AUTHENTICATION']),
+  "components": zod.array(zod.object({
+  "type": zod.enum(['HEADER', 'BODY', 'FOOTER', 'BUTTONS']),
+  "text": zod.string().optional(),
+  "format": zod.enum(['TEXT', 'IMAGE', 'VIDEO', 'DOCUMENT']).optional(),
+  "buttons": zod.array(zod.object({
+  "type": zod.enum(['QUICK_REPLY', 'URL', 'PHONE_NUMBER', 'COPY_CODE', 'FLOW']).optional(),
+  "text": zod.string().optional(),
+  "url": zod.string().optional(),
+  "phoneNumber": zod.string().optional()
+})).optional()
+}))
+})
+
+
+/**
+ * @summary Sync all templates from Meta to local DB
+ */
+export const SyncWaTemplatesBody = zod.object({
+  "channelId": zod.number()
+})
+
+export const SyncWaTemplatesResponse = zod.object({
+  "synced": zod.number().optional(),
+  "total": zod.number().optional()
+})
+
+
+/**
+ * @summary Delete a template from local DB and Meta
+ */
+export const DeleteWaTemplateParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteWaTemplateResponse = zod.object({
+  "status": zod.string().optional()
+})
+
+

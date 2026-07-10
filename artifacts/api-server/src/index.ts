@@ -1,6 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { startBlastWorker } from "./lib/blast-worker";
+import { startTemplateSyncWorker } from "./lib/template-sync-worker";
 
 const rawPort = process.env["PORT"];
 
@@ -24,4 +25,5 @@ app.listen(port, (err) => {
 
   logger.info({ port }, "Server listening");
   startBlastWorker();
+  startTemplateSyncWorker();
 });

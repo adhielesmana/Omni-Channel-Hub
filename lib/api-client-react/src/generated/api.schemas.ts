@@ -709,6 +709,111 @@ export interface WhatsappBlastSettingsInput {
   maxRetries?: number;
 }
 
+export type WaTemplateStatus = typeof WaTemplateStatus[keyof typeof WaTemplateStatus];
+
+
+export const WaTemplateStatus = {
+  APPROVED: 'APPROVED',
+  PENDING: 'PENDING',
+  REJECTED: 'REJECTED',
+  PAUSED: 'PAUSED',
+  DISABLED: 'DISABLED',
+} as const;
+
+export type WaTemplateComponentsItem = { [key: string]: unknown };
+
+export interface WaTemplate {
+  id: number;
+  /** @nullable */
+  metaTemplateId?: string | null;
+  name: string;
+  language: string;
+  /** @nullable */
+  category?: string | null;
+  channelId: number;
+  /** @nullable */
+  channelName?: string | null;
+  status: WaTemplateStatus;
+  /** @nullable */
+  components?: WaTemplateComponentsItem[] | null;
+  /** @nullable */
+  rejectReason?: string | null;
+  /** @nullable */
+  lastSyncedAt?: string | null;
+  createdAt: string;
+}
+
+export type CreateWaTemplateInputCategory = typeof CreateWaTemplateInputCategory[keyof typeof CreateWaTemplateInputCategory];
+
+
+export const CreateWaTemplateInputCategory = {
+  MARKETING: 'MARKETING',
+  UTILITY: 'UTILITY',
+  AUTHENTICATION: 'AUTHENTICATION',
+} as const;
+
+export type WaTemplateComponentInputType = typeof WaTemplateComponentInputType[keyof typeof WaTemplateComponentInputType];
+
+
+export const WaTemplateComponentInputType = {
+  HEADER: 'HEADER',
+  BODY: 'BODY',
+  FOOTER: 'FOOTER',
+  BUTTONS: 'BUTTONS',
+} as const;
+
+export type WaTemplateComponentInputFormat = typeof WaTemplateComponentInputFormat[keyof typeof WaTemplateComponentInputFormat];
+
+
+export const WaTemplateComponentInputFormat = {
+  TEXT: 'TEXT',
+  IMAGE: 'IMAGE',
+  VIDEO: 'VIDEO',
+  DOCUMENT: 'DOCUMENT',
+} as const;
+
+export type WaTemplateComponentInputButtonsItemType = typeof WaTemplateComponentInputButtonsItemType[keyof typeof WaTemplateComponentInputButtonsItemType];
+
+
+export const WaTemplateComponentInputButtonsItemType = {
+  QUICK_REPLY: 'QUICK_REPLY',
+  URL: 'URL',
+  PHONE_NUMBER: 'PHONE_NUMBER',
+  COPY_CODE: 'COPY_CODE',
+  FLOW: 'FLOW',
+} as const;
+
+export type WaTemplateComponentInputButtonsItem = {
+  type?: WaTemplateComponentInputButtonsItemType;
+  text?: string;
+  url?: string;
+  phoneNumber?: string;
+};
+
+export interface WaTemplateComponentInput {
+  type: WaTemplateComponentInputType;
+  text?: string;
+  format?: WaTemplateComponentInputFormat;
+  buttons?: WaTemplateComponentInputButtonsItem[];
+}
+
+export interface CreateWaTemplateInput {
+  channelId: number;
+  name: string;
+  language: string;
+  category: CreateWaTemplateInputCategory;
+  components: WaTemplateComponentInput[];
+}
+
+export interface SyncWaTemplatesInput {
+  channelId: number;
+}
+
+export interface SyncWaTemplatesResult {
+  synced?: number;
+  total?: number;
+}
+
 export type ListContactsParams = {
 search?: string;
 channelType?: string;
@@ -791,5 +896,19 @@ export type ListWhatsappBlasts200 = {
 
 export type ListWhatsappBlastTemplatesParams = {
 channelId: number;
+};
+
+export type ListWaTemplatesParams = {
+channelId: number;
+};
+
+export type CreateWaTemplate201 = {
+  id?: string;
+  name?: string;
+  status?: string;
+};
+
+export type DeleteWaTemplate200 = {
+  status?: string;
 };
 

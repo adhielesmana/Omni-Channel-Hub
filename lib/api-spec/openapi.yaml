@@ -30,6 +30,8 @@ tags:
     description: Authentication & password management
   - name: whatsapp-blast
     description: WhatsApp blast messaging
+  - name: whatsapp-template
+    description: WhatsApp template management
 
 paths:
   /healthz:
@@ -1045,6 +1047,103 @@ paths:
         "404":
           description: Not found
 
+  # WhatsApp Templates
+  /whatsapp-templates:
+    get:
+      operationId: listWaTemplates
+      tags: [whatsapp-template]
+      summary: List synced WhatsApp templates from local DB
+      parameters:
+        - name: channelId
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of templates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WaTemplate"
+    post:
+      operationId: createWaTemplate
+      tags: [whatsapp-template]
+      summary: Create a new template on Meta (does not save locally)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateWaTemplateInput"
+      responses:
+        "201":
+          description: Template created on Meta
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  name:
+                    type: string
+                  status:
+                    type: string
+        "400":
+          description: Validation error
+        "502":
+          description: Meta API error
+
+  /whatsapp-templates/sync:
+    post:
+      operationId: syncWaTemplates
+      tags: [whatsapp-template]
+      summary: Sync all templates from Meta to local DB
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SyncWaTemplatesInput"
+      responses:
+        "200":
+          description: Sync result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncWaTemplatesResult"
+        "400":
+          description: Validation error
+
+  /whatsapp-templates/{id}:
+    delete:
+      operationId: deleteWaTemplate
+      tags: [whatsapp-template]
+      summary: Delete a template from local DB and Meta
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+        "404":
+          description: Not found
+        "502":
+          description: Meta API error
+
 components:
   schemas:
     HealthStatus:
@@ -1797,4 +1896,97 @@ components:
         delayBetweenBatchesMs:
           type: integer
         maxRetries:
+          type: integer
+
+    # WhatsApp Templates
+    WaTemplate:
+      type: object
+      required: [id, name, language, channelId, status, createdAt]
+      properties:
+        id:
+          type: integer
+        metaTemplateId:
+          type: ["string", "null"]
+        name:
+          type: string
+        language:
+          type: string
+        category:
+          type: ["string", "null"]
+        channelId:
+          type: integer
+        channelName:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [APPROVED, PENDING, REJECTED, PAUSED, DISABLED]
+        components:
+          type: ["array", "null"]
+          items:
+            type: object
+        rejectReason:
+          type: ["string", "null"]
+        lastSyncedAt:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    CreateWaTemplateInput:
+      type: object
+      required: [channelId, name, language, category, components]
+      properties:
+        channelId:
+          type: integer
+        name:
+          type: string
+        language:
+          type: string
+        category:
+          type: string
+          enum: [MARKETING, UTILITY, AUTHENTICATION]
+        components:
+          type: array
+          items:
+            $ref: "#/components/schemas/WaTemplateComponentInput"
+
+    WaTemplateComponentInput:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [HEADER, BODY, FOOTER, BUTTONS]
+        text:
+          type: string
+        format:
+          type: string
+          enum: [TEXT, IMAGE, VIDEO, DOCUMENT]
+        buttons:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+                enum: [QUICK_REPLY, URL, PHONE_NUMBER, COPY_CODE, FLOW]
+              text:
+                type: string
+              url:
+                type: string
+              phoneNumber:
+                type: string
+
+    SyncWaTemplatesInput:
+      type: object
+      required: [channelId]
+      properties:
+        channelId:
+          type: integer
+
+    SyncWaTemplatesResult:
+      type: object
+      properties:
+        synced:
+          type: integer
+        total:
           type: integer

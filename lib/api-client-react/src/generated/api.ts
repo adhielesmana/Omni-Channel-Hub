@@ -37,7 +37,10 @@ import type {
   ConversationInput,
   ConversationUpdate,
   CreateUserResponse,
+  CreateWaTemplate201,
+  CreateWaTemplateInput,
   CreateWhatsappBlastInput,
+  DeleteWaTemplate200,
   Department,
   DepartmentCount,
   DepartmentInput,
@@ -50,6 +53,7 @@ import type {
   HealthStatus,
   ListContactsParams,
   ListConversationsParams,
+  ListWaTemplatesParams,
   ListWhatsappBlastTemplatesParams,
   ListWhatsappBlasts200,
   ListWhatsappBlastsParams,
@@ -60,10 +64,13 @@ import type {
   ResetPasswordResponse,
   StatsOverview,
   StatsPeriod,
+  SyncWaTemplatesInput,
+  SyncWaTemplatesResult,
   User,
   UserInput,
   UserUpdate,
   VerifyMetaWebhookParams,
+  WaTemplate,
   WhatsAppTemplate,
   WhatsappBlast,
   WhatsappBlastDetail,
@@ -3765,4 +3772,300 @@ export function useExternalGetWhatsappBlastStatus<TData = Awaited<ReturnType<typ
 
 
 
+
+export const getListWaTemplatesUrl = (params: ListWaTemplatesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/whatsapp-templates?${stringifiedParams}` : `/api/whatsapp-templates`
+}
+
+/**
+ * @summary List synced WhatsApp templates from local DB
+ */
+export const listWaTemplates = async (params: ListWaTemplatesParams, options?: RequestInit): Promise<WaTemplate[]> => {
+
+  return customFetch<WaTemplate[]>(getListWaTemplatesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListWaTemplatesQueryKey = (params?: ListWaTemplatesParams,) => {
+    return [
+    `/api/whatsapp-templates`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListWaTemplatesQueryOptions = <TData = Awaited<ReturnType<typeof listWaTemplates>>, TError = ErrorType<unknown>>(params: ListWaTemplatesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listWaTemplates>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListWaTemplatesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listWaTemplates>>> = ({ signal }) => listWaTemplates(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listWaTemplates>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListWaTemplatesQueryResult = NonNullable<Awaited<ReturnType<typeof listWaTemplates>>>
+export type ListWaTemplatesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List synced WhatsApp templates from local DB
+ */
+
+export function useListWaTemplates<TData = Awaited<ReturnType<typeof listWaTemplates>>, TError = ErrorType<unknown>>(
+ params: ListWaTemplatesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listWaTemplates>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListWaTemplatesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateWaTemplateUrl = () => {
+
+
+
+
+  return `/api/whatsapp-templates`
+}
+
+/**
+ * @summary Create a new template on Meta (does not save locally)
+ */
+export const createWaTemplate = async (createWaTemplateInput: CreateWaTemplateInput, options?: RequestInit): Promise<CreateWaTemplate201> => {
+
+  return customFetch<CreateWaTemplate201>(getCreateWaTemplateUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      createWaTemplateInput,)
+  }
+);}
+
+
+
+
+export const getCreateWaTemplateMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createWaTemplate>>, TError,{data: BodyType<CreateWaTemplateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createWaTemplate>>, TError,{data: BodyType<CreateWaTemplateInput>}, TContext> => {
+
+const mutationKey = ['createWaTemplate'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createWaTemplate>>, {data: BodyType<CreateWaTemplateInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createWaTemplate(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateWaTemplateMutationResult = NonNullable<Awaited<ReturnType<typeof createWaTemplate>>>
+    export type CreateWaTemplateMutationBody = BodyType<CreateWaTemplateInput>
+    export type CreateWaTemplateMutationError = ErrorType<void>
+
+    /**
+ * @summary Create a new template on Meta (does not save locally)
+ */
+export const useCreateWaTemplate = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createWaTemplate>>, TError,{data: BodyType<CreateWaTemplateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createWaTemplate>>,
+        TError,
+        {data: BodyType<CreateWaTemplateInput>},
+        TContext
+      > => {
+      return useMutation(getCreateWaTemplateMutationOptions(options));
+    }
+
+export const getSyncWaTemplatesUrl = () => {
+
+
+
+
+  return `/api/whatsapp-templates/sync`
+}
+
+/**
+ * @summary Sync all templates from Meta to local DB
+ */
+export const syncWaTemplates = async (syncWaTemplatesInput: SyncWaTemplatesInput, options?: RequestInit): Promise<SyncWaTemplatesResult> => {
+
+  return customFetch<SyncWaTemplatesResult>(getSyncWaTemplatesUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      syncWaTemplatesInput,)
+  }
+);}
+
+
+
+
+export const getSyncWaTemplatesMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof syncWaTemplates>>, TError,{data: BodyType<SyncWaTemplatesInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof syncWaTemplates>>, TError,{data: BodyType<SyncWaTemplatesInput>}, TContext> => {
+
+const mutationKey = ['syncWaTemplates'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof syncWaTemplates>>, {data: BodyType<SyncWaTemplatesInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  syncWaTemplates(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SyncWaTemplatesMutationResult = NonNullable<Awaited<ReturnType<typeof syncWaTemplates>>>
+    export type SyncWaTemplatesMutationBody = BodyType<SyncWaTemplatesInput>
+    export type SyncWaTemplatesMutationError = ErrorType<void>
+
+    /**
+ * @summary Sync all templates from Meta to local DB
+ */
+export const useSyncWaTemplates = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof syncWaTemplates>>, TError,{data: BodyType<SyncWaTemplatesInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof syncWaTemplates>>,
+        TError,
+        {data: BodyType<SyncWaTemplatesInput>},
+        TContext
+      > => {
+      return useMutation(getSyncWaTemplatesMutationOptions(options));
+    }
+
+export const getDeleteWaTemplateUrl = (id: number,) => {
+
+
+
+
+  return `/api/whatsapp-templates/${id}`
+}
+
+/**
+ * @summary Delete a template from local DB and Meta
+ */
+export const deleteWaTemplate = async (id: number, options?: RequestInit): Promise<DeleteWaTemplate200> => {
+
+  return customFetch<DeleteWaTemplate200>(getDeleteWaTemplateUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteWaTemplateMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteWaTemplate>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteWaTemplate>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteWaTemplate'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteWaTemplate>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteWaTemplate(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteWaTemplateMutationResult = NonNullable<Awaited<ReturnType<typeof deleteWaTemplate>>>
+
+    export type DeleteWaTemplateMutationError = ErrorType<void>
+
+    /**
+ * @summary Delete a template from local DB and Meta
+ */
+export const useDeleteWaTemplate = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteWaTemplate>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteWaTemplate>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteWaTemplateMutationOptions(options));
+    }
 
