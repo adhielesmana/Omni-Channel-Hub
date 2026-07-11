@@ -31,14 +31,6 @@ const globalRateLimit = rateLimit({
 });
 app.use(globalRateLimit);
 
-const authRateLimit = rateLimit({
-  windowMs: 60_000,
-  max: 10,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "Too many login attempts, please try again later" },
-});
-
 app.use(
   pinoHttp({
     logger,
@@ -87,5 +79,4 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction): void =>
   }
 });
 
-export { authRateLimit };
 export default app;

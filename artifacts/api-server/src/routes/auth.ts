@@ -1,11 +1,19 @@
 import { Router, type IRouter } from "express";
+import rateLimit from "express-rate-limit";
 import { eq } from "drizzle-orm";
 import { db, usersTable } from "@workspace/db";
 import { LoginBody, LoginResponse, ChangePasswordBody } from "@workspace/api-zod";
 import { comparePassword, hashPassword, createToken, invalidateToken, SUPERADMIN, isSuperadmin } from "../lib/auth";
 import { requireAuth } from "../middlewares/auth";
-import { authRateLimit } from "../app";
 import { logger } from "../lib/logger";
+
+const authRateLimit = rateLimit({
+  windowMs: 60_000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many login attempts, please try again later" },
+});
 
 const router: IRouter = Router();
 
