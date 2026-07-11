@@ -181,8 +181,17 @@ router.post("/external/whatsapp-send", requireApiKey, async (req, res): Promise<
       return;
     }
 
-    resolvedParams = templateParams || [];
     matchedTemplateName = resolvedTemplateName;
+
+    // Use explicitly provided templateParams, or auto-extract from content
+    if (templateParams && templateParams.length > 0) {
+      resolvedParams = templateParams;
+    } else {
+      const match = findBestTemplateMatch(content, [dbTemplate]);
+      if (match && match.params.length > 0) {
+        resolvedParams = match.params;
+      }
+    }
   } else {
     // Auto-match mode
     const dbTemplates = await db

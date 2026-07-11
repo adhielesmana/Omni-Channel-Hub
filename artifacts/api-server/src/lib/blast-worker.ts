@@ -1,5 +1,5 @@
 import { eq, and, lte, isNull, or, sql } from "drizzle-orm";
-import { db, whatsappBlastsTable, whatsappBlastRecipientsTable, channelsTable, contactsTable } from "@workspace/db";
+import { db, whatsappBlastsTable, whatsappBlastRecipientsTable, channelsTable, contactsTable, waTemplatesTable } from "@workspace/db";
 import { logger } from "./logger";
 import { getBlastSettings } from "./blast-settings";
 
@@ -76,6 +76,29 @@ async function processBlast(blast: typeof whatsappBlastsTable.$inferSelect): Pro
     return;
   }
 
+  // If the blast uses a template, check how many body placeholders it has
+  let templatePlaceholderCount = 0;
+  if (blast.templateName) {
+    const [tmpl] = await db
+      .select()
+      .from(waTemplatesTable)
+      .where(
+        and(
+          eq(waTemplatesTable.channelId, blast.channelId),
+          eq(waTemplatesTable.name, blast.templateName)
+        )
+      );
+    if (tmpl?.components) {
+      try {
+        const parsed = JSON.parse(tmpl.components) as Array<{ type: string; text?: string }>;
+        const body = parsed.find((c) => c.type === "BODY");
+        if (body?.text) {
+          templatePlaceholderCount = (body.text.match(/\{\{\d+\}\}/g) || []).length;
+        }
+      } catch { /* ignore parse errors */ }
+    }
+  }
+
   const settings = getBlastSettings();
 
   // Process recipients in batches
@@ -114,6 +137,17 @@ async function processBlast(blast: typeof whatsappBlastsTable.$inferSelect): Pro
           templateParams = JSON.parse(recipient.templateParams);
         } else if (blast.templateParams) {
           templateParams = JSON.parse(blast.templateParams);
+        }
+
+        // Validate that params are provided when template has placeholders
+        if (blast.templateName && templateParams.length === 0 && templatePlaceholderCount > 0) {
+          logger.warn({ recipientId: recipient.id, phone: recipient.phone, templateName: blast.templateName, placeholderCount: templatePlaceholderCount }, "Template has placeholders but no params provided");
+          await db
+            .update(whatsappBlastRecipientsTable)
+            .set({ status: "failed", errorMessage: `Template "${blast.templateName}" has ${templatePlaceholderCount} placeholder(s) but no parameters provided` })
+            .where(eq(whatsappBlastRecipientsTable.id, recipient.id));
+          totalFailed++;
+          continue;
         }
 
         // For external blasts with custom content but no template, we send as text
