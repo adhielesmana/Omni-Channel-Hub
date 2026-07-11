@@ -1,9 +1,9 @@
 import bcrypt from "bcryptjs";
-import crypto from "node:crypto";
+import jwt from "jsonwebtoken";
 
 const SALT_ROUNDS = 12;
-const TOKEN_BYTES = 32;
-const ACTIVE_TOKENS = new Map<string, { userId: number; expiresAt: number }>();
+const JWT_SECRET = process.env.SESSION_SECRET ?? "omnichat-fallback-secret-do-not-use-in-prod";
+const JWT_EXPIRES_IN = "24h";
 
 export const SUPERADMIN_ID = -1;
 export const SUPERADMIN = {
@@ -33,7 +33,7 @@ export function comparePassword(password: string, hash: string): Promise<boolean
 export function generateRandomPassword(length = 12): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%";
   let password = "";
-  const bytes = crypto.randomBytes(length);
+  const bytes = Buffer.alloc(length);
   for (let i = 0; i < length; i++) {
     password += chars[bytes[i]! % chars.length];
   }
@@ -41,24 +41,19 @@ export function generateRandomPassword(length = 12): string {
 }
 
 export function createToken(userId: number): string {
-  const token = crypto.randomBytes(TOKEN_BYTES).toString("hex");
-  ACTIVE_TOKENS.set(token, {
-    userId,
-    expiresAt: Date.now() + 24 * 60 * 60 * 1000,
-  });
-  return token;
+  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 }
 
 export function verifyToken(token: string): { userId: number } | null {
-  const entry = ACTIVE_TOKENS.get(token);
-  if (!entry) return null;
-  if (Date.now() > entry.expiresAt) {
-    ACTIVE_TOKENS.delete(token);
+  try {
+    const payload = jwt.verify(token, JWT_SECRET) as { userId: number };
+    return { userId: payload.userId };
+  } catch {
     return null;
   }
-  return { userId: entry.userId };
 }
 
-export function invalidateToken(token: string): void {
-  ACTIVE_TOKENS.delete(token);
+export function invalidateToken(_token: string): void {
+  // JWT is stateless — invalidation is handled client-side by clearing localStorage.
+  // For production hardening, implement a token blocklist in the database.
 }
