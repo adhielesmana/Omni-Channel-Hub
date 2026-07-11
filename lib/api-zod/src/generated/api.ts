@@ -1251,3 +1251,26 @@ export const DeleteWaTemplateResponse = zod.object({
 })
 
 
+/**
+ * @summary Send a WhatsApp message from external app with template matching
+ */
+export const ExternalWhatsappSendBody = zod.object({
+  "channelName": zod.string().optional().describe('Channel name (alternative to channelId)'),
+  "channelId": zod.number().optional().describe('Channel ID (alternative to channelName)'),
+  "to": zod.string().describe('Destination phone number'),
+  "content": zod.string().describe('Raw message content (used for auto-template-matching if templateName omitted)'),
+  "templateName": zod.string().optional().describe('Explicit template name to use. If omitted, auto-match by content.'),
+  "templateLanguage": zod.string().optional().describe('Template language code (defaults to \'en\')'),
+  "templateParams": zod.array(zod.string()).optional().describe('Template parameter values (for explicit template mode)')
+})
+
+export const ExternalWhatsappSendResponse = zod.object({
+  "success": zod.boolean().optional(),
+  "messageId": zod.string().optional(),
+  "externalMessageId": zod.string().nullish(),
+  "conversationId": zod.number().optional(),
+  "messageRecordId": zod.number().optional(),
+  "templateMatched": zod.string().nullish().describe('Name of the matched template, if any')
+})
+
+

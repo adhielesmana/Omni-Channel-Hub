@@ -814,6 +814,37 @@ export interface SyncWaTemplatesResult {
   total?: number;
 }
 
+export interface ExternalWhatsappSendInput {
+  /** Channel name (alternative to channelId) */
+  channelName?: string;
+  /** Channel ID (alternative to channelName) */
+  channelId?: number;
+  /** Destination phone number */
+  to: string;
+  /** Raw message content (used for auto-template-matching if templateName omitted) */
+  content: string;
+  /** Explicit template name to use. If omitted, auto-match by content. */
+  templateName?: string;
+  /** Template language code (defaults to 'en') */
+  templateLanguage?: string;
+  /** Template parameter values (for explicit template mode) */
+  templateParams?: string[];
+}
+
+export interface ExternalWhatsappSendResult {
+  success?: boolean;
+  messageId?: string;
+  /** @nullable */
+  externalMessageId?: string | null;
+  conversationId?: number;
+  messageRecordId?: number;
+  /**
+     * Name of the matched template, if any
+     * @nullable
+     */
+  templateMatched?: string | null;
+}
+
 export type ListContactsParams = {
 search?: string;
 channelType?: string;

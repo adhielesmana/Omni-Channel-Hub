@@ -50,6 +50,8 @@ export * from './departmentUpdate';
 export * from './departmentUpdateRoutingMode';
 export * from './externalWhatsappBlastInput';
 export * from './externalWhatsappBlastInputRecipientsItem';
+export * from './externalWhatsappSendInput';
+export * from './externalWhatsappSendResult';
 export * from './getAgentWorkloadParams';
 export * from './getConversationsByChannelParams';
 export * from './getConversationsByDepartmentParams';

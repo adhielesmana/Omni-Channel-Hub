@@ -46,6 +46,8 @@ import type {
   DepartmentInput,
   DepartmentUpdate,
   ExternalWhatsappBlastInput,
+  ExternalWhatsappSendInput,
+  ExternalWhatsappSendResult,
   GetAgentWorkloadParams,
   GetConversationsByChannelParams,
   GetConversationsByDepartmentParams,
@@ -4067,5 +4069,76 @@ export const useDeleteWaTemplate = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getDeleteWaTemplateMutationOptions(options));
+    }
+
+export const getExternalWhatsappSendUrl = () => {
+
+
+
+
+  return `/api/external/whatsapp-send`
+}
+
+/**
+ * @summary Send a WhatsApp message from external app with template matching
+ */
+export const externalWhatsappSend = async (externalWhatsappSendInput: ExternalWhatsappSendInput, options?: RequestInit): Promise<ExternalWhatsappSendResult> => {
+
+  return customFetch<ExternalWhatsappSendResult>(getExternalWhatsappSendUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      externalWhatsappSendInput,)
+  }
+);}
+
+
+
+
+export const getExternalWhatsappSendMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof externalWhatsappSend>>, TError,{data: BodyType<ExternalWhatsappSendInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof externalWhatsappSend>>, TError,{data: BodyType<ExternalWhatsappSendInput>}, TContext> => {
+
+const mutationKey = ['externalWhatsappSend'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof externalWhatsappSend>>, {data: BodyType<ExternalWhatsappSendInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  externalWhatsappSend(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ExternalWhatsappSendMutationResult = NonNullable<Awaited<ReturnType<typeof externalWhatsappSend>>>
+    export type ExternalWhatsappSendMutationBody = BodyType<ExternalWhatsappSendInput>
+    export type ExternalWhatsappSendMutationError = ErrorType<void>
+
+    /**
+ * @summary Send a WhatsApp message from external app with template matching
+ */
+export const useExternalWhatsappSend = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof externalWhatsappSend>>, TError,{data: BodyType<ExternalWhatsappSendInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof externalWhatsappSend>>,
+        TError,
+        {data: BodyType<ExternalWhatsappSendInput>},
+        TContext
+      > => {
+      return useMutation(getExternalWhatsappSendMutationOptions(options));
     }
 
