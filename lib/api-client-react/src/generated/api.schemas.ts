@@ -845,6 +845,35 @@ export interface ExternalWhatsappSendResult {
   templateMatched?: string | null;
 }
 
+export interface OutboxMessage {
+  id?: number;
+  conversationId?: number;
+  direction?: string;
+  contentType?: string;
+  /** @nullable */
+  content?: string | null;
+  /** @nullable */
+  mediaUrl?: string | null;
+  /** @nullable */
+  externalMessageId?: string | null;
+  /** @nullable */
+  deliveryStatus?: string | null;
+  createdAt?: string;
+  /** @nullable */
+  recipientPhone?: string | null;
+  /** @nullable */
+  recipientName?: string | null;
+  /** @nullable */
+  channelName?: string | null;
+}
+
+export interface OutboxListResponse {
+  messages?: OutboxMessage[];
+  total?: number;
+  page?: number;
+  limit?: number;
+}
+
 export type ListContactsParams = {
 search?: string;
 channelType?: string;
@@ -942,4 +971,21 @@ export type CreateWaTemplate201 = {
 export type DeleteWaTemplate200 = {
   status?: string;
 };
+
+export type ListOutboxParams = {
+page?: number;
+limit?: number;
+status?: ListOutboxStatus;
+};
+
+export type ListOutboxStatus = typeof ListOutboxStatus[keyof typeof ListOutboxStatus];
+
+
+export const ListOutboxStatus = {
+  sent: 'sent',
+  delivered: 'delivered',
+  read: 'read',
+  failed: 'failed',
+  pending: 'pending',
+} as const;
 

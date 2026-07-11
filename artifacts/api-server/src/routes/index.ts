@@ -13,6 +13,7 @@ import mediaRouter from "./media";
 import whatsappBlastRouter from "./whatsapp-blasts";
 import whatsappTemplatesRouter from "./whatsapp-templates";
 import externalSendRouter from "./external-send";
+import outboxRouter from "./outbox";
 
 const router: IRouter = Router();
 
@@ -30,5 +31,6 @@ router.use(mediaRouter);
 router.use(whatsappBlastRouter);
 router.use(whatsappTemplatesRouter);
 router.use(externalSendRouter);
+router.use(outboxRouter);
 
 export default router;

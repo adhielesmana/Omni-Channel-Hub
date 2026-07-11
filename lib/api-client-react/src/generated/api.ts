@@ -55,6 +55,7 @@ import type {
   HealthStatus,
   ListContactsParams,
   ListConversationsParams,
+  ListOutboxParams,
   ListWaTemplatesParams,
   ListWhatsappBlastTemplatesParams,
   ListWhatsappBlasts200,
@@ -63,6 +64,7 @@ import type {
   Message,
   MessageInput,
   MetaWebhookPayload,
+  OutboxListResponse,
   ResetPasswordResponse,
   StatsOverview,
   StatsPeriod,
@@ -4070,6 +4072,90 @@ export const useDeleteWaTemplate = <TError = ErrorType<void>,
       > => {
       return useMutation(getDeleteWaTemplateMutationOptions(options));
     }
+
+export const getListOutboxUrl = (params?: ListOutboxParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/outbox?${stringifiedParams}` : `/api/outbox`
+}
+
+/**
+ * @summary List API-sent outbound messages
+ */
+export const listOutbox = async (params?: ListOutboxParams, options?: RequestInit): Promise<OutboxListResponse> => {
+
+  return customFetch<OutboxListResponse>(getListOutboxUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListOutboxQueryKey = (params?: ListOutboxParams,) => {
+    return [
+    `/api/outbox`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListOutboxQueryOptions = <TData = Awaited<ReturnType<typeof listOutbox>>, TError = ErrorType<void>>(params?: ListOutboxParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOutbox>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListOutboxQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listOutbox>>> = ({ signal }) => listOutbox(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listOutbox>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListOutboxQueryResult = NonNullable<Awaited<ReturnType<typeof listOutbox>>>
+export type ListOutboxQueryError = ErrorType<void>
+
+
+/**
+ * @summary List API-sent outbound messages
+ */
+
+export function useListOutbox<TData = Awaited<ReturnType<typeof listOutbox>>, TError = ErrorType<void>>(
+ params?: ListOutboxParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOutbox>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListOutboxQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getExternalWhatsappSendUrl = () => {
 

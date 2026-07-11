@@ -257,10 +257,10 @@ router.post("/external/whatsapp-send", requireApiKey, async (req, res): Promise<
     })
     .returning();
 
-  // Update conversation
+  // Update conversation — auto-resolve so API messages don't clutter the inbox
   await db
     .update(conversationsTable)
-    .set({ lastMessageAt: new Date(), updatedAt: new Date() })
+    .set({ status: "resolved", lastMessageAt: new Date(), updatedAt: new Date() })
     .where(eq(conversationsTable.id, conversation.id));
 
   res.json(ExternalWhatsappSendResponse.parse({

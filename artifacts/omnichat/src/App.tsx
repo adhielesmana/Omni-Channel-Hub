@@ -18,6 +18,7 @@ import Users from "@/pages/users";
 import Analytics from "@/pages/analytics";
 import WhatsappBlasts from "@/pages/whatsapp-blasts";
 import WhatsappTemplates from "@/pages/whatsapp-templates";
+import ApiOutbox from "@/pages/api-outbox";
 import Settings from "@/pages/settings";
 import PrivacyPolicy from "@/pages/privacy";
 import TermsOfService from "@/pages/terms";
@@ -122,6 +123,9 @@ function Router() {
       </Route>
       <Route path="/whatsapp-templates">
         <ProtectedRoute component={WhatsappTemplates} />
+      </Route>
+      <Route path="/api-outbox">
+        <ProtectedRoute component={ApiOutbox} />
       </Route>
       <Route path="/settings">
         <ProtectedRoute component={Settings} />

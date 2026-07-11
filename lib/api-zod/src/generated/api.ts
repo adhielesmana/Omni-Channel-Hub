@@ -1252,6 +1252,39 @@ export const DeleteWaTemplateResponse = zod.object({
 
 
 /**
+ * @summary List API-sent outbound messages
+ */
+export const listOutboxQueryPageDefault = 1;
+export const listOutboxQueryLimitDefault = 20;
+
+export const ListOutboxQueryParams = zod.object({
+  "page": zod.coerce.number().default(listOutboxQueryPageDefault),
+  "limit": zod.coerce.number().default(listOutboxQueryLimitDefault),
+  "status": zod.enum(['sent', 'delivered', 'read', 'failed', 'pending']).optional()
+})
+
+export const ListOutboxResponse = zod.object({
+  "messages": zod.array(zod.object({
+  "id": zod.number().optional(),
+  "conversationId": zod.number().optional(),
+  "direction": zod.string().optional(),
+  "contentType": zod.string().optional(),
+  "content": zod.string().nullish(),
+  "mediaUrl": zod.string().nullish(),
+  "externalMessageId": zod.string().nullish(),
+  "deliveryStatus": zod.string().nullish(),
+  "createdAt": zod.string().optional(),
+  "recipientPhone": zod.string().nullish(),
+  "recipientName": zod.string().nullish(),
+  "channelName": zod.string().nullish()
+})).optional(),
+  "total": zod.number().optional(),
+  "page": zod.number().optional(),
+  "limit": zod.number().optional()
+})
+
+
+/**
  * @summary Send a WhatsApp message from external app with template matching
  */
 export const ExternalWhatsappSendBody = zod.object({

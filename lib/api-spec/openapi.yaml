@@ -34,6 +34,8 @@ tags:
     description: WhatsApp template management
   - name: external-whatsapp
     description: External WhatsApp outbound API
+  - name: outbox
+    description: API outbox — system-sent messages
 
 paths:
   /healthz:
@@ -1147,6 +1149,37 @@ paths:
           description: Meta API error
 
   # External WhatsApp Send
+  /outbox:
+    get:
+      operationId: listOutbox
+      tags: [outbox]
+      summary: List API-sent outbound messages
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [sent, delivered, read, failed, pending]
+      responses:
+        "200":
+          description: Paginated list of outbound messages
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OutboxListResponse"
+        "401":
+          description: Unauthorized
+
   /external/whatsapp-send:
     post:
       operationId: externalWhatsappSend
@@ -2061,3 +2094,45 @@ components:
         templateMatched:
           type: ["string", "null"]
           description: Name of the matched template, if any
+
+    OutboxMessage:
+      type: object
+      properties:
+        id:
+          type: integer
+        conversationId:
+          type: integer
+        direction:
+          type: string
+        contentType:
+          type: string
+        content:
+          type: ["string", "null"]
+        mediaUrl:
+          type: ["string", "null"]
+        externalMessageId:
+          type: ["string", "null"]
+        deliveryStatus:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        recipientPhone:
+          type: ["string", "null"]
+        recipientName:
+          type: ["string", "null"]
+        channelName:
+          type: ["string", "null"]
+
+    OutboxListResponse:
+      type: object
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/OutboxMessage"
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
