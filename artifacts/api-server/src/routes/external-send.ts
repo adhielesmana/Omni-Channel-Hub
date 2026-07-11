@@ -126,160 +126,166 @@ router.post("/external/whatsapp-send", requireApiKey, async (req, res): Promise<
 
   const { channelName, channelId, to, content, templateName, templateLanguage, templateParams } = parsed.data;
 
-  // Find channel by name or ID
-  const channelConditions = [];
-  if (channelName) {
-    channelConditions.push(eq(channelsTable.name, channelName));
-  }
-  if (channelId) {
-    channelConditions.push(eq(channelsTable.id, channelId));
-  }
-
-  if (channelConditions.length === 0) {
-    res.status(400).json({ error: "Either channelName or channelId is required" });
-    return;
-  }
-
-  const [channel] = await db
-    .select()
-    .from(channelsTable)
-    .where(and(or(...channelConditions), eq(channelsTable.channelType, "whatsapp")));
-
-  if (!channel) {
-    res.status(400).json({ error: "WhatsApp channel not found" });
-    return;
-  }
-
-  if (!channel.accessToken || !channel.externalId) {
-    res.status(400).json({ error: "Channel is missing access token or external ID" });
-    return;
-  }
-
-  // Resolve template
-  const resolvedTemplateName = templateName || null;
-  const resolvedTemplateLanguage = templateLanguage || "en";
-  let resolvedParams: string[] = [];
   let matchedTemplateName: string | null = null;
 
-  if (resolvedTemplateName) {
-    // Explicit template mode
-    const [dbTemplate] = await db
-      .select()
-      .from(waTemplatesTable)
-      .where(
-        and(
-          eq(waTemplatesTable.name, resolvedTemplateName),
-          eq(waTemplatesTable.channelId, channel.id),
-          eq(waTemplatesTable.status, "APPROVED")
-        )
-      );
+  try {
+    // Find channel by name or ID
+    const channelConditions = [];
+    if (channelName) {
+      channelConditions.push(eq(channelsTable.name, channelName));
+    }
+    if (channelId) {
+      channelConditions.push(eq(channelsTable.id, channelId));
+    }
 
-    if (!dbTemplate) {
-      res.status(400).json({
-        error: `Template "${resolvedTemplateName}" not found or not approved for this channel. Sync templates first via /api/whatsapp-templates/sync`,
-      });
+    if (channelConditions.length === 0) {
+      res.status(400).json({ error: "Either channelName or channelId is required" });
       return;
     }
 
-    matchedTemplateName = resolvedTemplateName;
+    const [channel] = await db
+      .select()
+      .from(channelsTable)
+      .where(and(or(...channelConditions), eq(channelsTable.channelType, "whatsapp")));
 
-    // Use explicitly provided templateParams, or auto-extract from content
-    if (templateParams && templateParams.length > 0) {
-      resolvedParams = templateParams;
-    } else {
-      const match = findBestTemplateMatch(content, [dbTemplate]);
-      if (match && match.params.length > 0) {
-        resolvedParams = match.params;
+    if (!channel) {
+      res.status(400).json({ error: "WhatsApp channel not found" });
+      return;
+    }
+
+    if (!channel.accessToken || !channel.externalId) {
+      res.status(400).json({ error: "Channel is missing access token or external ID" });
+      return;
+    }
+
+    // Resolve template
+    const resolvedTemplateName = templateName || null;
+    const resolvedTemplateLanguage = templateLanguage || "en";
+    let resolvedParams: string[] = [];
+
+    if (resolvedTemplateName) {
+      // Explicit template mode
+      const [dbTemplate] = await db
+        .select()
+        .from(waTemplatesTable)
+        .where(
+          and(
+            eq(waTemplatesTable.name, resolvedTemplateName),
+            eq(waTemplatesTable.channelId, channel.id),
+            eq(waTemplatesTable.status, "APPROVED")
+          )
+        );
+
+      if (!dbTemplate) {
+        res.status(400).json({
+          error: `Template "${resolvedTemplateName}" not found or not approved for this channel. Sync templates first via /api/whatsapp-templates/sync`,
+        });
+        return;
       }
-    }
-  } else {
-    // Auto-match mode
-    const dbTemplates = await db
-      .select()
-      .from(waTemplatesTable)
-      .where(
-        and(
-          eq(waTemplatesTable.channelId, channel.id),
-          eq(waTemplatesTable.status, "APPROVED")
-        )
-      );
 
-    const match = findBestTemplateMatch(content, dbTemplates);
-    if (!match) {
-      res.status(400).json({
-        error: "No matching template found for the provided content. Use templateName for explicit selection or sync templates first.",
-      });
+      matchedTemplateName = resolvedTemplateName;
+
+      // Use explicitly provided templateParams, or auto-extract from content
+      if (templateParams && templateParams.length > 0) {
+        resolvedParams = templateParams;
+      } else {
+        const match = findBestTemplateMatch(content, [dbTemplate]);
+        if (match && match.params.length > 0) {
+          resolvedParams = match.params;
+        }
+      }
+    } else {
+      // Auto-match mode
+      const dbTemplates = await db
+        .select()
+        .from(waTemplatesTable)
+        .where(
+          and(
+            eq(waTemplatesTable.channelId, channel.id),
+            eq(waTemplatesTable.status, "APPROVED")
+          )
+        );
+
+      const match = findBestTemplateMatch(content, dbTemplates);
+      if (!match) {
+        res.status(400).json({
+          error: "No matching template found for the provided content. Use templateName for explicit selection or sync templates first.",
+        });
+        return;
+      }
+
+      resolvedParams = match.params;
+      matchedTemplateName = match.templateName;
+    }
+
+    // Find or create contact
+    let contact: typeof contactsTable.$inferSelect;
+    try {
+      contact = await findOrCreateContact(to);
+    } catch (err) {
+      logger.error({ err, to }, "Failed to find or create contact");
+      res.status(500).json({ error: "Failed to resolve contact" });
       return;
     }
 
-    resolvedParams = match.params;
-    matchedTemplateName = match.templateName;
-  }
+    // Find or create conversation
+    let conversation: typeof conversationsTable.$inferSelect;
+    try {
+      conversation = await findOrCreateConversation(contact.id, channel.id, channel);
+    } catch (err) {
+      logger.error({ err, contactId: contact.id, channelId: channel.id }, "Failed to find or create conversation");
+      res.status(500).json({ error: "Failed to resolve conversation" });
+      return;
+    }
 
-  // Find or create contact
-  let contact: typeof contactsTable.$inferSelect;
-  try {
-    contact = await findOrCreateContact(to);
-  } catch (err) {
-    logger.error({ err, to }, "Failed to find or create contact");
-    res.status(500).json({ error: "Failed to resolve contact" });
-    return;
-  }
+    // Send via WhatsApp template API
+    let externalMessageId: string | undefined;
+    try {
+      externalMessageId = await sendWhatsAppTemplate(
+        channel,
+        to,
+        matchedTemplateName!,
+        resolvedTemplateLanguage,
+        resolvedParams
+      );
+    } catch (err) {
+      logger.error({ err, to, templateName: matchedTemplateName }, "WhatsApp template send failed");
+      res.status(502).json({ error: `WhatsApp API error: ${(err as Error).message}` });
+      return;
+    }
 
-  // Find or create conversation
-  let conversation: typeof conversationsTable.$inferSelect;
-  try {
-    conversation = await findOrCreateConversation(contact.id, channel.id, channel);
-  } catch (err) {
-    logger.error({ err, contactId: contact.id, channelId: channel.id }, "Failed to find or create conversation");
-    res.status(500).json({ error: "Failed to resolve conversation" });
-    return;
-  }
+    // Record the message
+    const [messageRecord] = await db
+      .insert(messagesTable)
+      .values({
+        conversationId: conversation.id,
+        senderType: "system",
+        direction: "outbound",
+        contentType: "template",
+        content,
+        externalMessageId: externalMessageId ?? null,
+        deliveryStatus: externalMessageId ? "sent" : "pending",
+      })
+      .returning();
 
-  // Send via WhatsApp template API
-  let externalMessageId: string | undefined;
-  try {
-    externalMessageId = await sendWhatsAppTemplate(
-      channel,
-      to,
-      matchedTemplateName!,
-      resolvedTemplateLanguage,
-      resolvedParams
-    );
-  } catch (err) {
-    logger.error({ err, to, templateName: matchedTemplateName }, "WhatsApp template send failed");
-    res.status(502).json({ error: `WhatsApp API error: ${(err as Error).message}` });
-    return;
-  }
+    // Update conversation — auto-resolve so API messages don't clutter the inbox
+    await db
+      .update(conversationsTable)
+      .set({ status: "resolved", lastMessageAt: new Date(), updatedAt: new Date() })
+      .where(eq(conversationsTable.id, conversation.id));
 
-  // Record the message
-  const [messageRecord] = await db
-    .insert(messagesTable)
-    .values({
-      conversationId: conversation.id,
-      senderType: "system",
-      direction: "outbound",
-      contentType: "template",
-      content,
+    res.json(ExternalWhatsappSendResponse.parse({
+      success: true,
+      messageId: externalMessageId,
       externalMessageId: externalMessageId ?? null,
-      deliveryStatus: externalMessageId ? "sent" : "pending",
-    })
-    .returning();
-
-  // Update conversation — auto-resolve so API messages don't clutter the inbox
-  await db
-    .update(conversationsTable)
-    .set({ status: "resolved", lastMessageAt: new Date(), updatedAt: new Date() })
-    .where(eq(conversationsTable.id, conversation.id));
-
-  res.json(ExternalWhatsappSendResponse.parse({
-    success: true,
-    messageId: externalMessageId,
-    externalMessageId: externalMessageId ?? null,
-    conversationId: conversation.id,
-    messageRecordId: messageRecord.id,
-    templateMatched: matchedTemplateName,
-  }));
+      conversationId: conversation.id,
+      messageRecordId: messageRecord.id,
+      templateMatched: matchedTemplateName,
+    }));
+  } catch (err) {
+    logger.error({ err, to, templateName: matchedTemplateName || templateName, channelName, channelId }, "Unhandled error in external whatsapp send");
+    res.status(500).json({ error: (err as Error).message || "Internal server error" });
+  }
 });
 
 export default router;
