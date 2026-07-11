@@ -103,6 +103,8 @@ Logs are structured JSON (Pino). In development they are pretty-printed.
 
 Use relative URLs (e.g. `fetch('/api/users')`) — the shared proxy routes `/api` to the backend automatically. Do not add a Vite proxy config or point to `localhost:8080` directly.
 
+Media URLs use the same pattern (`/api/media/<uuid>.<ext>`) — the API server proxies from Cloudflare R2 storage. Direct R2 URLs are never exposed to the frontend.
+
 ---
 
 ## The API-First Contract Rule
@@ -212,6 +214,7 @@ Run these checks before pushing to production:
 □ pnpm --filter @workspace/api-spec run codegen was run after any openapi.yaml change
 □ DATABASE_URL points to production DB
 □ pnpm --filter @workspace/db run push (if schema changed)
+□ All R2_* env vars are set in production secrets
 □ SESSION_SECRET is set in production secrets
 □ EXTERNAL_API_KEY is set in production secrets
 □ SUPERADMIN_PASSWORD is set in production secrets
@@ -252,6 +255,12 @@ node --enable-source-maps artifacts/api-server/dist/index.mjs
 | `SUPERADMIN_PASSWORD` | Replit Secrets / `.env` | Superadmin login password |
 | `CORS_ORIGIN` | Replit Secrets / `.env` | Comma-separated allowed CORS origins |
 | `RATE_LIMIT_MAX` | Replit Secrets / `.env` | Global rate limit max requests per minute (default 200) |
+| `R2_ACCOUNT_ID` | Replit Secrets | Cloudflare R2 account ID |
+| `R2_ACCESS_KEY_ID` | Replit Secrets | Cloudflare R2 API access key |
+| `R2_SECRET_ACCESS_KEY` | Replit Secrets | Cloudflare R2 API secret key |
+| `R2_BUCKET_NAME` | Replit Secrets | Cloudflare R2 bucket name |
+| `R2_ENDPOINT` | Replit Secrets | Cloudflare R2 S3 endpoint (optional, auto-derived from account ID) |
+| `R2_REGION` | Replit Secrets | R2 region (default `auto`) |
 | `PORT` | Replit workflow injection | Do not hardcode |
 | `BASE_PATH` | Replit workflow injection | Frontend base path |
 | `NODE_ENV` | Replit workflow injection | `production` in deployed builds |
@@ -275,6 +284,10 @@ To add a secret in Replit: sidebar → Secrets → add key/value. It becomes ava
 | Installing a package without checking the catalog | Run `pnpm add` — it picks up catalog entries automatically |
 | Forgetting `pnpm run typecheck:libs` after changing a lib | Stale `.d.ts` files cause misleading import errors in artifacts |
 | Using `Array.isArray(req.params.id)` guard in Express 5 | Express 5 params are always strings; this guard is unnecessary but harmless |
+| R2 uploads failing silently | Check `R2_*` env vars are set. Media falls back to local disk if R2 is unavailable. |
+| Editing generated files | Only edit `openapi.yaml`, then run codegen |
+| Media not loading in production | Check R2 bucket permissions — bucket must allow public access or the API server proxy is used |
+| Missing `sharp` or `@aws-sdk/client-s3` | Run `pnpm --filter @workspace/api-server add @aws-sdk/client-s3 sharp` |
 
 ---
 

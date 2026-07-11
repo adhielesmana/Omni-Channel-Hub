@@ -1,21 +1,19 @@
-import { promises as fs, createWriteStream } from "fs";
-import { Readable } from "stream";
+import { promises as fs } from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
 import { logger } from "./logger";
+import { uploadToR2 } from "./r2";
+import { optimizeImage } from "./media-optimizer";
 
 export const MEDIA_DIR = path.resolve(process.env["MEDIA_DIR"] ?? "./media");
 
-const MAX_BYTES = 25 * 1024 * 1024; // 25 MB cap per media file
+const MAX_BYTES = 25 * 1024 * 1024;
 const FETCH_TIMEOUT_MS = 30_000;
 
 void fs.mkdir(MEDIA_DIR, { recursive: true }).catch((err) => {
   logger.error({ err, MEDIA_DIR }, "Failed to create media directory");
 });
 
-// Strict allowlist: only known-safe WhatsApp media types map to a real extension.
-// Anything else (including text/html, image/svg+xml, application/xml) falls back
-// to "bin" and is served as an attachment, never inline — preventing stored XSS.
 const MIME_EXT: Record<string, string> = {
   "image/jpeg": "jpg",
   "image/png": "png",
@@ -40,8 +38,6 @@ const MIME_EXT: Record<string, string> = {
   "application/zip": "zip",
 };
 
-// Extensions safe to serve inline (rendered directly in the inbox via img/video/audio).
-// Everything else is served as a download attachment.
 export const INLINE_EXTENSIONS = new Set([
   "jpg",
   "png",
@@ -61,16 +57,14 @@ function extFromMime(mime: string): string {
   return MIME_EXT[clean] ?? "bin";
 }
 
-/**
- * Downloads a WhatsApp media object by its media id and stores it on disk.
- * Streams to disk with a hard size cap and request timeout.
- * Returns the locally servable URL and the mime type, or null on failure.
- */
+function isImageMime(cleanMime: string): boolean {
+  return cleanMime.startsWith("image/");
+}
+
 export async function downloadWhatsAppMedia(
   mediaId: string,
   accessToken: string,
 ): Promise<{ url: string; mimeType: string } | null> {
-  let filepath: string | null = null;
   try {
     const metaRes = await fetch(`https://graph.facebook.com/v18.0/${mediaId}`, {
       headers: { Authorization: `Bearer ${accessToken}` },
@@ -101,34 +95,48 @@ export async function downloadWhatsAppMedia(
       return null;
     }
 
-    const mimeType = meta.mime_type ?? binRes.headers.get("content-type") ?? "application/octet-stream";
-    const filename = `${randomUUID()}.${extFromMime(mimeType)}`;
-    filepath = path.join(MEDIA_DIR, filename);
-    await fs.mkdir(MEDIA_DIR, { recursive: true });
+    const rawMime = meta.mime_type ?? binRes.headers.get("content-type") ?? "application/octet-stream";
+    const cleanMime = rawMime.split(";")[0]?.trim().toLowerCase() ?? "application/octet-stream";
+    const ext = extFromMime(cleanMime);
+    const filename = `${randomUUID()}.${ext}`;
 
-    const out = createWriteStream(filepath);
-    const source = Readable.fromWeb(binRes.body as Parameters<typeof Readable.fromWeb>[0]);
-    let bytes = 0;
-    for await (const chunk of source) {
-      bytes += (chunk as Buffer).length;
-      if (bytes > MAX_BYTES) {
-        out.destroy();
-        await fs.rm(filepath, { force: true }).catch(() => {});
-        logger.error({ mediaId, bytes }, "WhatsApp media exceeded size limit mid-stream");
+    const chunks: Buffer[] = [];
+    let totalBytes = 0;
+    const reader = binRes.body.getReader();
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      totalBytes += value.length;
+      if (totalBytes > MAX_BYTES) {
+        reader.cancel();
+        logger.error({ mediaId, totalBytes }, "WhatsApp media exceeded size limit mid-stream");
         return null;
       }
-      if (!out.write(chunk)) {
-        await new Promise<void>((resolve) => out.once("drain", () => resolve()));
-      }
+      chunks.push(Buffer.from(value));
     }
-    await new Promise<void>((resolve, reject) => {
-      out.end(() => resolve());
-      out.on("error", reject);
-    });
 
-    return { url: `/api/media/${filename}`, mimeType };
+    let buffer = Buffer.concat(chunks);
+
+    if (isImageMime(cleanMime)) {
+      const optimized = await optimizeImage(buffer, cleanMime);
+      buffer = Buffer.from(optimized.buffer);
+      logger.info(
+        { mediaId, originalBytes: totalBytes, optimizedBytes: buffer.length, ratio: (buffer.length / totalBytes * 100).toFixed(1) + "%" },
+        "WhatsApp image optimized",
+      );
+    }
+
+    const uploaded = await uploadToR2(filename, buffer, cleanMime);
+    if (!uploaded) {
+      const filepath = path.join(MEDIA_DIR, filename);
+      await fs.mkdir(MEDIA_DIR, { recursive: true });
+      await fs.writeFile(filepath, buffer);
+      logger.warn({ mediaId, filename }, "R2 upload failed, saved to disk fallback");
+    }
+
+    return { url: `/api/media/${filename}`, mimeType: rawMime };
   } catch (err) {
-    if (filepath) await fs.rm(filepath, { force: true }).catch(() => {});
     logger.error({ err, mediaId }, "Error downloading WhatsApp media");
     return null;
   }

@@ -1,14 +1,75 @@
 import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
+import { randomUUID } from "crypto";
 import { db, channelsTable, contactsTable, conversationsTable, messagesTable } from "@workspace/db";
 import { logger } from "../lib/logger";
 import { downloadWhatsAppMedia } from "../lib/whatsapp-media";
+import { uploadToR2 } from "../lib/r2";
+import { optimizeImage } from "../lib/media-optimizer";
 import { toTitleCase } from "../lib/string";
 import { fetchCustomerProfile } from "../lib/meta-profile";
 
 const router: IRouter = Router();
 
 const WA_MEDIA_TYPES = new Set(["image", "video", "audio", "voice", "document", "sticker"]);
+
+const META_ATTACHMENT_MIME_MAP: Record<string, string> = {
+  image: "image/jpeg",
+  video: "video/mp4",
+  audio: "audio/mpeg",
+  file: "application/octet-stream",
+};
+
+async function downloadAndStoreMetaMedia(
+  url: string,
+  attachmentType: string,
+  accessToken?: string,
+): Promise<{ url: string; mimeType: string } | null> {
+  try {
+    const fetchUrl = accessToken ? `${url}&access_token=${encodeURIComponent(accessToken)}` : url;
+    const res = await fetch(fetchUrl, { signal: AbortSignal.timeout(30_000) });
+    if (!res.ok || !res.body) return null;
+
+    const chunks: Buffer[] = [];
+    const reader = res.body.getReader();
+    let totalBytes = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      totalBytes += value.length;
+      if (totalBytes > 25 * 1024 * 1024) {
+        reader.cancel();
+        return null;
+      }
+      chunks.push(Buffer.from(value));
+    }
+
+    let buffer = Buffer.concat(chunks);
+    const mimeType = META_ATTACHMENT_MIME_MAP[attachmentType] ?? "application/octet-stream";
+
+    if (attachmentType === "image") {
+      const optimized = await optimizeImage(buffer, mimeType);
+      buffer = Buffer.from(optimized.buffer);
+    }
+
+    const ext = attachmentType === "image" ? "jpg" : attachmentType === "video" ? "mp4" : attachmentType === "audio" ? "mp3" : "bin";
+    const filename = `${randomUUID()}.${ext}`;
+
+    const uploaded = await uploadToR2(filename, buffer, mimeType);
+    if (!uploaded) {
+      const { promises: fs } = await import("fs");
+      const path = await import("path");
+      const mediaDir = path.default.resolve(process.env["MEDIA_DIR"] ?? "./media");
+      await fs.mkdir(mediaDir, { recursive: true });
+      await fs.writeFile(path.default.join(mediaDir, filename), buffer);
+    }
+
+    return { url: `/api/media/${filename}`, mimeType };
+  } catch (err) {
+    logger.error({ err, url, attachmentType }, "Failed to download meta media attachment");
+    return null;
+  }
+}
 
 // GET — Meta webhook verification
 router.get("/webhooks/meta", async (req, res): Promise<void> => {
@@ -266,6 +327,7 @@ async function processMetaPageEntry(entry: Record<string, unknown>, channelType:
     const senderId = sender.id as string;
     const msgId = msgEvent.mid as string;
     const text = msgEvent.text as string | undefined;
+    const attachments = msgEvent.attachments as Array<Record<string, unknown>> | undefined;
 
     const remoteProfile = channel.accessToken
       ? await fetchCustomerProfile(channelType, senderId, channel.accessToken)
@@ -318,15 +380,48 @@ async function processMetaPageEntry(entry: Record<string, unknown>, channelType:
       }).where(eq(conversationsTable.id, conversation.id));
     }
 
-    await db.insert(messagesTable).values({
-      conversationId: conversation.id,
-      senderType: "contact",
-      direction: "inbound",
-      contentType: "text",
-      content: text ?? null,
-      externalMessageId: msgId,
-      senderName: contact.name,
-    });
+    if (attachments?.length) {
+      for (const att of attachments) {
+        const attType = att.type as string;
+        const payload = att.payload as Record<string, unknown> | undefined;
+        const attUrl = payload?.url as string | undefined;
+
+        const contentType = attType === "image" ? "image" : attType === "video" ? "video" : attType === "audio" ? "audio" : "document";
+
+        let mediaUrl: string | null = null;
+        let mediaType: string | null = null;
+
+        if (attUrl) {
+          const stored = await downloadAndStoreMetaMedia(attUrl, attType, channel.accessToken ?? undefined);
+          if (stored) {
+            mediaUrl = stored.url;
+            mediaType = stored.mimeType;
+          }
+        }
+
+        await db.insert(messagesTable).values({
+          conversationId: conversation.id,
+          senderType: "contact",
+          direction: "inbound",
+          contentType,
+          content: text ?? null,
+          mediaUrl,
+          mediaType,
+          externalMessageId: msgId,
+          senderName: contact.name,
+        });
+      }
+    } else {
+      await db.insert(messagesTable).values({
+        conversationId: conversation.id,
+        senderType: "contact",
+        direction: "inbound",
+        contentType: "text",
+        content: text ?? null,
+        externalMessageId: msgId,
+        senderName: contact.name,
+      });
+    }
 
     logger.info({ contactId: contact.id, conversationId: conversation.id, channelType }, "Processed inbound message");
   }
