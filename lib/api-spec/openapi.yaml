@@ -32,6 +32,8 @@ tags:
     description: WhatsApp blast messaging
   - name: whatsapp-template
     description: WhatsApp template management
+  - name: external-whatsapp
+    description: External WhatsApp outbound API
 
 paths:
   /healthz:
@@ -1144,6 +1146,30 @@ paths:
         "502":
           description: Meta API error
 
+  # External WhatsApp Send
+  /external/whatsapp-send:
+    post:
+      operationId: externalWhatsappSend
+      tags: [external-whatsapp]
+      summary: Send a WhatsApp message from external app with template matching
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExternalWhatsappSendInput"
+      responses:
+        "200":
+          description: Message sent successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExternalWhatsappSendResult"
+        "400":
+          description: Validation error or template not found
+        "401":
+          description: Invalid API key
+
 components:
   schemas:
     HealthStatus:
@@ -1990,3 +2016,48 @@ components:
           type: integer
         total:
           type: integer
+
+    ExternalWhatsappSendInput:
+      type: object
+      required: [to, content]
+      properties:
+        channelName:
+          type: string
+          description: Channel name (alternative to channelId)
+        channelId:
+          type: integer
+          description: Channel ID (alternative to channelName)
+        to:
+          type: string
+          description: Destination phone number
+        content:
+          type: string
+          description: Raw message content (used for auto-template-matching if templateName omitted)
+        templateName:
+          type: string
+          description: Explicit template name to use. If omitted, auto-match by content.
+        templateLanguage:
+          type: string
+          description: Template language code (defaults to 'en')
+        templateParams:
+          type: array
+          items:
+            type: string
+          description: Template parameter values (for explicit template mode)
+
+    ExternalWhatsappSendResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+        messageId:
+          type: string
+        externalMessageId:
+          type: ["string", "null"]
+        conversationId:
+          type: integer
+        messageRecordId:
+          type: integer
+        templateMatched:
+          type: ["string", "null"]
+          description: Name of the matched template, if any

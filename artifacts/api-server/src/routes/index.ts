@@ -12,6 +12,7 @@ import statsRouter from "./stats";
 import mediaRouter from "./media";
 import whatsappBlastRouter from "./whatsapp-blasts";
 import whatsappTemplatesRouter from "./whatsapp-templates";
+import externalSendRouter from "./external-send";
 
 const router: IRouter = Router();
 
@@ -28,5 +29,6 @@ router.use(statsRouter);
 router.use(mediaRouter);
 router.use(whatsappBlastRouter);
 router.use(whatsappTemplatesRouter);
+router.use(externalSendRouter);
 
 export default router;
