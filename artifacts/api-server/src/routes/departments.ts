@@ -11,10 +11,11 @@ import {
   UpdateDepartmentResponse,
   DeleteDepartmentParams,
 } from "@workspace/api-zod";
+import { requireAuth } from "../middlewares/auth";
 
 const router: IRouter = Router();
 
-router.get("/departments", async (req, res): Promise<void> => {
+router.get("/departments", requireAuth, async (req, res): Promise<void> => {
   const departments = await db.select().from(departmentsTable).orderBy(departmentsTable.createdAt);
 
   const memberCounts = await db
@@ -33,7 +34,7 @@ router.get("/departments", async (req, res): Promise<void> => {
   res.json(ListDepartmentsResponse.parse(result));
 });
 
-router.post("/departments", async (req, res): Promise<void> => {
+router.post("/departments", requireAuth, async (req, res): Promise<void> => {
   const parsed = CreateDepartmentBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -43,7 +44,7 @@ router.post("/departments", async (req, res): Promise<void> => {
   res.status(201).json(GetDepartmentResponse.parse({ ...dept, memberCount: 0, createdAt: dept.createdAt.toISOString() }));
 });
 
-router.get("/departments/:id", async (req, res): Promise<void> => {
+router.get("/departments/:id", requireAuth, async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const params = GetDepartmentParams.safeParse({ id: parseInt(raw, 10) });
   if (!params.success) {
@@ -62,7 +63,7 @@ router.get("/departments/:id", async (req, res): Promise<void> => {
   res.json(GetDepartmentResponse.parse({ ...dept, memberCount: Number(memberResult?.count ?? 0), createdAt: dept.createdAt.toISOString() }));
 });
 
-router.patch("/departments/:id", async (req, res): Promise<void> => {
+router.patch("/departments/:id", requireAuth, async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const params = UpdateDepartmentParams.safeParse({ id: parseInt(raw, 10) });
   if (!params.success) {
@@ -83,7 +84,7 @@ router.patch("/departments/:id", async (req, res): Promise<void> => {
   res.json(UpdateDepartmentResponse.parse({ ...dept, memberCount: Number(memberResult?.count ?? 0), createdAt: dept.createdAt.toISOString() }));
 });
 
-router.delete("/departments/:id", async (req, res): Promise<void> => {
+router.delete("/departments/:id", requireAuth, async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const params = DeleteDepartmentParams.safeParse({ id: parseInt(raw, 10) });
   if (!params.success) {

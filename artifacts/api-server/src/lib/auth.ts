@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs";
 import crypto from "node:crypto";
 
-const SALT_ROUNDS = 10;
+const SALT_ROUNDS = 12;
 const TOKEN_BYTES = 32;
 const ACTIVE_TOKENS = new Map<string, { userId: number; expiresAt: number }>();
 

@@ -2,14 +2,19 @@ import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
 import { db, usersTable } from "@workspace/db";
 import { LoginBody, LoginResponse, ChangePasswordBody } from "@workspace/api-zod";
-import { comparePassword, hashPassword, createToken, SUPERADMIN, isSuperadmin } from "../lib/auth";
+import { comparePassword, hashPassword, createToken, invalidateToken, SUPERADMIN, isSuperadmin } from "../lib/auth";
 import { requireAuth } from "../middlewares/auth";
+import { authRateLimit } from "../app";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
-const SUPERADMIN_PASSWORD = "adhie123!#";
+const SUPERADMIN_PASSWORD = process.env.SUPERADMIN_PASSWORD;
+if (!SUPERADMIN_PASSWORD) {
+  logger.warn("SUPERADMIN_PASSWORD not set — superadmin login will fail");
+}
 
-router.post("/auth/login", async (req, res): Promise<void> => {
+router.post("/auth/login", authRateLimit, async (req, res): Promise<void> => {
   const parsed = LoginBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -19,7 +24,7 @@ router.post("/auth/login", async (req, res): Promise<void> => {
   const { email, password } = parsed.data;
 
   if (email.toLowerCase().trim() === SUPERADMIN.email) {
-    if (password !== SUPERADMIN_PASSWORD) {
+    if (!SUPERADMIN_PASSWORD || password !== SUPERADMIN_PASSWORD) {
       res.status(401).json({ error: "Invalid email or password" });
       return;
     }
@@ -48,6 +53,14 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     token,
     user: { ...user, createdAt: user.createdAt.toISOString() },
   }));
+});
+
+router.post("/auth/logout", requireAuth, async (req, res): Promise<void> => {
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith("Bearer ")) {
+    invalidateToken(authHeader.slice(7));
+  }
+  res.json({ status: "ok" });
 });
 
 router.post("/auth/change-password", requireAuth, async (req, res): Promise<void> => {

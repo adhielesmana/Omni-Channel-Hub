@@ -1,5 +1,7 @@
-import express, { type Express } from "express";
+import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import cors from "cors";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import path from "path";
 import pinoHttp from "pino-http";
 import router from "./routes";
@@ -7,6 +9,35 @@ import { logger } from "./lib/logger";
 import { MEDIA_DIR, INLINE_EXTENSIONS } from "./lib/whatsapp-media";
 
 const app: Express = express();
+
+app.set("trust proxy", 1);
+
+app.use(helmet());
+app.use(
+  cors({
+    origin: process.env.CORS_ORIGIN?.split(",") ?? "*",
+    methods: ["GET", "POST", "PATCH", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization", "x-api-key"],
+    credentials: true,
+  }),
+);
+
+const globalRateLimit = rateLimit({
+  windowMs: 60_000,
+  max: parseInt(process.env.RATE_LIMIT_MAX ?? "200", 10),
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests, please try again later" },
+});
+app.use(globalRateLimit);
+
+const authRateLimit = rateLimit({
+  windowMs: 60_000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many login attempts, please try again later" },
+});
 
 app.use(
   pinoHttp({
@@ -27,9 +58,9 @@ app.use(
     },
   }),
 );
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+
+app.use(express.json({ limit: "1mb" }));
+app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 
 app.use("/api", router);
 app.use(
@@ -47,4 +78,14 @@ app.use(
   }),
 );
 
+app.use((err: Error, _req: Request, res: Response, _next: NextFunction): void => {
+  logger.error({ err }, "Unhandled error");
+  if (process.env.NODE_ENV === "production") {
+    res.status(500).json({ error: "Internal server error" });
+  } else {
+    res.status(500).json({ error: err.message, stack: err.stack });
+  }
+});
+
+export { authRateLimit };
 export default app;

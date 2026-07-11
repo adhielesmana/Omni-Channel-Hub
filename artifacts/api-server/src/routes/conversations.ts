@@ -104,7 +104,7 @@ router.get("/conversations", requireAuth, async (req, res): Promise<void> => {
   res.json(ListConversationsResponse.parse(dtos));
 });
 
-router.post("/conversations", async (req, res): Promise<void> => {
+router.post("/conversations", requireAuth, async (req, res): Promise<void> => {
   const parsed = CreateConversationBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });

@@ -8,6 +8,7 @@ import {
   GetAgentWorkloadResponse,
   GetStatsPeriodsResponse,
 } from "@workspace/api-zod";
+import { requireAuth } from "../middlewares/auth";
 
 const router: IRouter = Router();
 
@@ -65,7 +66,7 @@ function buildDateFilter(start?: string, end?: string) {
   return conditions;
 }
 
-router.get("/stats/overview", async (req, res): Promise<void> => {
+router.get("/stats/overview", requireAuth, async (req, res): Promise<void> => {
   const { start, end } = parseDateRange(req);
   const dateConditions = buildDateFilter(start, end);
 
@@ -111,7 +112,7 @@ router.get("/stats/overview", async (req, res): Promise<void> => {
   res.json(GetStatsOverviewResponse.parse(overview));
 });
 
-router.get("/stats/conversations-by-channel", async (req, res): Promise<void> => {
+router.get("/stats/conversations-by-channel", requireAuth, async (req, res): Promise<void> => {
   const { start, end } = parseDateRange(req);
   const dateConditions = buildDateFilter(start, end);
 
@@ -126,7 +127,7 @@ router.get("/stats/conversations-by-channel", async (req, res): Promise<void> =>
   res.json(GetConversationsByChannelResponse.parse(rows.map(r => ({ channelType: r.channelType, count: Number(r.count) }))));
 });
 
-router.get("/stats/conversations-by-department", async (req, res): Promise<void> => {
+router.get("/stats/conversations-by-department", requireAuth, async (req, res): Promise<void> => {
   const { start, end } = parseDateRange(req);
   const dateConditions = buildDateFilter(start, end);
 
@@ -150,7 +151,7 @@ router.get("/stats/conversations-by-department", async (req, res): Promise<void>
   ));
 });
 
-router.get("/stats/agent-workload", async (req, res): Promise<void> => {
+router.get("/stats/agent-workload", requireAuth, async (req, res): Promise<void> => {
   const { start, end } = parseDateRange(req);
 
   const agents = await db.select().from(usersTable).where(eq(usersTable.role, "agent"));
@@ -186,7 +187,7 @@ router.get("/stats/agent-workload", async (req, res): Promise<void> => {
   res.json(GetAgentWorkloadResponse.parse(workload));
 });
 
-router.get("/stats/periods", async (_req, res): Promise<void> => {
+router.get("/stats/periods", requireAuth, async (_req, res): Promise<void> => {
   res.json(GetStatsPeriodsResponse.parse(getPeriods()));
 });
 
