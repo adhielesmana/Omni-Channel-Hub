@@ -213,8 +213,14 @@ Run these checks before pushing to production:
 □ DATABASE_URL points to production DB
 □ pnpm --filter @workspace/db run push (if schema changed)
 □ SESSION_SECRET is set in production secrets
+□ EXTERNAL_API_KEY is set in production secrets
+□ SUPERADMIN_PASSWORD is set in production secrets
+□ CORS_ORIGIN is set in production (e.g. https://app.example.com)
+□ RATE_LIMIT_MAX is configured (default 200)
 □ GET /api/healthz returns 200 after deployment
 □ Test at least one inbound webhook with a real Meta test payload
+□ Verify security headers: X-Frame-Options, CSP, X-Content-Type-Options
+□ Verify unauthenticated endpoints return 401
 ```
 
 ### Production build commands
@@ -242,6 +248,10 @@ node --enable-source-maps artifacts/api-server/dist/index.mjs
 |---|---|---|
 | `DATABASE_URL` | Replit Secrets | PostgreSQL connection string |
 | `SESSION_SECRET` | Replit Secrets | Session signing secret |
+| `EXTERNAL_API_KEY` | Replit Secrets / `.env` | API key for external endpoints (`x-api-key` header) |
+| `SUPERADMIN_PASSWORD` | Replit Secrets / `.env` | Superadmin login password |
+| `CORS_ORIGIN` | Replit Secrets / `.env` | Comma-separated allowed CORS origins |
+| `RATE_LIMIT_MAX` | Replit Secrets / `.env` | Global rate limit max requests per minute (default 200) |
 | `PORT` | Replit workflow injection | Do not hardcode |
 | `BASE_PATH` | Replit workflow injection | Frontend base path |
 | `NODE_ENV` | Replit workflow injection | `production` in deployed builds |
