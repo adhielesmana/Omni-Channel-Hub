@@ -521,12 +521,12 @@ export default function Contacts() {
 
       {/* Import Dialog */}
       <Dialog open={importOpen} onOpenChange={setImportOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg max-w-[calc(100vw-2rem)] overflow-x-hidden">
           <DialogHeader>
             <DialogTitle>Import Contacts</DialogTitle>
             <DialogDescription>Import contacts from a CSV file. Existing phone numbers will only have their name updated.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+          <div className="space-y-4 py-2 max-w-full">
             {importError && (
               <div className="flex items-center gap-2 text-sm text-destructive">
                 <AlertCircle className="w-4 h-4" />
@@ -551,7 +551,7 @@ export default function Contacts() {
             <div>
               <Label>Channel <span className="text-destructive">*</span></Label>
               <Select value={importChannelType} onValueChange={setImportChannelType}>
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -563,7 +563,7 @@ export default function Contacts() {
             </div>
             <div>
               <Label>CSV File</Label>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Input
                   ref={fileInputRef}
                   type="file"
@@ -571,9 +571,9 @@ export default function Contacts() {
                   onChange={handleCsvUpload}
                   className="hidden"
                 />
-                <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
-                  <Upload className="w-4 h-4 mr-1.5" />
-                  {csvFileName || "Choose CSV file"}
+                <Button variant="outline" onClick={() => fileInputRef.current?.click()} className="max-w-full">
+                  <Upload className="w-4 h-4 mr-1.5 shrink-0" />
+                  <span className="truncate">{csvFileName || "Choose CSV file"}</span>
                 </Button>
                 <Button variant="ghost" size="sm" onClick={downloadTemplate}>
                   <Download className="w-4 h-4 mr-1" />
@@ -584,21 +584,21 @@ export default function Contacts() {
             {importData.length > 0 && (
               <div>
                 <Label>Preview ({importData.length} contacts)</Label>
-                <div className="border rounded-lg max-h-40 overflow-y-auto">
-                  <table className="w-full text-sm">
+                <div className="border rounded-lg max-h-40 overflow-y-auto overflow-x-hidden">
+                  <table className="w-full text-sm table-fixed">
                     <thead className="bg-muted/50 sticky top-0">
                       <tr>
-                        <th className="text-left p-2">Name</th>
-                        <th className="text-left p-2">Phone</th>
-                        <th className="text-left p-2">Email</th>
+                        <th className="text-left p-2 w-[30%]">Name</th>
+                        <th className="text-left p-2 w-[35%]">Phone</th>
+                        <th className="text-left p-2 w-[35%]">Email</th>
                       </tr>
                     </thead>
                     <tbody>
                       {importData.slice(0, 10).map((row, i) => (
                         <tr key={i} className="border-t">
-                          <td className="p-2">{row.name}</td>
-                          <td className="p-2 font-mono text-xs">{row.phone}</td>
-                          <td className="p-2 text-muted-foreground">{row.email || "-"}</td>
+                          <td className="p-2 truncate">{row.name}</td>
+                          <td className="p-2 font-mono text-xs break-all">{row.phone}</td>
+                          <td className="p-2 text-muted-foreground truncate">{row.email || "-"}</td>
                         </tr>
                       ))}
                       {importData.length > 10 && (
