@@ -166,7 +166,14 @@ function TextWithMaps({ text }: { text: string | null | undefined }) {
 
 export default function Inbox() {
   const [activeTab, setActiveTab] = useState("open");
-  const [activeConversationId, setActiveConversationId] = useState<number | null>(null);
+  const [activeConversationId, setActiveConversationId] = useState<number | null>(() => {
+    const stored = sessionStorage.getItem("openConversationId");
+    if (stored) {
+      sessionStorage.removeItem("openConversationId");
+      return Number(stored);
+    }
+    return null;
+  });
   const [searchQuery, setSearchQuery] = useState("");
   const [messageText, setMessageText] = useState("");
   const [composerMode, setComposerMode] = useState<"message" | "note">("message");

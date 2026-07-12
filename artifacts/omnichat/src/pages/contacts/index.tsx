@@ -1,7 +1,8 @@
 import { useState, useRef, useMemo, useEffect } from "react";
-import { useListContacts, useUpdateContact, useCreateContact, useImportContacts } from "@workspace/api-client-react";
+import { useListContacts, useUpdateContact, useCreateContact, useImportContacts, useListConversations, useExternalWhatsappSend, getListConversationsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Search, Pencil, Plus, Upload, Download, AlertCircle, CheckCircle } from "lucide-react";
+import { useLocation } from "wouter";
+import { Search, Pencil, Plus, Upload, Download, AlertCircle, CheckCircle, MessageCircle, Camera, MessageSquare } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -33,6 +34,12 @@ type ImportResult = {
 
 const ITEMS_PER_PAGE = 15;
 
+const CHANNEL_ICONS: Record<string, React.ReactNode> = {
+  whatsapp: <MessageCircle className="h-4 w-4" />,
+  instagram: <Camera className="h-4 w-4" />,
+  facebook: <MessageSquare className="h-4 w-4" />,
+};
+
 export default function Contacts() {
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -54,11 +61,23 @@ export default function Contacts() {
   const [csvFileName, setCsvFileName] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // WhatsApp button state
+  const [helloConfirmContact, setHelloConfirmContact] = useState<ContactDto | null>(null);
+
   const queryClient = useQueryClient();
+  const [, navigate] = useLocation();
   const { data: contacts, isLoading } = useListContacts({});
   const updateContact = useUpdateContact();
   const createContact = useCreateContact();
   const importContacts = useImportContacts();
+  const sendExternal = useExternalWhatsappSend();
+
+  // Fetch active conversations (last 24h)
+  const listConvsParams = { daysOld: 1 };
+  const { data: conversationsData } = useListConversations(
+    listConvsParams,
+    { query: { refetchInterval: 10000, queryKey: getListConversationsQueryKey(listConvsParams) } }
+  );
 
   // Reset to page 1 when search changes
   useEffect(() => {
@@ -139,6 +158,53 @@ export default function Contacts() {
         },
         onError: (err) => {
           setAddError(err.message || "Failed to create contact");
+        },
+      }
+    );
+  };
+
+  const handleChannelAction = (contact: ContactDto) => {
+    if (contact.channelType !== "whatsapp") return;
+
+    // Find existing active conversation for this contact
+    const existingConv = conversationsData?.find((conv) => {
+      const contactPhone = contact.phone?.replace(/[^0-9]/g, "");
+      const convPhone = conv.contact?.phone?.replace(/[^0-9]/g, "") || conv.contact?.externalId?.replace(/[^0-9]/g, "");
+      return convPhone === contactPhone && conv.channelType === "whatsapp";
+    });
+
+    if (existingConv && (existingConv.status === "open" || existingConv.status === "pending")) {
+      sessionStorage.setItem("openConversationId", String(existingConv.id));
+      navigate("/inbox");
+    } else {
+      setHelloConfirmContact(contact);
+    }
+  };
+
+  const handleSendHello = () => {
+    if (!helloConfirmContact) return;
+    const contact = helloConfirmContact;
+    setHelloConfirmContact(null);
+
+    sendExternal.mutate(
+      {
+        data: {
+          channelName: "MaxnetPlus",
+          to: contact.phone || contact.externalId || "",
+          templateName: "sapa_customer",
+          templateLanguage: "id",
+          templateParams: [contact.name || ""],
+          content: `Halo Kak ${contact.name}, Selamat Kami dari MaxnetPlus. apakah saat ini internetnya terkendala ataukah ada informasi yang bisa kami bantu ?`,
+        },
+      },
+      {
+        onSuccess: (result) => {
+          queryClient.invalidateQueries({ queryKey: ["listConversations"] });
+          const newConvId = result?.conversationId;
+          if (newConvId) {
+            sessionStorage.setItem("openConversationId", String(newConvId));
+          }
+          navigate("/inbox");
         },
       }
     );
@@ -261,25 +327,24 @@ export default function Contacts() {
               <TableHead>Contact Info</TableHead>
               <TableHead>Channel</TableHead>
               <TableHead>External ID</TableHead>
-              <TableHead className="text-right">Created</TableHead>
-              <TableHead className="w-[60px]"></TableHead>
+              <TableHead className="w-[120px]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center h-32 text-muted-foreground">Loading contacts...</TableCell>
+                <TableCell colSpan={5} className="text-center h-32 text-muted-foreground">Loading contacts...</TableCell>
               </TableRow>
             ) : filtered?.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center h-32 text-muted-foreground">
+                <TableCell colSpan={5} className="text-center h-32 text-muted-foreground">
                   {search ? `No contacts matching "${search}"` : "No contacts found"}
                 </TableCell>
               </TableRow>
             ) : (
               paginatedContacts?.map((contact) => (
-                <TableRow key={contact.id} className="hover:bg-muted/30 cursor-pointer">
-                    <TableCell className="font-medium">
+                <TableRow key={contact.id} className="hover:bg-muted/30">
+                    <TableCell className="font-medium cursor-pointer" onClick={() => handleEdit(contact)}>
                     <div className="flex items-center gap-3">
                       <Avatar className="h-8 w-8">
                         {contact.avatarUrl ? <AvatarImage src={contact.avatarUrl} alt={contact.name} /> : null}
@@ -290,7 +355,7 @@ export default function Contacts() {
                       {contact.name}
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="cursor-pointer" onClick={() => handleEdit(contact)}>
                     <div className="flex flex-col">
                       {contact.phone && <span className="text-sm">{contact.phone}</span>}
                       {contact.email && <span className="text-xs text-muted-foreground">{contact.email}</span>}
@@ -303,13 +368,23 @@ export default function Contacts() {
                   <TableCell className="text-muted-foreground text-sm font-mono truncate max-w-[150px]">
                     {contact.externalId}
                   </TableCell>
-                  <TableCell className="text-right text-muted-foreground text-sm">
-                    {new Date(contact.createdAt).toLocaleDateString()}
-                  </TableCell>
                   <TableCell>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(contact)}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      {CHANNEL_ICONS[contact.channelType] && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-primary"
+                          onClick={() => handleChannelAction(contact)}
+                          title={`Open in ${contact.channelType === "whatsapp" ? "WhatsApp" : contact.channelType === "instagram" ? "Instagram" : "Facebook"}`}
+                        >
+                          {CHANNEL_ICONS[contact.channelType]}
+                        </Button>
+                      )}
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(contact)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
@@ -372,6 +447,28 @@ export default function Contacts() {
           </Pagination>
         </div>
       )}
+
+      {/* Send Hello Confirmation Dialog */}
+      <Dialog open={helloConfirmContact !== null} onOpenChange={(open) => { if (!open) setHelloConfirmContact(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Send Hello Message</DialogTitle>
+            <DialogDescription>
+              No active conversation found with {helloConfirmContact?.name || "this contact"}.
+              Would you like to send a greeting message via WhatsApp?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 text-sm text-muted-foreground">
+            A "Hello" message will be sent using the <strong>sapa_customer</strong> template.
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setHelloConfirmContact(null)}>Cancel</Button>
+            <Button onClick={handleSendHello} disabled={sendExternal.isPending}>
+              {sendExternal.isPending ? "Sending..." : "Yes, Send Hello"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Add Contact Dialog */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
@@ -534,6 +631,11 @@ export default function Contacts() {
             <DialogDescription>Update the contact details below.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            {editContact && (
+              <div className="text-xs text-muted-foreground">
+                Created: {new Date(editContact.createdAt).toLocaleString()}
+              </div>
+            )}
             <div>
               <Label>Name</Label>
               <Input value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} />
