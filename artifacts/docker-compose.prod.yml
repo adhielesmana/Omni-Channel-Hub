@@ -54,6 +54,10 @@ services:
       PORT: 8080
       DATABASE_URL: ${DATABASE_URL}
       SESSION_SECRET: ${SESSION_SECRET}
+      EXTERNAL_API_KEY: ${EXTERNAL_API_KEY}
+      SUPERADMIN_PASSWORD: ${SUPERADMIN_PASSWORD}
+      CORS_ORIGIN: ${CORS_ORIGIN}
+      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-200}
     volumes:
       - media_data:/app/media
     healthcheck:
