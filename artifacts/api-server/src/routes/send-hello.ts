@@ -86,12 +86,13 @@ router.post("/send-hello", requireAuth, async (req, res): Promise<void> => {
 
     const content = `Halo Kak ${contact.name || contact.phone}, Selamat Kami dari MaxnetPlus. apakah saat ini internetnya terkendala ataukah ada informasi yang bisa kami bantu ?`;
 
+    const isSuperadmin = req.userId === -1;
     const [messageRecord] = await db
       .insert(messagesTable)
       .values({
         conversationId: conversation.id,
-        senderType: "agent",
-        senderId: req.userId ?? null,
+        senderType: isSuperadmin ? "system" : "agent",
+        senderId: isSuperadmin ? null : req.userId ?? null,
         direction: "outbound",
         contentType: "template",
         content,
