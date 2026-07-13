@@ -84,7 +84,19 @@ router.post("/send-hello", requireAuth, async (req, res): Promise<void> => {
     const params = [contact.name || contact.phone];
     const messageId = await sendWhatsAppTemplate(channel, contact.phone, "sapa_customer", template.language, params);
 
-    const content = `Halo Kak ${contact.name || contact.phone}, Selamat Kami dari MaxnetPlus. apakah saat ini internetnya terkendala ataukah ada informasi yang bisa kami bantu ?`;
+    let content = "";
+    if (template.components) {
+      try {
+        const comps = JSON.parse(template.components) as Array<{ type: string; text?: string }>;
+        const body = comps.find((c) => c.type === "BODY");
+        if (body?.text) {
+          content = body.text.replace(/\{\{\d+\}\}/g, () => params.shift() || "");
+        }
+      } catch { /* fall through */ }
+    }
+    if (!content) {
+      content = `Halo Kak ${contact.name || contact.phone}, Kami dari MaxnetPlus, adakah yang bisa kami bantu ?`;
+    }
 
     const isSuperadmin = req.userId === -1;
     const [messageRecord] = await db
