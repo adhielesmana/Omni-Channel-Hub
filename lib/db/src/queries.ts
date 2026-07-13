@@ -4,6 +4,23 @@ function escapeIdent(name: string): string {
   return `"${name.replace(/"/g, '""')}"`;
 }
 
+function snakeToCamel<T>(row: Record<string, any>): T {
+  const result: Record<string, any> = {};
+  for (const key of Object.keys(row)) {
+    const camelKey = key.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+    result[camelKey] = row[key];
+  }
+  return result as T;
+}
+
+function mapRows<T>(rows: any[]): T[] {
+  return rows.map((r) => snakeToCamel<T>(r));
+}
+
+function mapRow<T>(row: any | null): T | null {
+  return row ? snakeToCamel<T>(row) : null;
+}
+
 export async function selectAll<T = any>(
   table: string,
   orderBy?: { column: string; dir: "ASC" | "DESC" },
@@ -12,18 +29,18 @@ export async function selectAll<T = any>(
   if (orderBy) {
     sql += ` ORDER BY ${escapeIdent(orderBy.column)} ${orderBy.dir}`;
   }
-  return query<T>(sql);
+  return mapRows<T>(await query(sql));
 }
 
 export async function selectById<T = any>(
   table: string,
   id: number,
 ): Promise<T | null> {
-  const rows = await query<T>(
+  const rows = await query(
     `SELECT * FROM ${escapeIdent(table)} WHERE id = $1`,
     [id],
   );
-  return rows[0] ?? null;
+  return mapRow<T>(rows[0] ?? null);
 }
 
 export async function insert<T = any>(
@@ -35,8 +52,8 @@ export async function insert<T = any>(
   const placeholders = keys.map((_, i) => `$${i + 1}`);
   const cols = keys.map((k) => escapeIdent(k));
   const sql = `INSERT INTO ${escapeIdent(table)} (${cols.join(", ")}) VALUES (${placeholders.join(", ")}) RETURNING *`;
-  const rows = await query<T>(sql, values);
-  return rows[0];
+  const rows = await query(sql, values);
+  return mapRow<T>(rows[0])!;
 }
 
 export async function insertMany<T = any>(
@@ -57,7 +74,7 @@ export async function insertMany<T = any>(
     }
   }
   const sql = `INSERT INTO ${escapeIdent(table)} (${cols.join(", ")}) VALUES ${placeholders.join(", ")} RETURNING *`;
-  return query<T>(sql, rows);
+  return mapRows<T>(await query(sql, rows));
 }
 
 export async function update<T = any>(
@@ -71,19 +88,19 @@ export async function update<T = any>(
     .map((key, i) => `${escapeIdent(key)} = $${i + 1}`)
     .join(", ");
   const sql = `UPDATE ${escapeIdent(table)} SET ${setClause} WHERE id = $${keys.length + 1} RETURNING *`;
-  const rows = await query<T>(sql, [...values, id]);
-  return rows[0] ?? null;
+  const rows = await query(sql, [...values, id]);
+  return mapRow<T>(rows[0] ?? null);
 }
 
 export async function del<T = { id: number }>(
   table: string,
   id: number,
 ): Promise<T | null> {
-  const rows = await query<T>(
+  const rows = await query(
     `DELETE FROM ${escapeIdent(table)} WHERE id = $1 RETURNING *`,
     [id],
   );
-  return rows[0] ?? null;
+  return mapRow<T>(rows[0] ?? null);
 }
 
 export async function selectWhere<T = any>(
@@ -95,9 +112,11 @@ export async function selectWhere<T = any>(
   const whereClause = keys
     .map((key, i) => `${escapeIdent(key)} = $${i + 1}`)
     .join(" AND ");
-  return query<T>(
-    `SELECT * FROM ${escapeIdent(table)} WHERE ${whereClause}`,
-    values,
+  return mapRows<T>(
+    await query(
+      `SELECT * FROM ${escapeIdent(table)} WHERE ${whereClause}`,
+      values,
+    ),
   );
 }
 
@@ -105,7 +124,7 @@ export async function selectRaw<T = any>(
   sql: string,
   params?: any[],
 ): Promise<T[]> {
-  return query<T>(sql, params);
+  return mapRows<T>(await query(sql, params));
 }
 
 export async function count(
