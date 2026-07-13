@@ -110,19 +110,19 @@ router.get("/stats/conversations-by-channel", requireAuth, async (req, res): Pro
   const { start, end } = parseDateRange(req);
   const dateFilter = buildDateClause(start, end);
 
-  const rows = await selectRaw<{ channel_type: string; count: string }>(
+  const rows = await selectRaw<{ channelType: string; count: string }>(
     `SELECT channel_type, count(*)::int AS count FROM conversations WHERE 1=1 ${dateFilter.clause} GROUP BY channel_type`,
     dateFilter.params,
   );
 
-  res.json(rows.map(r => ({ channelType: r.channel_type, count: Number(r.count) })));
+  res.json(rows.map(r => ({ channelType: r.channelType, count: Number(r.count) })));
 });
 
 router.get("/stats/conversations-by-department", requireAuth, async (req, res): Promise<void> => {
   const { start, end } = parseDateRange(req);
   const dateFilter = buildDateClause(start, end);
 
-  const rows = await selectRaw<{ department_id: number | null; department_name: string | null; count: string }>(
+  const rows = await selectRaw<{ departmentId: number | null; departmentName: string | null; count: string }>(
     `SELECT c.department_id, d.name AS department_name, count(*)::int AS count
      FROM conversations c
      LEFT JOIN departments d ON c.department_id = d.id
@@ -133,8 +133,8 @@ router.get("/stats/conversations-by-department", requireAuth, async (req, res): 
 
   res.json(
     rows.map(r => ({
-      departmentId: r.department_id,
-      departmentName: r.department_name,
+      departmentId: r.departmentId,
+      departmentName: r.departmentName,
       count: Number(r.count),
     }))
   );
