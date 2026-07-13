@@ -1,8 +1,21 @@
+export type UserStatus = "admin" | "supervisor" | "agent";
+export type ChannelType = "whatsapp" | "instagram" | "facebook";
+export type MessageContentType = "text" | "image" | "video" | "audio" | "document" | "location" | "sticker" | "template" | "note";
+export type ConversationStatus = "open" | "pending" | "resolved" | "snoozed";
+export type BlastStatus = "pending" | "processing" | "completed" | "failed" | "cancelled";
+export type RecipientStatus = "queued" | "pending" | "sent" | "delivered" | "failed" | "processing";
+export type WaTemplateStatus = "APPROVED" | "PENDING" | "REJECTED" | "PAUSED" | "DISABLED";
+export type DepartmentRoutingMode = "manual" | "round_robin";
+export type Direction = "inbound" | "outbound";
+export type SenderType = "contact" | "agent" | "system";
+export type BlastSource = "manual" | "external";
+export type DeliveryStatus = "pending" | "sent" | "delivered" | "read" | "failed";
+
 export interface User {
   id: number;
   email: string;
   name: string;
-  role: "admin" | "supervisor" | "agent";
+  role: UserStatus;
   departmentId: number | null;
   avatarUrl: string | null;
   passwordHash: string | null;
@@ -15,7 +28,7 @@ export interface Department {
   id: number;
   name: string;
   description: string | null;
-  routingMode: "manual" | "round_robin";
+  routingMode: DepartmentRoutingMode;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -24,7 +37,7 @@ export interface Department {
 export interface Channel {
   id: number;
   name: string;
-  channelType: "whatsapp" | "instagram" | "facebook";
+  channelType: ChannelType;
   externalId: string | null;
   wabaId: string | null;
   phoneNumber: string | null;
@@ -42,7 +55,7 @@ export interface Contact {
   phone: string | null;
   email: string | null;
   avatarUrl: string | null;
-  channelType: "whatsapp" | "instagram" | "facebook";
+  channelType: ChannelType;
   externalId: string;
   customFields: string | null;
   createdAt: Date;
@@ -53,12 +66,12 @@ export interface Conversation {
   id: number;
   contactId: number;
   channelId: number;
-  channelType: "whatsapp" | "instagram" | "facebook";
+  channelType: ChannelType;
   phoneNumberId: string | null;
   wabaId: string | null;
   departmentId: number | null;
   assignedAgentId: number | null;
-  status: "open" | "pending" | "resolved" | "snoozed";
+  status: ConversationStatus;
   subject: string | null;
   lastMessageAt: Date | null;
   unreadCount: number;
@@ -69,10 +82,10 @@ export interface Conversation {
 export interface Message {
   id: number;
   conversationId: number;
-  senderType: "contact" | "agent" | "system";
+  senderType: SenderType;
   senderId: number | null;
-  direction: "inbound" | "outbound";
-  contentType: "text" | "image" | "video" | "audio" | "document" | "location" | "sticker" | "template" | "note";
+  direction: Direction;
+  contentType: MessageContentType;
   content: string | null;
   mediaUrl: string | null;
   mediaType: string | null;
@@ -80,7 +93,7 @@ export interface Message {
   externalMessageId: string | null;
   metadata: string | null;
   senderName: string | null;
-  deliveryStatus: "pending" | "sent" | "delivered" | "read" | "failed" | null;
+  deliveryStatus: DeliveryStatus | null;
   createdAt: Date;
 }
 
@@ -91,7 +104,7 @@ export interface WhatsappBlast {
   templateName: string;
   templateLanguage: string;
   templateParams: string | null;
-  source: "manual" | "external";
+  source: BlastSource;
   createdByUserId: number | null;
   externalApiKey: string | null;
   externalSourceIp: string | null;
@@ -102,7 +115,7 @@ export interface WhatsappBlast {
   sentCount: number;
   deliveredCount: number;
   failedCount: number;
-  status: "pending" | "processing" | "completed" | "failed" | "cancelled";
+  status: BlastStatus;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -114,7 +127,7 @@ export interface WaTemplate {
   language: string;
   category: string | null;
   channelId: number;
-  status: "APPROVED" | "PENDING" | "REJECTED" | "PAUSED" | "DISABLED";
+  status: WaTemplateStatus;
   components: string | null;
   rejectReason: string | null;
   lastSyncedAt: Date | null;
@@ -129,7 +142,7 @@ export interface WhatsappBlastRecipient {
   phone: string;
   templateParams: string | null;
   content: string | null;
-  status: "queued" | "pending" | "sent" | "delivered" | "failed" | "processing";
+  status: RecipientStatus;
   externalMessageId: string | null;
   errorMessage: string | null;
   sentAt: Date | null;

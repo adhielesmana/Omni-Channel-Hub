@@ -1,5 +1,5 @@
-import { eq, and } from "drizzle-orm";
-import { db, waTemplatesTable, channelsTable } from "@workspace/db";
+import { selectRaw, query } from "@workspace/db";
+import type { Channel, WaTemplate } from "@workspace/db";
 import { logger } from "./logger";
 
 const GRAPH_API_BASE = "https://graph.facebook.com/v18.0";
@@ -8,7 +8,6 @@ let intervalHandle: ReturnType<typeof setInterval> | null = null;
 
 export function startTemplateSyncWorker(): void {
   if (intervalHandle) return;
-
   logger.info("Starting template sync worker (checks every 60min)");
   intervalHandle = setInterval(checkMidnightSync, 60_000);
 }
@@ -21,15 +20,13 @@ export function stopTemplateSyncWorker(): void {
   }
 }
 
-// Check if it's midnight, then sync
 async function checkMidnightSync(): Promise<void> {
   const now = new Date();
   if (now.getHours() === 0 && now.getMinutes() < 5) {
     logger.info("Midnight trigger: syncing templates for all WhatsApp channels");
-    const channels = await db
-      .select()
-      .from(channelsTable)
-      .where(and(eq(channelsTable.channelType, "whatsapp"), eq(channelsTable.isActive, true)));
+    const channels = await selectRaw<Channel>(
+      `SELECT * FROM channels WHERE channel_type = 'whatsapp' AND is_active = true`,
+    );
 
     for (const channel of channels) {
       if (channel.accessToken && channel.wabaId) {
@@ -44,14 +41,14 @@ async function checkMidnightSync(): Promise<void> {
 }
 
 export async function syncTemplatesFromMeta(
-  channel: typeof channelsTable.$inferSelect,
+  channel: Channel,
 ): Promise<{ synced: number; total: number }> {
   const url = `${GRAPH_API_BASE}/${channel.wabaId}/message_templates`;
   const response = await fetch(url, {
     headers: { Authorization: `Bearer ${channel.accessToken}` },
   });
 
-  const data = await response.json() as {
+  const data = (await response.json()) as {
     data?: Array<Record<string, unknown>>;
     error?: { message?: string };
   };
@@ -72,53 +69,37 @@ export async function syncTemplatesFromMeta(
     const components = mt.components as Array<Record<string, unknown>> | undefined;
     const rejectReason = (mt as Record<string, unknown>).reject_reason as string | undefined;
 
-    const [existing] = await db
-      .select()
-      .from(waTemplatesTable)
-      .where(and(
-        eq(waTemplatesTable.metaTemplateId, templateId),
-        eq(waTemplatesTable.channelId, channel.id),
-      ));
+    const [existing] = await selectRaw<WaTemplate>(
+      `SELECT * FROM wa_templates WHERE meta_template_id = $1 AND channel_id = $2`,
+      [templateId, channel.id],
+    );
 
     if (existing) {
-      await db
-        .update(waTemplatesTable)
-        .set({
-          name,
-          language,
-          status: status as typeof waTemplatesTable.$inferSelect.status,
-          category: category ?? null,
-          components: components ? JSON.stringify(components) : null,
-          rejectReason: rejectReason ?? null,
-          lastSyncedAt: new Date(),
-        })
-        .where(eq(waTemplatesTable.id, existing.id));
+      await query(
+        `UPDATE wa_templates SET name = $1, language = $2, status = $3, category = $4, components = $5, reject_reason = $6, last_synced_at = NOW() WHERE id = $7`,
+        [name, language, status, category ?? null, components ? JSON.stringify(components) : null, rejectReason ?? null, existing.id],
+      );
     } else {
-      await db.insert(waTemplatesTable).values({
-        metaTemplateId: templateId,
-        name,
-        language,
-        status: status as typeof waTemplatesTable.$inferSelect.status,
-        category: category ?? null,
-        channelId: channel.id,
-        components: components ? JSON.stringify(components) : null,
-        rejectReason: rejectReason ?? null,
-        lastSyncedAt: new Date(),
-      });
+      await query(
+        `INSERT INTO wa_templates (meta_template_id, name, language, status, category, channel_id, components, reject_reason, last_synced_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())`,
+        [templateId, name, language, status, category ?? null, channel.id, components ? JSON.stringify(components) : null, rejectReason ?? null],
+      );
     }
     synced++;
   }
 
-  // Remove templates from local DB that no longer exist on Meta
-  const localTemplates = await db
-    .select()
-    .from(waTemplatesTable)
-    .where(eq(waTemplatesTable.channelId, channel.id));
+  const localTemplates = await selectRaw<WaTemplate>(
+    `SELECT * FROM wa_templates WHERE channel_id = $1`,
+    [channel.id],
+  );
 
   const metaIds = new Set(metaTemplates.map((mt) => mt.id as string));
   for (const local of localTemplates) {
     if (local.metaTemplateId && !metaIds.has(local.metaTemplateId)) {
-      await db.delete(waTemplatesTable).where(eq(waTemplatesTable.id, local.id));
+      await query(
+        `DELETE FROM wa_templates WHERE id = $1`,
+        [local.id],
+      );
     }
   }
 
@@ -127,7 +108,7 @@ export async function syncTemplatesFromMeta(
 }
 
 export async function deleteTemplateOnMeta(
-  channel: typeof channelsTable.$inferSelect,
+  channel: Channel,
   templateName: string,
   hsmId: string,
 ): Promise<void> {
@@ -138,7 +119,7 @@ export async function deleteTemplateOnMeta(
   });
 
   if (!response.ok) {
-    const data = await response.json().catch(() => ({})) as { error?: { message?: string } };
+    const data = (await response.json().catch(() => ({}))) as { error?: { message?: string } };
     throw new Error(data.error?.message || `Meta API error: ${response.status}`);
   }
 }

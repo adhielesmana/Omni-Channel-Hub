@@ -34,7 +34,7 @@ function getBoundary(contentType: string): string | null {
  *   const { fields, files } = await parseMultipart(req, { maxFileSize: 10 * 1024 * 1024 });
  */
 export async function parseMultipart(
-  req: IncomingMessage & { body?: Buffer },
+  req: IncomingMessage,
   options: MultipartOptions = { maxFileSize: 10 * 1024 * 1024 },
 ): Promise<MultipartParseResult> {
   const contentType = req.headers["content-type"] ?? "";
@@ -43,7 +43,7 @@ export async function parseMultipart(
     throw new Error("No valid multipart boundary found in Content-Type header");
   }
 
-  const rawBody = req.body ?? await readStream(req);
+  const rawBody = await readStream(req);
 
   const result = parseMultipartBuffer(rawBody, boundary, options.maxFileSize);
   return result;

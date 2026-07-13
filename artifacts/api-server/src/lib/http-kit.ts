@@ -48,10 +48,10 @@ interface RouteLayer {
 interface RouterInstance {
   layers: RouteLayer[];
   use: (pathOrHandler: string | Handler | RouterInstance, handler?: Handler | RouterInstance) => void;
-  get: (path: string, handler: Handler) => void;
-  post: (path: string, handler: Handler) => void;
-  patch: (path: string, handler: Handler) => void;
-  delete: (path: string, handler: Handler) => void;
+  get: (path: string, a: Handler, b?: Handler) => void;
+  post: (path: string, a: Handler, b?: Handler) => void;
+  patch: (path: string, a: Handler, b?: Handler) => void;
+  delete: (path: string, a: Handler, b?: Handler) => void;
   handle: (req: EnhancedRequest, res: EnhancedResponse, done: () => void) => void;
 }
 

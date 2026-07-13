@@ -1,20 +1,14 @@
-import { Router, type IRouter } from "express";
-import { eq, asc } from "drizzle-orm";
-import { db, messagesTable, conversationsTable, usersTable, channelsTable, contactsTable } from "@workspace/db";
-import {
-  ListMessagesResponse,
-  ListMessagesParams,
-  SendMessageParams,
-  SendMessageBody,
-} from "@workspace/api-zod";
+import { Router } from "../lib/http-kit";
+import { insert, update, selectById, selectRaw } from "@workspace/db";
+import type { User, Contact, Message, Conversation, Channel } from "@workspace/db";
 import { logger } from "../lib/logger";
 import { requireAuth } from "../middlewares/auth";
 import { canViewConversation, getAssignedAgentDepartment, loadConversationViewer } from "../lib/conversation-access";
 import { isSuperadmin } from "../lib/auth";
 
-const router: IRouter = Router();
+const router = Router();
 
-async function sendWhatsAppMessage(channel: typeof channelsTable.$inferSelect, contact: typeof contactsTable.$inferSelect, content: string): Promise<{ messageId?: string; error?: { message: string } }> {
+async function sendWhatsAppMessage(channel: Channel, contact: Contact, content: string): Promise<{ messageId?: string; error?: { message: string } }> {
   const url = `https://graph.facebook.com/v18.0/${channel.externalId}/messages`;
   const res = await fetch(url, {
     method: "POST",
@@ -38,7 +32,7 @@ async function sendWhatsAppMessage(channel: typeof channelsTable.$inferSelect, c
   return { messageId: data.messages?.[0]?.id };
 }
 
-async function sendMessengerMessage(channel: typeof channelsTable.$inferSelect, contact: typeof contactsTable.$inferSelect, content: string): Promise<{ messageId?: string; error?: { message: string } }> {
+async function sendMessengerMessage(channel: Channel, contact: Contact, content: string): Promise<{ messageId?: string; error?: { message: string } }> {
   const pageId = channel.pageId || channel.externalId;
   const psid = contact.externalId;
   if (!pageId || !psid) {
@@ -65,7 +59,7 @@ async function sendMessengerMessage(channel: typeof channelsTable.$inferSelect, 
   return { messageId: data.message_id };
 }
 
-async function sendInstagramMessage(channel: typeof channelsTable.$inferSelect, contact: typeof contactsTable.$inferSelect, content: string): Promise<{ messageId?: string; error?: { message: string } }> {
+async function sendInstagramMessage(channel: Channel, contact: Contact, content: string): Promise<{ messageId?: string; error?: { message: string } }> {
   const pageId = channel.pageId || channel.externalId;
   const igSid = contact.externalId;
   if (!pageId || !igSid) {
@@ -92,17 +86,16 @@ async function sendInstagramMessage(channel: typeof channelsTable.$inferSelect, 
   return { messageId: data.message_id };
 }
 
-const toDto = (m: typeof messagesTable.$inferSelect) => ({
+const toDto = (m: Message) => ({
   ...m,
   createdAt: m.createdAt.toISOString(),
   deliveryStatus: m.deliveryStatus ?? "pending",
 });
 
 router.get("/conversations/:conversationId/messages", requireAuth, async (req, res): Promise<void> => {
-  const raw = Array.isArray(req.params.conversationId) ? req.params.conversationId[0] : req.params.conversationId;
-  const params = ListMessagesParams.safeParse({ conversationId: parseInt(raw, 10) });
-  if (!params.success) {
-    res.status(400).json({ error: params.error.message });
+  const conversationId = parseInt(req.params.conversationId, 10);
+  if (isNaN(conversationId)) {
+    res.status(400).json({ error: "Invalid conversation ID" });
     return;
   }
 
@@ -112,14 +105,12 @@ router.get("/conversations/:conversationId/messages", requireAuth, async (req, r
     return;
   }
 
-  const [conversation] = await db
-    .select()
-    .from(conversationsTable)
-    .where(eq(conversationsTable.id, params.data.conversationId));
+  const conversation = await selectById<Conversation>("conversations", conversationId);
   if (!conversation) {
     res.status(404).json({ error: "Conversation not found" });
     return;
   }
+
   if (viewer.role !== "admin") {
     const assignedAgentDepartmentId = await getAssignedAgentDepartment(conversation.assignedAgentId);
     if (!canViewConversation(conversation, viewer, assignedAgentDepartmentId)) {
@@ -128,52 +119,59 @@ router.get("/conversations/:conversationId/messages", requireAuth, async (req, r
     }
   }
 
-  const messages = await db
-    .select()
-    .from(messagesTable)
-    .where(eq(messagesTable.conversationId, params.data.conversationId))
-    .orderBy(asc(messagesTable.createdAt));
+  const messages = await selectRaw<Message>(
+    `SELECT * FROM messages WHERE conversation_id = $1 ORDER BY created_at ASC`,
+    [conversationId],
+  );
 
-  // Enrich with sender name
   const enriched = await Promise.all(messages.map(async (m) => {
     let senderName = m.senderName;
     if (!senderName && m.senderId && m.senderType === "agent") {
-      const [user] = await db.select().from(usersTable).where(eq(usersTable.id, m.senderId));
+      const user = await selectById<User>("users", m.senderId);
       senderName = user?.name ?? null;
     }
     return { ...toDto(m), senderName };
   }));
 
-  // Mark inbound messages as read
-  await db
-    .update(messagesTable)
-    .set({ isRead: true })
-    .where(eq(messagesTable.conversationId, params.data.conversationId));
+  await selectRaw(
+    `UPDATE messages SET is_read = true WHERE conversation_id = $1`,
+    [conversationId],
+  );
 
-  // Reset unread count
-  await db
-    .update(conversationsTable)
-    .set({ unreadCount: 0 })
-    .where(eq(conversationsTable.id, params.data.conversationId));
+  await selectRaw(
+    `UPDATE conversations SET unread_count = 0 WHERE id = $1`,
+    [conversationId],
+  );
 
-  res.json(ListMessagesResponse.parse(enriched));
+  res.json(enriched);
 });
 
 router.post("/conversations/:conversationId/messages", requireAuth, async (req, res): Promise<void> => {
-  const rawId = Array.isArray(req.params.conversationId) ? req.params.conversationId[0] : req.params.conversationId;
-  const params = SendMessageParams.safeParse({ conversationId: parseInt(rawId, 10) });
-  if (!params.success) {
-    res.status(400).json({ error: params.error.message });
+  const conversationId = parseInt(req.params.conversationId, 10);
+  if (isNaN(conversationId)) {
+    res.status(400).json({ error: "Invalid conversation ID" });
     return;
   }
 
-  const parsed = SendMessageBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
+  const body = (req.body as Record<string, unknown>) ?? {};
+  const errors: string[] = [];
+
+  const contentType = body.contentType as string;
+  const validContentTypes = ["text", "image", "video", "audio", "document", "location", "sticker", "template", "note"];
+  if (typeof contentType !== "string" || !validContentTypes.includes(contentType)) {
+    errors.push("contentType must be one of: text, image, video, audio, document, location, sticker, template, note");
+  }
+
+  if (errors.length > 0) {
+    res.status(400).json({ error: errors.join("; ") });
     return;
   }
 
-  const { contentType, content, mediaUrl, mediaType, senderName: bodySenderName } = parsed.data;
+  const content = body.content as string | undefined;
+  const mediaUrl = body.mediaUrl as string | undefined;
+  const mediaType = body.mediaType as string | undefined;
+  const bodySenderName = body.senderName as string | undefined;
+
   const isNote = contentType === "note";
   const effectiveSenderId = req.userId!;
   const viewer = await loadConversationViewer(effectiveSenderId);
@@ -182,10 +180,7 @@ router.post("/conversations/:conversationId/messages", requireAuth, async (req, 
     return;
   }
 
-  const [conv] = await db
-    .select()
-    .from(conversationsTable)
-    .where(eq(conversationsTable.id, params.data.conversationId));
+  const conv = await selectById<Conversation>("conversations", conversationId);
   if (!conv) {
     res.status(404).json({ error: "Conversation not found" });
     return;
@@ -197,74 +192,68 @@ router.post("/conversations/:conversationId/messages", requireAuth, async (req, 
     return;
   }
 
-  // Resolve sender name: prefer body value, then lookup from DB
   let senderName: string | null = bodySenderName ?? null;
   if (!senderName) {
-    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, effectiveSenderId));
+    const user = await selectById<User>("users", effectiveSenderId);
     senderName = user?.name ?? null;
   }
 
-  let [message] = await db.insert(messagesTable).values({
-    conversationId: params.data.conversationId,
-    senderType: "agent",
-    senderId: effectiveSenderId,
+  let message = await insert<Message>("messages", {
+    conversation_id: conversationId,
+    sender_type: "agent",
+    sender_id: effectiveSenderId,
     direction: "outbound",
-    contentType,
+    content_type: contentType,
     content: content ?? null,
-    mediaUrl: mediaUrl ?? null,
-    mediaType: mediaType ?? null,
-    isRead: false,
-    senderName,
-  }).returning();
+    media_url: mediaUrl ?? null,
+    media_type: mediaType ?? null,
+    is_read: false,
+    sender_name: senderName,
+  });
 
   if (conv) {
-    const updateFields: Record<string, unknown> = { lastMessageAt: new Date(), updatedAt: new Date() };
+    const updateFields: Record<string, unknown> = { last_message_at: new Date() };
 
     if (!isSuperadmin(effectiveSenderId)) {
-      updateFields["assignedAgentId"] = effectiveSenderId;
+      updateFields["assigned_agent_id"] = effectiveSenderId;
     }
 
     if (!conv.departmentId && viewer.role !== "admin") {
-      const [agentUser] = await db
-        .select({ departmentId: usersTable.departmentId })
-        .from(usersTable)
-        .where(eq(usersTable.id, effectiveSenderId));
+      const [agentUser] = await selectRaw<{ departmentId: number | null }>(
+        `SELECT department_id AS "departmentId" FROM users WHERE id = $1`,
+        [effectiveSenderId],
+      );
       if (agentUser?.departmentId) {
-        updateFields["departmentId"] = agentUser.departmentId;
+        updateFields["department_id"] = agentUser.departmentId;
       }
     }
 
-    await db
-      .update(conversationsTable)
-      .set(updateFields)
-      .where(eq(conversationsTable.id, params.data.conversationId));
+    await update<Conversation>("conversations", conversationId, updateFields);
   }
 
-  // Return response immediately — channel send is async
   res.status(201).json({ ...toDto(message), senderName });
 
-  // Send to channel API (skip for notes and non-text for now)
   if (!isNote && contentType === "text" && content) {
     (async () => {
       try {
-        const [channel] = await db
-          .select()
-          .from(channelsTable)
-          .where(eq(channelsTable.id, conv.channelId));
-        const [contact] = await db
-          .select()
-          .from(contactsTable)
-          .where(eq(contactsTable.id, conv.contactId));
+        const [channel] = await selectRaw<Channel>(
+          `SELECT * FROM channels WHERE id = $1`,
+          [conv.channelId],
+        );
+        const [contact] = await selectRaw<Contact>(
+          `SELECT * FROM contacts WHERE id = $1`,
+          [conv.contactId],
+        );
 
         if (!contact) {
           logger.warn({ messageId: message.id }, "Contact not found for send");
-          await db.update(messagesTable).set({ deliveryStatus: "failed" }).where(eq(messagesTable.id, message.id));
+          await update<Message>("messages", message.id, { delivery_status: "failed" });
           return;
         }
 
         if (!channel || !channel.accessToken || !channel.externalId) {
           logger.warn({ messageId: message.id, channelId: conv.channelId }, "Conversation channel is missing send configuration");
-          await db.update(messagesTable).set({ deliveryStatus: "failed" }).where(eq(messagesTable.id, message.id));
+          await update<Message>("messages", message.id, { delivery_status: "failed" });
           return;
         }
 
@@ -284,24 +273,18 @@ router.post("/conversations/:conversationId/messages", requireAuth, async (req, 
         }
 
         if (sendResult.messageId) {
-          await db
-            .update(messagesTable)
-            .set({ externalMessageId: sendResult.messageId, deliveryStatus: "sent" })
-            .where(eq(messagesTable.id, message.id));
+          await update<Message>("messages", message.id, {
+            external_message_id: sendResult.messageId,
+            delivery_status: "sent",
+          });
           logger.info({ messageId: message.id, channelId: channel.id, channelName: channel.name, waId: sendResult.messageId }, "Message sent via channel");
         } else {
           logger.warn({ messageId: message.id, channelId: channel.id, channelName: channel.name }, "Channel failed to send");
-          await db
-            .update(messagesTable)
-            .set({ deliveryStatus: "failed" })
-            .where(eq(messagesTable.id, message.id));
+          await update<Message>("messages", message.id, { delivery_status: "failed" });
         }
       } catch (err) {
         logger.error({ err, messageId: message.id, channelId: conv.channelId }, "Failed to send channel message");
-        await db
-          .update(messagesTable)
-          .set({ deliveryStatus: "failed" })
-          .where(eq(messagesTable.id, message.id));
+        await update<Message>("messages", message.id, { delivery_status: "failed" });
       }
     })();
   }

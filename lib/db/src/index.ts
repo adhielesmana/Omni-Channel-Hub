@@ -1,3 +1,7 @@
+import { drizzle } from "drizzle-orm/node-postgres";
+import * as schema from "./schema";
+import { pool } from "./client";
+
 export { pool, query } from "./client";
 export {
   selectAll,
@@ -10,14 +14,7 @@ export {
   selectRaw,
   count,
 } from "./queries";
-export type {
-  User,
-  Department,
-  Channel,
-  Contact,
-  Conversation,
-  Message,
-  WhatsappBlast,
-  WaTemplate,
-  WhatsappBlastRecipient,
-} from "./schema";
+
+export const db = drizzle(pool, { schema });
+
+export * from "./schema";
