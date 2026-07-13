@@ -1,16 +1,7 @@
-import type { Request, Response, NextFunction } from "express";
+import type { EnhancedRequest, EnhancedResponse } from "../lib/http-kit";
 import { logger } from "../lib/logger";
 
-declare global {
-  namespace Express {
-    interface Request {
-      externalApiKey?: string;
-      externalSourceIp?: string;
-    }
-  }
-}
-
-export function requireApiKey(req: Request, res: Response, next: NextFunction): void {
+export function requireApiKey(req: EnhancedRequest, res: EnhancedResponse, next: () => void): void {
   const apiKey = req.headers["x-api-key"] as string | undefined;
   const expectedKey = process.env.EXTERNAL_API_KEY;
 

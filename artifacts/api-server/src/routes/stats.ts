@@ -1,18 +1,11 @@
-import { Router, type IRouter } from "express";
-import { eq, count, sql, and } from "drizzle-orm";
-import { db, conversationsTable, contactsTable, usersTable, departmentsTable } from "@workspace/db";
-import {
-  GetStatsOverviewResponse,
-  GetConversationsByChannelResponse,
-  GetConversationsByDepartmentResponse,
-  GetAgentWorkloadResponse,
-  GetStatsPeriodsResponse,
-} from "@workspace/api-zod";
+import { Router } from "../lib/http-kit";
+import { selectRaw, count, selectAll, selectWhere } from "@workspace/db";
+import type { User } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
 
-const router: IRouter = Router();
+const router = Router();
 
-function parseDateRange(req: { query: Record<string, unknown> }): { start?: string; end?: string } {
+function parseDateRange(req: { query: Record<string, string | string[]> }): { start?: string; end?: string } {
   const startDate = req.query.startDate as string | undefined;
   const endDate = req.query.endDate as string | undefined;
   return { start: startDate, end: endDate };
@@ -46,7 +39,7 @@ function getPeriods(): { label: string; startDate: string; endDate: string }[] {
     const end = new Date(year, month - i, 25, 23, 59, 59, 999);
     const label = start.toLocaleDateString("en-US", { month: "short", year: "numeric" });
     periods.push({
-      label: `${label} (26–25)`,
+      label: `${label} (26\u201325)`,
       startDate: start.toISOString().split("T")[0],
       endDate: end.toISOString().split("T")[0],
     });
@@ -54,124 +47,124 @@ function getPeriods(): { label: string; startDate: string; endDate: string }[] {
   return periods;
 }
 
-// Build a date-filter condition using raw SQL for PostgreSQL timestamps
-function buildDateFilter(start?: string, end?: string) {
-  const conditions: ReturnType<typeof sql>[] = [];
+function buildDateClause(start?: string, end?: string): { clause: string; params: unknown[] } {
+  const conditions: string[] = [];
+  const params: unknown[] = [];
   if (start) {
-    conditions.push(sql`${conversationsTable.createdAt} >= ${start + "T00:00:00Z"}::timestamptz`);
+    params.push(`${start}T00:00:00Z`);
+    conditions.push(`created_at >= $${params.length}::timestamptz`);
   }
   if (end) {
-    conditions.push(sql`${conversationsTable.createdAt} <= ${end + "T23:59:59.999Z"}::timestamptz`);
+    params.push(`${end}T23:59:59.999Z`);
+    conditions.push(`created_at <= $${params.length}::timestamptz`);
   }
-  return conditions;
+  return { clause: conditions.length > 0 ? `AND ${conditions.join(" AND ")}` : "", params };
 }
 
 router.get("/stats/overview", requireAuth, async (req, res): Promise<void> => {
   const { start, end } = parseDateRange(req);
-  const dateConditions = buildDateFilter(start, end);
+  const dateFilter = buildDateClause(start, end);
 
-  let baseFilter: ReturnType<typeof and> | undefined = undefined;
-  if (dateConditions.length) {
-    baseFilter = dateConditions.length === 1
-      ? dateConditions[0]!
-      : and(dateConditions[0]!, dateConditions[1]!);
-  }
-
-  const totalConvs = baseFilter
-    ? await db.select({ count: count() }).from(conversationsTable).where(baseFilter)
-    : await db.select({ count: count() }).from(conversationsTable);
-  const openConvs = baseFilter
-    ? await db.select({ count: count() }).from(conversationsTable).where(and(baseFilter, eq(conversationsTable.status, "open")))
-    : await db.select({ count: count() }).from(conversationsTable).where(eq(conversationsTable.status, "open"));
-  const pendingConvs = baseFilter
-    ? await db.select({ count: count() }).from(conversationsTable).where(and(baseFilter, eq(conversationsTable.status, "pending")))
-    : await db.select({ count: count() }).from(conversationsTable).where(eq(conversationsTable.status, "pending"));
-  const resolvedConvs = baseFilter
-    ? await db.select({ count: count() }).from(conversationsTable).where(and(baseFilter, eq(conversationsTable.status, "resolved")))
-    : await db.select({ count: count() }).from(conversationsTable).where(eq(conversationsTable.status, "resolved"));
-  const [totalAgents] = await db.select({ count: count() }).from(usersTable).where(eq(usersTable.role, "agent"));
-  const unassigned = baseFilter
-    ? await db.select({ count: count() }).from(conversationsTable)
-        .where(and(baseFilter, sql`${conversationsTable.assignedAgentId} IS NULL AND ${conversationsTable.status} = 'open'`))
-    : await db.select({ count: count() }).from(conversationsTable)
-        .where(sql`${conversationsTable.assignedAgentId} IS NULL AND ${conversationsTable.status} = 'open'`);
-
-  const totalContacts = await db.select({ count: count() }).from(contactsTable);
+  const totalConvsRows = await selectRaw<{ count: string }>(
+    `SELECT count(*)::int AS count FROM conversations WHERE 1=1 ${dateFilter.clause}`,
+    dateFilter.params,
+  );
+  const openRows = await selectRaw<{ count: string }>(
+    `SELECT count(*)::int AS count FROM conversations WHERE status = 'open' ${dateFilter.clause}`,
+    dateFilter.params,
+  );
+  const pendingRows = await selectRaw<{ count: string }>(
+    `SELECT count(*)::int AS count FROM conversations WHERE status = 'pending' ${dateFilter.clause}`,
+    dateFilter.params,
+  );
+  const resolvedRows = await selectRaw<{ count: string }>(
+    `SELECT count(*)::int AS count FROM conversations WHERE status = 'resolved' ${dateFilter.clause}`,
+    dateFilter.params,
+  );
+  const [totalAgents] = await selectRaw<{ count: string }>(
+    "SELECT count(*)::int AS count FROM users WHERE role = 'agent'",
+  );
+  const unassignedRows = await selectRaw<{ count: string }>(
+    `SELECT count(*)::int AS count FROM conversations WHERE assigned_agent_id IS NULL AND status = 'open' ${dateFilter.clause}`,
+    dateFilter.params,
+  );
+  const totalContactsRows = await selectRaw<{ count: string }>(
+    "SELECT count(*)::int AS count FROM contacts",
+  );
 
   const overview = {
-    totalConversations: Number(totalConvs[0]?.count ?? 0),
-    openConversations: Number(openConvs[0]?.count ?? 0),
-    pendingConversations: Number(pendingConvs[0]?.count ?? 0),
-    resolvedConversations: Number(resolvedConvs[0]?.count ?? 0),
-    totalContacts: Number(totalContacts[0]?.count ?? 0),
+    totalConversations: Number(totalConvsRows[0]?.count ?? 0),
+    openConversations: Number(openRows[0]?.count ?? 0),
+    pendingConversations: Number(pendingRows[0]?.count ?? 0),
+    resolvedConversations: Number(resolvedRows[0]?.count ?? 0),
+    totalContacts: Number(totalContactsRows[0]?.count ?? 0),
     totalAgents: Number(totalAgents?.count ?? 0),
     avgResponseTime: 4.2,
-    unassignedConversations: Number(unassigned[0]?.count ?? 0),
+    unassignedConversations: Number(unassignedRows[0]?.count ?? 0),
   };
 
-  res.json(GetStatsOverviewResponse.parse(overview));
+  res.json(overview);
 });
 
 router.get("/stats/conversations-by-channel", requireAuth, async (req, res): Promise<void> => {
   const { start, end } = parseDateRange(req);
-  const dateConditions = buildDateFilter(start, end);
+  const dateFilter = buildDateClause(start, end);
 
-  let filter = dateConditions.length ? (dateConditions.length === 1 ? dateConditions[0]! : and(dateConditions[0]!, dateConditions[1]!)) : undefined;
+  const rows = await selectRaw<{ channel_type: string; count: string }>(
+    `SELECT channel_type, count(*)::int AS count FROM conversations WHERE 1=1 ${dateFilter.clause} GROUP BY channel_type`,
+    dateFilter.params,
+  );
 
-  const rows = filter
-    ? await db.select({ channelType: conversationsTable.channelType, count: count() })
-        .from(conversationsTable).where(filter).groupBy(conversationsTable.channelType)
-    : await db.select({ channelType: conversationsTable.channelType, count: count() })
-        .from(conversationsTable).groupBy(conversationsTable.channelType);
-
-  res.json(GetConversationsByChannelResponse.parse(rows.map(r => ({ channelType: r.channelType, count: Number(r.count) }))));
+  res.json(rows.map(r => ({ channelType: r.channel_type, count: Number(r.count) })));
 });
 
 router.get("/stats/conversations-by-department", requireAuth, async (req, res): Promise<void> => {
   const { start, end } = parseDateRange(req);
-  const dateConditions = buildDateFilter(start, end);
+  const dateFilter = buildDateClause(start, end);
 
-  const query = db.select({
-    departmentId: conversationsTable.departmentId,
-    departmentName: departmentsTable.name,
-    count: count(),
-  }).from(conversationsTable).innerJoin(departmentsTable, eq(conversationsTable.departmentId, departmentsTable.id))
-    .groupBy(conversationsTable.departmentId, departmentsTable.name);
+  const rows = await selectRaw<{ department_id: number | null; department_name: string | null; count: string }>(
+    `SELECT c.department_id, d.name AS department_name, count(*)::int AS count
+     FROM conversations c
+     LEFT JOIN departments d ON c.department_id = d.id
+     WHERE 1=1 ${dateFilter.clause}
+     GROUP BY c.department_id, d.name`,
+    dateFilter.params,
+  );
 
-  const rows = dateConditions.length
-    ? await query.where(dateConditions.length === 1 ? dateConditions[0]! : and(dateConditions[0]!, dateConditions[1]!))
-    : await query;
-
-  res.json(GetConversationsByDepartmentResponse.parse(
+  res.json(
     rows.map(r => ({
-      departmentId: r.departmentId!,
-      departmentName: r.departmentName,
+      departmentId: r.department_id,
+      departmentName: r.department_name,
       count: Number(r.count),
     }))
-  ));
+  );
 });
 
 router.get("/stats/agent-workload", requireAuth, async (req, res): Promise<void> => {
   const { start, end } = parseDateRange(req);
 
-  const agents = await db.select().from(usersTable).where(eq(usersTable.role, "agent"));
+  const agents = await selectWhere<User>("users", { role: "agent" });
 
   const workload = await Promise.all(agents.map(async (agent) => {
-    // Open count: always current open count assigned to agent (not date-filtered)
-    const [open] = await db.select({ count: count() }).from(conversationsTable)
-      .where(sql`${conversationsTable.assignedAgentId} = ${agent.id} AND ${conversationsTable.status} = 'open'`);
+    const [open] = await selectRaw<{ count: string }>(
+      "SELECT count(*)::int AS count FROM conversations WHERE assigned_agent_id = $1 AND status = 'open'",
+      [agent.id],
+    );
 
-    // Resolved count: conversations resolved during the period
     let resolvedCount = 0;
     if (start && end) {
-      const startTs = start + "T00:00:00Z";
-      const endTs = end + "T23:59:59.999Z";
-      const [resolved] = await db.select({ count: count() }).from(conversationsTable)
-        .where(sql`${conversationsTable.assignedAgentId} = ${agent.id} AND ${conversationsTable.status} = 'resolved' AND ${conversationsTable.updatedAt} >= ${startTs}::timestamptz AND ${conversationsTable.updatedAt} <= ${endTs}::timestamptz`);
+      const [resolved] = await selectRaw<{ count: string }>(
+        `SELECT count(*)::int AS count FROM conversations
+         WHERE assigned_agent_id = $1 AND status = 'resolved'
+         AND updated_at >= $2::timestamptz AND updated_at <= $3::timestamptz`,
+        [agent.id, `${start}T00:00:00Z`, `${end}T23:59:59.999Z`],
+      );
       resolvedCount = Number(resolved?.count ?? 0);
     } else {
-      const [resolved] = await db.select({ count: count() }).from(conversationsTable)
-        .where(sql`${conversationsTable.assignedAgentId} = ${agent.id} AND ${conversationsTable.status} = 'resolved'`);
+      const [resolved] = await selectRaw<{ count: string }>(
+        "SELECT count(*)::int AS count FROM conversations WHERE assigned_agent_id = $1 AND status = 'resolved'",
+        [agent.id],
+      );
       resolvedCount = Number(resolved?.count ?? 0);
     }
 
@@ -184,11 +177,11 @@ router.get("/stats/agent-workload", requireAuth, async (req, res): Promise<void>
     };
   }));
 
-  res.json(GetAgentWorkloadResponse.parse(workload));
+  res.json(workload);
 });
 
 router.get("/stats/periods", requireAuth, async (_req, res): Promise<void> => {
-  res.json(GetStatsPeriodsResponse.parse(getPeriods()));
+  res.json(getPeriods());
 });
 
 export default router;

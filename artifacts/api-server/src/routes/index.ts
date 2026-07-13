@@ -1,4 +1,4 @@
-import { Router, type IRouter } from "express";
+import { Router } from "../lib/http-kit";
 import healthRouter from "./health";
 import authRouter from "./auth";
 import usersRouter from "./users";
@@ -16,7 +16,7 @@ import externalSendRouter from "./external-send";
 import sendHelloRouter from "./send-hello";
 import outboxRouter from "./outbox";
 
-const router: IRouter = Router();
+const router = Router();
 
 router.use(healthRouter);
 router.use(authRouter);

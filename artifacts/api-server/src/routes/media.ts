@@ -1,49 +1,50 @@
-import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
-import multer from "multer";
+import { Router } from "../lib/http-kit";
 import { randomUUID } from "node:crypto";
 import { requireAuth } from "../middlewares/auth";
 import { uploadToR2 } from "../lib/r2";
 import { optimizeImage } from "../lib/media-optimizer";
-import { MEDIA_DIR } from "../lib/whatsapp-media";
+import { parseMultipart } from "../lib/multipart";
 import { promises as fs } from "fs";
 import path from "path";
 
-const router: IRouter = Router();
+const router = Router();
 
 const ALLOWED_MIMES = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
 
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => {
-    const allowed = [".jpg", ".jpeg", ".png", ".gif", ".webp"];
-    const ext = path.extname(file.originalname).toLowerCase();
-    if (!allowed.includes(ext)) {
-      cb(new Error("Only image files (jpg, png, gif, webp) are allowed"));
-      return;
-    }
-    if (!ALLOWED_MIMES.has(file.mimetype)) {
-      cb(new Error("Invalid file type: MIME type not allowed"));
-      return;
-    }
-    cb(null, true);
-  },
-});
+router.post("/upload", requireAuth, async (req, res): Promise<void> => {
+  let files: Array<{ fieldname: string; originalname: string; mimetype: string; buffer: Buffer; size: number }>;
+  try {
+    const result = await parseMultipart(req, { maxFileSize: 10 * 1024 * 1024 });
+    files = result.files;
+  } catch (err) {
+    res.status(400).json({ error: "Failed to parse multipart upload" });
+    return;
+  }
 
-router.post("/upload", requireAuth, upload.single("file"), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  if (!req.file) {
+  if (!files || files.length === 0) {
     res.status(400).json({ error: "No file provided" });
     return;
   }
 
-  const ext = path.extname(req.file.originalname).toLowerCase();
+  const file = files[0];
+  const ext = path.extname(file.originalname).toLowerCase();
+  if (![".jpg", ".jpeg", ".png", ".gif", ".webp"].includes(ext)) {
+    res.status(400).json({ error: "Only image files (jpg, png, gif, webp) are allowed" });
+    return;
+  }
+  if (!ALLOWED_MIMES.has(file.mimetype)) {
+    res.status(400).json({ error: "Invalid file type: MIME type not allowed" });
+    return;
+  }
+
   const filename = `${randomUUID()}${ext}`;
 
   try {
-    const { buffer, mimeType } = await optimizeImage(req.file.buffer, req.file.mimetype);
+    const { buffer, mimeType } = await optimizeImage(file.buffer, file.mimetype);
 
     const uploaded = await uploadToR2(filename, buffer, mimeType);
     if (!uploaded) {
+      const MEDIA_DIR = process.env["MEDIA_DIR"] || "./media";
       const filepath = path.join(MEDIA_DIR, filename);
       await fs.mkdir(MEDIA_DIR, { recursive: true });
       await fs.writeFile(filepath, Buffer.from(buffer));
@@ -51,7 +52,8 @@ router.post("/upload", requireAuth, upload.single("file"), async (req: Request, 
 
     res.json({ url: `/api/media/${filename}` });
   } catch (err) {
-    next(err);
+    req.log.error({ err }, "Upload error");
+    res.status(500).json({ error: "Upload failed" });
   }
 });
 

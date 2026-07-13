@@ -1,5 +1,5 @@
-import { eq, inArray } from "drizzle-orm";
-import { db, conversationsTable, usersTable, type Conversation, type User } from "@workspace/db";
+import { selectById, selectRaw } from "@workspace/db";
+import type { User } from "@workspace/db";
 import { isSuperadmin } from "./auth";
 
 export type ConversationViewer = Pick<User, "id" | "role" | "departmentId">;
@@ -9,27 +9,15 @@ export async function loadConversationViewer(userId: number): Promise<Conversati
     return { id: userId, role: "admin", departmentId: null };
   }
 
-  const [user] = await db
-    .select({
-      id: usersTable.id,
-      role: usersTable.role,
-      departmentId: usersTable.departmentId,
-    })
-    .from(usersTable)
-    .where(eq(usersTable.id, userId));
-
-  return user ?? null;
+  const user = await selectById<User>("users", userId);
+  if (!user) return null;
+  return { id: user.id, role: user.role, departmentId: user.departmentId };
 }
 
 export async function getAssignedAgentDepartment(assignedAgentId: number | null | undefined): Promise<number | null> {
   if (!assignedAgentId) return null;
-
-  const [agent] = await db
-    .select({ departmentId: usersTable.departmentId })
-    .from(usersTable)
-    .where(eq(usersTable.id, assignedAgentId));
-
-  return agent?.departmentId ?? null;
+  const user = await selectById<User>("users", assignedAgentId);
+  return user?.departmentId ?? null;
 }
 
 export async function getAssignedAgentDepartmentMap(assignedAgentIds: number[]): Promise<Map<number, number | null>> {
@@ -37,19 +25,16 @@ export async function getAssignedAgentDepartmentMap(assignedAgentIds: number[]):
     return new Map();
   }
 
-  const agents = await db
-    .select({
-      id: usersTable.id,
-      departmentId: usersTable.departmentId,
-    })
-    .from(usersTable)
-    .where(inArray(usersTable.id, assignedAgentIds));
+  const agents = await selectRaw<Pick<User, "id" | "departmentId">>(
+    `SELECT id, department_id AS "departmentId" FROM users WHERE id = ANY($1)`,
+    [assignedAgentIds],
+  );
 
   return new Map(agents.map((agent) => [agent.id, agent.departmentId ?? null]));
 }
 
 export function canViewConversation(
-  conversation: Pick<Conversation, "assignedAgentId" | "departmentId">,
+  conversation: { assignedAgentId: number | null; departmentId: number | null },
   viewer: ConversationViewer,
   assignedAgentDepartmentId: number | null = null,
 ): boolean {

@@ -1,4 +1,4 @@
-import app from "./app";
+import server from "./app";
 import { logger } from "./lib/logger";
 import { startBlastWorker } from "./lib/blast-worker";
 import { startTemplateSyncWorker } from "./lib/template-sync-worker";
@@ -17,12 +17,7 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-app.listen(port, (err) => {
-  if (err) {
-    logger.error({ err }, "Error listening on port");
-    process.exit(1);
-  }
-
+server.listen(port, () => {
   logger.info({ port }, "Server listening");
   startBlastWorker();
   startTemplateSyncWorker();

@@ -1,37 +1,37 @@
-import { Router, type IRouter } from "express";
-import rateLimit from "express-rate-limit";
-import { eq } from "drizzle-orm";
-import { db, usersTable } from "@workspace/db";
-import { LoginBody, LoginResponse, ChangePasswordBody } from "@workspace/api-zod";
+import { Router } from "../lib/http-kit";
+import { selectWhere, selectById, update } from "@workspace/db";
+import type { User } from "@workspace/db";
 import { comparePassword, hashPassword, createToken, invalidateToken, SUPERADMIN, isSuperadmin } from "../lib/auth";
 import { requireAuth } from "../middlewares/auth";
+import { createRateLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 
-const authRateLimit = rateLimit({
-  windowMs: 60_000,
-  max: 10,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "Too many login attempts, please try again later" },
-});
+const authRateLimit = createRateLimiter({ windowMs: 60_000, max: 10 });
 
-const router: IRouter = Router();
+const router = Router();
 
 const SUPERADMIN_PASSWORD = process.env.SUPERADMIN_PASSWORD;
 if (!SUPERADMIN_PASSWORD) {
-  logger.warn("SUPERADMIN_PASSWORD not set — superadmin login will fail");
+  logger.warn("SUPERADMIN_PASSWORD not set \u2014 superadmin login will fail");
 }
 
 router.post("/auth/login", authRateLimit, async (req, res): Promise<void> => {
-  const parsed = LoginBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
+  const body = (req.body as Record<string, unknown>) ?? {};
+  const email = body.email;
+  const password = body.password;
+
+  if (typeof email !== "string" || email.trim().length === 0) {
+    res.status(400).json({ error: "Email is required" });
+    return;
+  }
+  if (typeof password !== "string" || password.length === 0) {
+    res.status(400).json({ error: "Password is required" });
     return;
   }
 
-  const { email, password } = parsed.data;
+  const normalizedEmail = email.toLowerCase().trim();
 
-  if (email.toLowerCase().trim() === SUPERADMIN.email) {
+  if (normalizedEmail === SUPERADMIN.email) {
     if (!SUPERADMIN_PASSWORD || password !== SUPERADMIN_PASSWORD) {
       res.status(401).json({ error: "Invalid email or password" });
       return;
@@ -44,7 +44,8 @@ router.post("/auth/login", authRateLimit, async (req, res): Promise<void> => {
     return;
   }
 
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email.toLowerCase().trim()));
+  const users = await selectWhere<User>("users", { email: normalizedEmail });
+  const user = users[0] ?? null;
   if (!user || !user.passwordHash) {
     res.status(401).json({ error: "Invalid email or password" });
     return;
@@ -57,10 +58,10 @@ router.post("/auth/login", authRateLimit, async (req, res): Promise<void> => {
   }
 
   const token = createToken(user.id);
-  res.json(LoginResponse.parse({
+  res.json({
     token,
     user: { ...user, createdAt: user.createdAt.toISOString() },
-  }));
+  });
 });
 
 router.post("/auth/logout", requireAuth, async (req, res): Promise<void> => {
@@ -77,14 +78,20 @@ router.post("/auth/change-password", requireAuth, async (req, res): Promise<void
     return;
   }
 
-  const parsed = ChangePasswordBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
+  const body = (req.body as Record<string, unknown>) ?? {};
+  const currentPassword = body.currentPassword;
+  const newPassword = body.newPassword;
+
+  if (typeof currentPassword !== "string" || currentPassword.length === 0) {
+    res.status(400).json({ error: "Current password is required" });
+    return;
+  }
+  if (typeof newPassword !== "string" || newPassword.length < 8) {
+    res.status(400).json({ error: "New password must be at least 8 characters" });
     return;
   }
 
-  const { currentPassword, newPassword } = parsed.data;
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, req.userId!));
+  const user = await selectById<User>("users", req.userId!);
   if (!user || !user.passwordHash) {
     res.status(401).json({ error: "Invalid current password" });
     return;
@@ -97,7 +104,7 @@ router.post("/auth/change-password", requireAuth, async (req, res): Promise<void
   }
 
   const newHash = await hashPassword(newPassword);
-  await db.update(usersTable).set({ passwordHash: newHash }).where(eq(usersTable.id, req.userId!));
+  await update("users", req.userId!, { passwordHash: newHash });
   res.json({ status: "ok" });
 });
 

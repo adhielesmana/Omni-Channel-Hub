@@ -1,97 +1,148 @@
-import { Router, type IRouter } from "express";
-import { eq, count } from "drizzle-orm";
-import { db, departmentsTable, usersTable } from "@workspace/db";
-import {
-  ListDepartmentsResponse,
-  CreateDepartmentBody,
-  GetDepartmentParams,
-  GetDepartmentResponse,
-  UpdateDepartmentParams,
-  UpdateDepartmentBody,
-  UpdateDepartmentResponse,
-  DeleteDepartmentParams,
-} from "@workspace/api-zod";
+import { Router } from "../lib/http-kit";
+import { selectAll, selectById, insert, update, del, count, selectRaw } from "@workspace/db";
+import type { Department } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
 
-const router: IRouter = Router();
+const router = Router();
 
-router.get("/departments", requireAuth, async (req, res): Promise<void> => {
-  const departments = await db.select().from(departmentsTable).orderBy(departmentsTable.createdAt);
+const VALID_ROUTING_MODES = ["manual", "round_robin"] as const;
 
-  const memberCounts = await db
-    .select({ departmentId: usersTable.departmentId, count: count() })
-    .from(usersTable)
-    .groupBy(usersTable.departmentId);
+router.get("/departments", requireAuth, async (_req, res): Promise<void> => {
+  const departments = await selectAll<Department>("departments", { column: "created_at", dir: "ASC" });
 
-  const countMap = new Map(memberCounts.map(r => [r.departmentId, Number(r.count)]));
+  const memberCounts = await selectRaw<{ department_id: number; count: number }>(
+    "SELECT department_id, count(*)::int AS count FROM users WHERE department_id IS NOT NULL GROUP BY department_id",
+  );
+  const countMap = new Map(memberCounts.map((r) => [r.department_id, r.count]));
 
-  const result = departments.map(d => ({
+  const result = departments.map((d) => ({
     ...d,
     memberCount: countMap.get(d.id) ?? 0,
     createdAt: d.createdAt.toISOString(),
   }));
 
-  res.json(ListDepartmentsResponse.parse(result));
+  res.json(result);
 });
 
 router.post("/departments", requireAuth, async (req, res): Promise<void> => {
-  const parsed = CreateDepartmentBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
+  const body = (req.body as Record<string, unknown>) ?? {};
+
+  const errors: string[] = [];
+  const name = body.name;
+  if (typeof name !== "string" || name.trim().length === 0) {
+    errors.push("Name is required");
+  }
+  const routingMode = body.routingMode ?? "manual";
+  if (typeof routingMode !== "string" || !VALID_ROUTING_MODES.includes(routingMode as any)) {
+    errors.push("Routing mode must be one of: manual, round_robin");
+  }
+  const description = typeof body.description === "string" ? (body.description as string).trim() || null : null;
+  const isActive = typeof body.isActive === "boolean" ? body.isActive : true;
+
+  if (errors.length > 0) {
+    res.status(400).json({ error: errors.join("; ") });
     return;
   }
-  const [dept] = await db.insert(departmentsTable).values(parsed.data).returning();
-  res.status(201).json(GetDepartmentResponse.parse({ ...dept, memberCount: 0, createdAt: dept.createdAt.toISOString() }));
+
+  const dept = await insert<Department>("departments", {
+    name: (name as string).trim(),
+    description,
+    routingMode,
+    isActive,
+  });
+
+  res.status(201).json({
+    ...dept,
+    memberCount: 0,
+    createdAt: dept.createdAt.toISOString(),
+  });
 });
 
 router.get("/departments/:id", requireAuth, async (req, res): Promise<void> => {
-  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const params = GetDepartmentParams.safeParse({ id: parseInt(raw, 10) });
-  if (!params.success) {
-    res.status(400).json({ error: params.error.message });
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) {
+    res.status(400).json({ error: "Invalid ID" });
     return;
   }
-  const [dept] = await db.select().from(departmentsTable).where(eq(departmentsTable.id, params.data.id));
+
+  const dept = await selectById<Department>("departments", id);
   if (!dept) {
     res.status(404).json({ error: "Department not found" });
     return;
   }
-  const [memberResult] = await db
-    .select({ count: count() })
-    .from(usersTable)
-    .where(eq(usersTable.departmentId, dept.id));
-  res.json(GetDepartmentResponse.parse({ ...dept, memberCount: Number(memberResult?.count ?? 0), createdAt: dept.createdAt.toISOString() }));
+
+  const memberCount = await count("users", { department_id: id });
+
+  res.json({
+    ...dept,
+    memberCount,
+    createdAt: dept.createdAt.toISOString(),
+  });
 });
 
 router.patch("/departments/:id", requireAuth, async (req, res): Promise<void> => {
-  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const params = UpdateDepartmentParams.safeParse({ id: parseInt(raw, 10) });
-  if (!params.success) {
-    res.status(400).json({ error: params.error.message });
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) {
+    res.status(400).json({ error: "Invalid ID" });
     return;
   }
-  const parsed = UpdateDepartmentBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
+
+  const body = (req.body as Record<string, unknown>) ?? {};
+  const updates: Record<string, unknown> = {};
+
+  if ("name" in body) {
+    if (typeof body.name !== "string" || (body.name as string).trim().length === 0) {
+      res.status(400).json({ error: "Name must be a non-empty string" });
+      return;
+    }
+    updates.name = (body.name as string).trim();
+  }
+  if ("description" in body) {
+    updates.description = typeof body.description === "string" ? (body.description as string).trim() || null : null;
+  }
+  if ("routingMode" in body) {
+    if (typeof body.routingMode !== "string" || !VALID_ROUTING_MODES.includes(body.routingMode as any)) {
+      res.status(400).json({ error: "Routing mode must be one of: manual, round_robin" });
+      return;
+    }
+    updates.routingMode = body.routingMode;
+  }
+  if ("isActive" in body) {
+    if (typeof body.isActive !== "boolean") {
+      res.status(400).json({ error: "isActive must be a boolean" });
+      return;
+    }
+    updates.isActive = body.isActive;
+  }
+
+  if (Object.keys(updates).length === 0) {
+    res.status(400).json({ error: "No valid fields to update" });
     return;
   }
-  const [dept] = await db.update(departmentsTable).set(parsed.data).where(eq(departmentsTable.id, params.data.id)).returning();
+
+  const dept = await update<Department>("departments", id, updates);
   if (!dept) {
     res.status(404).json({ error: "Department not found" });
     return;
   }
-  const [memberResult] = await db.select({ count: count() }).from(usersTable).where(eq(usersTable.departmentId, dept.id));
-  res.json(UpdateDepartmentResponse.parse({ ...dept, memberCount: Number(memberResult?.count ?? 0), createdAt: dept.createdAt.toISOString() }));
+
+  const memberCount = await count("users", { department_id: dept.id });
+
+  res.json({
+    ...dept,
+    memberCount,
+    createdAt: dept.createdAt.toISOString(),
+  });
 });
 
 router.delete("/departments/:id", requireAuth, async (req, res): Promise<void> => {
-  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const params = DeleteDepartmentParams.safeParse({ id: parseInt(raw, 10) });
-  if (!params.success) {
-    res.status(400).json({ error: params.error.message });
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) {
+    res.status(400).json({ error: "Invalid ID" });
     return;
   }
-  const [dept] = await db.delete(departmentsTable).where(eq(departmentsTable.id, params.data.id)).returning();
+
+  const dept = await del<Department>("departments", id);
   if (!dept) {
     res.status(404).json({ error: "Department not found" });
     return;

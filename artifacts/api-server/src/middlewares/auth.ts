@@ -1,15 +1,15 @@
-import type { Request, Response, NextFunction } from "express";
+import type { EnhancedRequest, EnhancedResponse } from "../lib/http-kit";
 import { verifyToken } from "../lib/auth";
 
 declare global {
-  namespace Express {
+  namespace HttpKit {
     interface Request {
       userId?: number;
     }
   }
 }
 
-export function requireAuth(req: Request, res: Response, next: NextFunction): void {
+export function requireAuth(req: EnhancedRequest, res: EnhancedResponse, next: () => void): void {
   const header = req.headers.authorization;
   if (!header || !header.startsWith("Bearer ")) {
     res.status(401).json({ error: "Missing or invalid authorization header" });

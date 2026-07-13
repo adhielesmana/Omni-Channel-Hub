@@ -1,7 +1,7 @@
-import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
+import { Router } from "../lib/http-kit";
 import { randomUUID } from "crypto";
-import { db, channelsTable, contactsTable, conversationsTable, messagesTable } from "@workspace/db";
+import { selectWhere, insert, query } from "@workspace/db";
+import type { Channel, Contact, Conversation, Message } from "@workspace/db";
 import { logger } from "../lib/logger";
 import { downloadWhatsAppMedia } from "../lib/whatsapp-media";
 import { uploadToR2 } from "../lib/r2";
@@ -9,7 +9,7 @@ import { optimizeImage } from "../lib/media-optimizer";
 import { toTitleCase } from "../lib/string";
 import { fetchCustomerProfile } from "../lib/meta-profile";
 
-const router: IRouter = Router();
+const router = Router();
 
 const WA_MEDIA_TYPES = new Set(["image", "video", "audio", "voice", "document", "sticker"]);
 
@@ -73,20 +73,17 @@ async function downloadAndStoreMetaMedia(
 
 // GET — Meta webhook verification
 router.get("/webhooks/meta", async (req, res): Promise<void> => {
-  const mode = req.query["hub.mode"];
-  const token = req.query["hub.verify_token"];
-  const challenge = req.query["hub.challenge"];
+  const parsedUrl = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
+  const mode = parsedUrl.searchParams.get("hub.mode");
+  const token = parsedUrl.searchParams.get("hub.verify_token");
+  const challenge = parsedUrl.searchParams.get("hub.challenge");
 
   if (mode === "subscribe") {
-    // Verify against the stored webhook_verify_token of the channel
-    const [channel] = await db
-      .select()
-      .from(channelsTable)
-      .where(eq(channelsTable.webhookVerifyToken, token as string));
+    const [channel] = await selectWhere<Channel>("channels", { webhook_verify_token: token ?? "" });
 
     if (channel) {
       req.log.info({ mode, token, channelId: channel.id }, "Meta webhook verified");
-      res.status(200).send(challenge);
+      res.status(200).send(challenge ?? "");
       return;
     }
 
@@ -100,14 +97,14 @@ router.get("/webhooks/meta", async (req, res): Promise<void> => {
 
 // POST — receive Meta webhook events
 router.post("/webhooks/meta", async (req, res): Promise<void> => {
-  const payload = req.body;
+  const payload = req.body as Record<string, unknown> | null;
   req.log.info({ object: payload?.object }, "Received Meta webhook");
 
   // Acknowledge immediately (Meta requires < 5s)
   res.status(200).json({ status: "ok" });
 
   // Process async
-  processWebhook(payload).catch((err) => {
+  processWebhook(payload ?? {}).catch((err) => {
     logger.error({ err }, "Error processing Meta webhook");
   });
 });
@@ -140,15 +137,12 @@ async function processWhatsAppStatus(entry: Record<string, unknown>) {
     if (!statuses?.length) continue;
 
     for (const status of statuses) {
-      const statusType = status.status as string; // sent, delivered, read, failed
+      const statusType = status.status as string;
       const waId = status.id as string;
       if (!waId) continue;
 
       const newStatus = statusType === "read" ? "read" : statusType === "delivered" ? "delivered" : statusType === "sent" ? "sent" : "failed";
-      await db
-        .update(messagesTable)
-        .set({ deliveryStatus: newStatus })
-        .where(eq(messagesTable.externalMessageId, waId));
+      await query("UPDATE messages SET delivery_status = $1 WHERE external_message_id = $2", [newStatus, waId]);
       logger.info({ waId, status: newStatus }, "WhatsApp delivery status updated");
     }
   }
@@ -167,10 +161,7 @@ async function processWhatsAppEntry(entry: Record<string, unknown>) {
     if (!messages?.length || !phoneNumberId) continue;
 
     // Find channel by phone_number_id (stored in external_id)
-    const [channel] = await db
-      .select()
-      .from(channelsTable)
-      .where(eq(channelsTable.externalId, phoneNumberId));
+    const [channel] = await selectWhere<Channel>("channels", { external_id: phoneNumberId });
 
     if (!channel) {
       logger.warn({ phoneNumberId }, "No WhatsApp channel found for incoming webhook");
@@ -233,75 +224,80 @@ async function processWhatsAppEntry(entry: Record<string, unknown>) {
       const contactName = remoteProfileName ?? profileName;
 
       // Find or create contact
-      let contact = (await db.select().from(contactsTable).where(eq(contactsTable.externalId, from)))[0];
-      if (!contact) {
-        const contacts = await db.insert(contactsTable).values({
+      let contact: Contact;
+      const existingContacts = await selectWhere<Contact>("contacts", { external_id: from });
+      if (existingContacts.length === 0) {
+        contact = await insert<Contact>("contacts", {
           name: toTitleCase(contactName || from),
           phone: from,
-          channelType: "whatsapp",
-          externalId: from,
-          avatarUrl: avatarUrl ?? undefined,
-        }).returning();
-        contact = contacts[0];
+          channel_type: "whatsapp",
+          external_id: from,
+          avatar_url: avatarUrl ?? null,
+        });
       } else {
-        const updates: Partial<typeof contactsTable.$inferSelect> = {};
-        // Always update contact name if WhatsApp profile name is available and different
+        contact = existingContacts[0];
+        const updates: Record<string, unknown> = {};
         if (contactName && contactName !== contact.name) {
           updates.name = toTitleCase(contactName);
         }
         if (avatarUrl && avatarUrl !== contact.avatarUrl) {
-          updates.avatarUrl = avatarUrl;
+          updates.avatar_url = avatarUrl;
         }
         if (Object.keys(updates).length > 0) {
-          await db.update(contactsTable).set(updates).where(eq(contactsTable.id, contact.id));
-          contact = { ...contact, ...updates };
+          const updated = await query<Contact>(
+            "UPDATE contacts SET name = COALESCE($1, name), avatar_url = COALESCE($2, avatar_url), updated_at = NOW() WHERE id = $3 RETURNING *",
+            [updates.name ?? null, updates.avatar_url ?? null, contact.id],
+          );
+          if (updated.length > 0) contact = updated[0];
         }
       }
 
       // Find or create conversation
-      let conversation = (await db
-        .select()
-        .from(conversationsTable)
-        .where(eq(conversationsTable.contactId, contact.id)))[0];
-
+      let conversation: Conversation;
+      const existingConvs = await selectWhere<Conversation>("conversations", { contact_id: contact.id });
       const wabaId = entry.id as string | undefined;
 
-      if (!conversation) {
-        const convs = await db.insert(conversationsTable).values({
-          contactId: contact.id,
-          channelId: channel.id,
-          channelType: "whatsapp",
-          phoneNumberId,
-          wabaId: wabaId ?? channel.wabaId ?? null,
+      if (existingConvs.length === 0) {
+        conversation = await insert<Conversation>("conversations", {
+          contact_id: contact.id,
+          channel_id: channel.id,
+          channel_type: "whatsapp",
+          phone_number_id: phoneNumberId,
+          waba_id: wabaId ?? channel.wabaId ?? null,
           status: "open",
-          lastMessageAt: new Date(),
-          unreadCount: 1,
-        }).returning();
-        conversation = convs[0];
+          last_message_at: new Date(),
+          unread_count: 1,
+        });
       } else {
+        conversation = existingConvs[0];
         const updates: Record<string, unknown> = {
           status: "open",
-          lastMessageAt: new Date(),
-          unreadCount: (conversation.unreadCount ?? 0) + 1,
+          last_message_at: new Date(),
+          unread_count: (conversation.unreadCount ?? 0) + 1,
+          updated_at: new Date(),
         };
-        // Update routing info if missing or changed
-        if (phoneNumberId && !conversation.phoneNumberId) updates.phoneNumberId = phoneNumberId;
-        if (wabaId && !conversation.wabaId) updates.wabaId = wabaId;
-        if (conversation.channelId !== channel.id) updates.channelId = channel.id;
-        await db.update(conversationsTable).set(updates).where(eq(conversationsTable.id, conversation.id));
+        if (phoneNumberId && !conversation.phoneNumberId) updates.phone_number_id = phoneNumberId;
+        if (wabaId && !conversation.wabaId) updates.waba_id = wabaId;
+        if (conversation.channelId !== channel.id) updates.channel_id = channel.id;
+
+        const updated = await query<Conversation>(
+          `UPDATE conversations SET ${Object.keys(updates).map((k, i) => `"${k}" = $${i + 1}`).join(", ")} WHERE id = $${Object.keys(updates).length + 1} RETURNING *`,
+          [...Object.values(updates), conversation.id],
+        );
+        if (updated.length > 0) conversation = updated[0];
       }
 
       // Store message
-      await db.insert(messagesTable).values({
-        conversationId: conversation.id,
-        senderType: "contact",
+      await insert("messages", {
+        conversation_id: conversation.id,
+        sender_type: "contact",
         direction: "inbound",
-        contentType,
+        content_type: contentType,
         content,
-        mediaUrl,
-        mediaType,
-        externalMessageId: msgId,
-        senderName: contact.name,
+        media_url: mediaUrl,
+        media_type: mediaType,
+        external_message_id: msgId,
+        sender_name: contact.name,
       });
 
       logger.info({ contactId: contact.id, conversationId: conversation.id }, "Processed WhatsApp inbound message");
@@ -313,7 +309,7 @@ async function processMetaPageEntry(entry: Record<string, unknown>, channelType:
   const messaging = entry.messaging as Array<Record<string, unknown>>;
   if (!messaging?.length) return;
 
-  const [channel] = await db.select().from(channelsTable).where(eq(channelsTable.channelType, channelType));
+  const [channel] = await selectWhere<Channel>("channels", { channel_type: channelType });
   if (!channel) {
     logger.warn({ channelType }, "No channel found for incoming webhook");
     return;
@@ -333,51 +329,53 @@ async function processMetaPageEntry(entry: Record<string, unknown>, channelType:
       ? await fetchCustomerProfile(channelType, senderId, channel.accessToken)
       : null;
 
-    let contact = (await db.select().from(contactsTable).where(eq(contactsTable.externalId, senderId)))[0];
+    let contact: Contact;
+    const existingContacts = await selectWhere<Contact>("contacts", { external_id: senderId });
     const remoteProfileName = remoteProfile?.name ?? remoteProfile?.username ?? null;
-    if (!contact) {
-      const contacts = await db.insert(contactsTable).values({
+
+    if (existingContacts.length === 0) {
+      contact = await insert<Contact>("contacts", {
         name: toTitleCase(remoteProfileName ?? senderId),
-        channelType,
-        externalId: senderId,
-        avatarUrl: remoteProfile?.avatarUrl ?? undefined,
-      }).returning();
-      contact = contacts[0];
+        channel_type: channelType,
+        external_id: senderId,
+        avatar_url: remoteProfile?.avatarUrl ?? null,
+      });
     } else {
-      const updates: Partial<typeof contactsTable.$inferSelect> = {};
+      contact = existingContacts[0];
+      const updates: Record<string, unknown> = {};
       if (remoteProfileName && remoteProfileName !== contact.name) {
         updates.name = toTitleCase(remoteProfileName);
       }
       if (remoteProfile?.avatarUrl && remoteProfile.avatarUrl !== contact.avatarUrl) {
-        updates.avatarUrl = remoteProfile.avatarUrl;
+        updates.avatar_url = remoteProfile.avatarUrl;
       }
       if (Object.keys(updates).length > 0) {
-        await db.update(contactsTable).set(updates).where(eq(contactsTable.id, contact.id));
-        contact = { ...contact, ...updates };
+        const updated = await query<Contact>(
+          "UPDATE contacts SET name = COALESCE($1, name), avatar_url = COALESCE($2, avatar_url), updated_at = NOW() WHERE id = $3 RETURNING *",
+          [updates.name ?? null, updates.avatar_url ?? null, contact.id],
+        );
+        if (updated.length > 0) contact = updated[0];
       }
     }
 
-    let conversation = (await db
-      .select()
-      .from(conversationsTable)
-      .where(eq(conversationsTable.contactId, contact.id)))[0];
+    let conversation: Conversation;
+    const existingConvs = await selectWhere<Conversation>("conversations", { contact_id: contact.id });
 
-    if (!conversation) {
-      const convs = await db.insert(conversationsTable).values({
-        contactId: contact.id,
-        channelId: channel.id,
-        channelType,
+    if (existingConvs.length === 0) {
+      conversation = await insert<Conversation>("conversations", {
+        contact_id: contact.id,
+        channel_id: channel.id,
+        channel_type: channelType,
         status: "open",
-        lastMessageAt: new Date(),
-        unreadCount: 1,
-      }).returning();
-      conversation = convs[0];
+        last_message_at: new Date(),
+        unread_count: 1,
+      });
     } else {
-      await db.update(conversationsTable).set({
-        status: "open",
-        lastMessageAt: new Date(),
-        unreadCount: (conversation.unreadCount ?? 0) + 1,
-      }).where(eq(conversationsTable.id, conversation.id));
+      conversation = existingConvs[0];
+      await query(
+        "UPDATE conversations SET status = 'open', last_message_at = NOW(), unread_count = $1, updated_at = NOW() WHERE id = $2",
+        [(conversation.unreadCount ?? 0) + 1, conversation.id],
+      );
     }
 
     if (attachments?.length) {
@@ -386,7 +384,7 @@ async function processMetaPageEntry(entry: Record<string, unknown>, channelType:
         const payload = att.payload as Record<string, unknown> | undefined;
         const attUrl = payload?.url as string | undefined;
 
-        const contentType = attType === "image" ? "image" : attType === "video" ? "video" : attType === "audio" ? "audio" : "document";
+        const attContentType = attType === "image" ? "image" : attType === "video" ? "video" : attType === "audio" ? "audio" : "document";
 
         let mediaUrl: string | null = null;
         let mediaType: string | null = null;
@@ -399,27 +397,27 @@ async function processMetaPageEntry(entry: Record<string, unknown>, channelType:
           }
         }
 
-        await db.insert(messagesTable).values({
-          conversationId: conversation.id,
-          senderType: "contact",
+        await insert("messages", {
+          conversation_id: conversation.id,
+          sender_type: "contact",
           direction: "inbound",
-          contentType,
+          content_type: attContentType,
           content: text ?? null,
-          mediaUrl,
-          mediaType,
-          externalMessageId: msgId,
-          senderName: contact.name,
+          media_url: mediaUrl,
+          media_type: mediaType,
+          external_message_id: msgId,
+          sender_name: contact.name,
         });
       }
     } else {
-      await db.insert(messagesTable).values({
-        conversationId: conversation.id,
-        senderType: "contact",
+      await insert("messages", {
+        conversation_id: conversation.id,
+        sender_type: "contact",
         direction: "inbound",
-        contentType: "text",
+        content_type: "text",
         content: text ?? null,
-        externalMessageId: msgId,
-        senderName: contact.name,
+        external_message_id: msgId,
+        sender_name: contact.name,
       });
     }
 
