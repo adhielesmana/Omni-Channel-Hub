@@ -200,6 +200,24 @@ function pathStartsWith(full: string, prefix: string): boolean {
   return full.length === prefix.length || full[prefix.length] === "/";
 }
 
+function chainHandlers(handlers: Handler[]): Handler {
+  if (handlers.length === 1) return handlers[0]!;
+  return (req, res, next) => {
+    let i = 0;
+    const run = () => {
+      if (i >= handlers.length) { next(); return; }
+      const h = handlers[i++]!;
+      let called = false;
+      h(req, res, () => {
+        if (called) return;
+        called = true;
+        run();
+      });
+    };
+    run();
+  };
+}
+
 const routerProto: RouterInstance = {
   layers: [],
 
@@ -230,20 +248,20 @@ const routerProto: RouterInstance = {
     }
   },
 
-  get(this: RouterInstance, path: string, handler: Handler): void {
-    this.layers.push({ method: "GET", path, handler, isRouter: false });
+  get(this: RouterInstance, path: string, ...handlers: Handler[]): void {
+    this.layers.push({ method: "GET", path, handler: chainHandlers(handlers), isRouter: false });
   },
 
-  post(this: RouterInstance, path: string, handler: Handler): void {
-    this.layers.push({ method: "POST", path, handler, isRouter: false });
+  post(this: RouterInstance, path: string, ...handlers: Handler[]): void {
+    this.layers.push({ method: "POST", path, handler: chainHandlers(handlers), isRouter: false });
   },
 
-  patch(this: RouterInstance, path: string, handler: Handler): void {
-    this.layers.push({ method: "PATCH", path, handler, isRouter: false });
+  patch(this: RouterInstance, path: string, ...handlers: Handler[]): void {
+    this.layers.push({ method: "PATCH", path, handler: chainHandlers(handlers), isRouter: false });
   },
 
-  delete(this: RouterInstance, path: string, handler: Handler): void {
-    this.layers.push({ method: "DELETE", path, handler, isRouter: false });
+  delete(this: RouterInstance, path: string, ...handlers: Handler[]): void {
+    this.layers.push({ method: "DELETE", path, handler: chainHandlers(handlers), isRouter: false });
   },
 
   handle(
