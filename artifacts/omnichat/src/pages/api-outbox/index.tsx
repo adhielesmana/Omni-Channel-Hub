@@ -128,7 +128,7 @@ export default function ApiOutbox() {
       </div>
 
       {/* Pagination */}
-      {totalPages > 1 && (
+      {totalPages >= 1 && (
         <div className="border-t px-6 py-3">
           <Pagination>
             <PaginationContent>
