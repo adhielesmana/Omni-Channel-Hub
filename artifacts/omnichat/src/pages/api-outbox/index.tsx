@@ -38,7 +38,7 @@ const STATUS_CONFIG: Record<string, { label: string; icon: React.ReactNode; clas
 export default function ApiOutbox() {
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const limit = 20;
+  const limit = 15;
 
   const params: ListOutboxParams = { page, limit };
   if (statusFilter && statusFilter !== "all") {
