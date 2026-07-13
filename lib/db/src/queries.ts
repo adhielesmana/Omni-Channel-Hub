@@ -13,6 +13,18 @@ function snakeToCamel<T>(row: Record<string, any>): T {
   return result as T;
 }
 
+function camelToSnake(key: string): string {
+  return key.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
+}
+
+function mapKeysToSnake(data: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const key of Object.keys(data)) {
+    result[camelToSnake(key)] = data[key];
+  }
+  return result;
+}
+
 function mapRows<T>(rows: any[]): T[] {
   return rows.map((r) => snakeToCamel<T>(r));
 }
@@ -47,8 +59,9 @@ export async function insert<T = any>(
   table: string,
   data: Record<string, unknown>,
 ): Promise<T> {
-  const keys = Object.keys(data);
-  const values = Object.values(data);
+  const mapped = mapKeysToSnake(data);
+  const keys = Object.keys(mapped);
+  const values = Object.values(mapped);
   const placeholders = keys.map((_, i) => `$${i + 1}`);
   const cols = keys.map((k) => escapeIdent(k));
   const sql = `INSERT INTO ${escapeIdent(table)} (${cols.join(", ")}) VALUES (${placeholders.join(", ")}) RETURNING *`;
@@ -61,12 +74,13 @@ export async function insertMany<T = any>(
   data: Record<string, unknown>[],
 ): Promise<T[]> {
   if (data.length === 0) return [];
-  const keys = Object.keys(data[0]!);
+  const mapped = data.map((d) => mapKeysToSnake(d));
+  const keys = Object.keys(mapped[0]!);
   const cols = keys.map((k) => escapeIdent(k));
   const rows: unknown[] = [];
   const placeholders: string[] = [];
   let paramIndex = 1;
-  for (const row of data) {
+  for (const row of mapped) {
     const rowPlaceholders = keys.map(() => `$${paramIndex++}`);
     placeholders.push(`(${rowPlaceholders.join(", ")})`);
     for (const key of keys) {
@@ -82,8 +96,9 @@ export async function update<T = any>(
   id: number,
   data: Record<string, unknown>,
 ): Promise<T | null> {
-  const keys = Object.keys(data);
-  const values = Object.values(data);
+  const mapped = mapKeysToSnake(data);
+  const keys = Object.keys(mapped);
+  const values = Object.values(mapped);
   const setClause = keys
     .map((key, i) => `${escapeIdent(key)} = $${i + 1}`)
     .join(", ");

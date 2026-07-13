@@ -37,8 +37,8 @@ const MIME_TYPE_FALLBACK: Record<string, string> = {
 
 const mediaRouter = Router();
 
-mediaRouter.get("/*", async (req, res): Promise<void> => {
-  const filename = path.basename(req.path);
+mediaRouter.get("/:filename", async (req, res): Promise<void> => {
+  const filename = req.params.filename;
   if (!filename || filename.includes("/")) {
     res.status(400).json({ error: "Invalid media path" });
     return;
