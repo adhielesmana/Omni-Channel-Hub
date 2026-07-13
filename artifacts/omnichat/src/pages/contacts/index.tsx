@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo, useEffect } from "react";
-import { useListContacts, useUpdateContact, useCreateContact, useImportContacts, useListConversations, useExternalWhatsappSend, getListConversationsQueryKey } from "@workspace/api-client-react";
+import { useListContacts, useUpdateContact, useCreateContact, useImportContacts, useListConversations, getListConversationsQueryKey, customFetch } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Search, Pencil, Plus, Upload, Download, AlertCircle, CheckCircle, MessageCircle, Camera, MessageSquare } from "lucide-react";
@@ -63,6 +63,7 @@ export default function Contacts() {
 
   // WhatsApp button state
   const [helloConfirmContact, setHelloConfirmContact] = useState<ContactDto | null>(null);
+  const [isSendingHello, setIsSendingHello] = useState(false);
 
   const queryClient = useQueryClient();
   const [, navigate] = useLocation();
@@ -70,7 +71,6 @@ export default function Contacts() {
   const updateContact = useUpdateContact();
   const createContact = useCreateContact();
   const importContacts = useImportContacts();
-  const sendExternal = useExternalWhatsappSend();
 
   // Fetch active conversations (last 24h)
   const listConvsParams = { daysOld: 1 };
@@ -181,33 +181,30 @@ export default function Contacts() {
     }
   };
 
-  const handleSendHello = () => {
+  const handleSendHello = async () => {
     if (!helloConfirmContact) return;
     const contact = helloConfirmContact;
     setHelloConfirmContact(null);
+    setIsSendingHello(true);
 
-    sendExternal.mutate(
-      {
-        data: {
-          channelName: "MaxnetPlus",
-          to: contact.phone || contact.externalId || "",
-          templateName: "sapa_customer",
-          templateLanguage: "id",
-          templateParams: [contact.name || ""],
-          content: `Halo Kak ${contact.name}, Selamat Kami dari MaxnetPlus. apakah saat ini internetnya terkendala ataukah ada informasi yang bisa kami bantu ?`,
-        },
-      },
-      {
-        onSuccess: (result) => {
-          queryClient.invalidateQueries({ queryKey: ["listConversations"] });
-          const newConvId = result?.conversationId;
-          if (newConvId) {
-            sessionStorage.setItem("openConversationId", String(newConvId));
-          }
-          navigate("/inbox");
-        },
+    try {
+      const result = await customFetch<{ success: boolean; messageId?: string; conversationId?: number; messageRecordId?: number }>(
+        "/api/send-hello",
+        {
+          method: "POST",
+          body: JSON.stringify({ contactId: contact.id }),
+        }
+      );
+
+      await queryClient.invalidateQueries({ queryKey: ["listConversations"] });
+      const newConvId = result?.conversationId;
+      if (newConvId) {
+        sessionStorage.setItem("openConversationId", String(newConvId));
       }
-    );
+      navigate("/inbox");
+    } finally {
+      setIsSendingHello(false);
+    }
   };
 
   const handleCsvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -463,8 +460,8 @@ export default function Contacts() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setHelloConfirmContact(null)}>Cancel</Button>
-            <Button onClick={handleSendHello} disabled={sendExternal.isPending}>
-              {sendExternal.isPending ? "Sending..." : "Yes, Send Hello"}
+            <Button onClick={handleSendHello} disabled={isSendingHello}>
+              {isSendingHello ? "Sending..." : "Yes, Send Hello"}
             </Button>
           </DialogFooter>
         </DialogContent>

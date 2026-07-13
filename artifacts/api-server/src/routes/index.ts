@@ -13,6 +13,7 @@ import mediaRouter from "./media";
 import whatsappBlastRouter from "./whatsapp-blasts";
 import whatsappTemplatesRouter from "./whatsapp-templates";
 import externalSendRouter from "./external-send";
+import sendHelloRouter from "./send-hello";
 import outboxRouter from "./outbox";
 
 const router: IRouter = Router();
@@ -25,6 +26,7 @@ router.use(channelsRouter);
 router.use(contactsRouter);
 router.use(conversationsRouter);
 router.use(messagesRouter);
+router.use(sendHelloRouter);
 router.use(webhooksRouter);
 router.use(statsRouter);
 router.use(mediaRouter);

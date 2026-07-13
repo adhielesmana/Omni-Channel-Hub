@@ -8,7 +8,7 @@ import { findBestTemplateMatch } from "../lib/template-matcher";
 
 const router: IRouter = Router();
 
-async function sendWhatsAppTemplate(
+export async function sendWhatsAppTemplate(
   channel: typeof channelsTable.$inferSelect,
   to: string,
   templateName: string,
