@@ -876,6 +876,29 @@ export interface OutboxListResponse {
   limit?: number;
 }
 
+export interface AutoReplySettings {
+  id?: number;
+  isEnabled?: boolean;
+  cooldownMinutes?: number;
+  greetingTemplate1?: string;
+  greetingTemplate2?: string;
+  greetingTemplate3?: string;
+  greetingTemplate4?: string;
+  greetingTemplate5?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface AutoReplySettingsInput {
+  isEnabled?: boolean;
+  cooldownMinutes?: number;
+  greetingTemplate1?: string;
+  greetingTemplate2?: string;
+  greetingTemplate3?: string;
+  greetingTemplate4?: string;
+  greetingTemplate5?: string;
+}
+
 export type ListContactsParams = {
 search?: string;
 channelType?: string;

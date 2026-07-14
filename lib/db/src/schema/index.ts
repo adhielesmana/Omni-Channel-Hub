@@ -6,3 +6,4 @@ export * from "./conversations";
 export * from "./messages";
 export * from "./whatsapp-blasts";
 export * from "./wa-templates";
+export * from "./auto-reply";

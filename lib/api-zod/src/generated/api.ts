@@ -1313,3 +1313,47 @@ export const ExternalWhatsappSendResponse = zod.object({
 })
 
 
+/**
+ * @summary Get auto-reply settings
+ */
+export const GetAutoReplySettingsResponse = zod.object({
+  "id": zod.number().optional(),
+  "isEnabled": zod.boolean().optional(),
+  "cooldownMinutes": zod.number().optional(),
+  "greetingTemplate1": zod.string().optional(),
+  "greetingTemplate2": zod.string().optional(),
+  "greetingTemplate3": zod.string().optional(),
+  "greetingTemplate4": zod.string().optional(),
+  "greetingTemplate5": zod.string().optional(),
+  "createdAt": zod.string().optional(),
+  "updatedAt": zod.string().optional()
+})
+
+
+/**
+ * @summary Update auto-reply settings
+ */
+export const UpdateAutoReplySettingsBody = zod.object({
+  "isEnabled": zod.boolean().optional(),
+  "cooldownMinutes": zod.number().optional(),
+  "greetingTemplate1": zod.string().optional(),
+  "greetingTemplate2": zod.string().optional(),
+  "greetingTemplate3": zod.string().optional(),
+  "greetingTemplate4": zod.string().optional(),
+  "greetingTemplate5": zod.string().optional()
+})
+
+export const UpdateAutoReplySettingsResponse = zod.object({
+  "id": zod.number().optional(),
+  "isEnabled": zod.boolean().optional(),
+  "cooldownMinutes": zod.number().optional(),
+  "greetingTemplate1": zod.string().optional(),
+  "greetingTemplate2": zod.string().optional(),
+  "greetingTemplate3": zod.string().optional(),
+  "greetingTemplate4": zod.string().optional(),
+  "greetingTemplate5": zod.string().optional(),
+  "createdAt": zod.string().optional(),
+  "updatedAt": zod.string().optional()
+})
+
+

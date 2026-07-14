@@ -8,6 +8,7 @@ import { uploadToR2 } from "../lib/r2";
 import { optimizeImage } from "../lib/media-optimizer";
 import { toTitleCase } from "../lib/string";
 import { fetchCustomerProfile } from "../lib/meta-profile";
+import { shouldAutoReply, sendAutoReply, buildGreetingMessage } from "../lib/auto-reply";
 
 const router = Router();
 
@@ -301,6 +302,20 @@ async function processWhatsAppEntry(entry: Record<string, unknown>) {
       });
 
       logger.info({ contactId: contact.id, conversationId: conversation.id }, "Processed WhatsApp inbound message");
+
+      // Auto-reply
+      try {
+        const autoReply = await shouldAutoReply(conversation.id);
+        if (autoReply) {
+          const settings = (await selectWhere("auto_reply_settings", {}))[0];
+          if (settings) {
+            const greeting = buildGreetingMessage(settings, contact.name);
+            await sendAutoReply(channel, contact, conversation.id, greeting);
+          }
+        }
+      } catch (err) {
+        logger.error({ err, conversationId: conversation.id }, "Auto-reply failed");
+      }
     }
   }
 }
@@ -422,6 +437,20 @@ async function processMetaPageEntry(entry: Record<string, unknown>, channelType:
     }
 
     logger.info({ contactId: contact.id, conversationId: conversation.id, channelType }, "Processed inbound message");
+
+    // Auto-reply
+    try {
+      const autoReply = await shouldAutoReply(conversation.id);
+      if (autoReply) {
+        const settings = (await selectWhere("auto_reply_settings", {}))[0];
+        if (settings) {
+          const greeting = buildGreetingMessage(settings, contact.name);
+          await sendAutoReply(channel, contact, conversation.id, greeting);
+        }
+      }
+    } catch (err) {
+      logger.error({ err, conversationId: conversation.id }, "Auto-reply failed");
+    }
   }
 }
 

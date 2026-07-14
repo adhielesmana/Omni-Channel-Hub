@@ -23,6 +23,8 @@ import type {
   AgentWorkload,
   AssignmentInput,
   AuthLoginResponse,
+  AutoReplySettings,
+  AutoReplySettingsInput,
   ChangePasswordInput,
   Channel,
   ChannelCount,
@@ -4226,5 +4228,153 @@ export const useExternalWhatsappSend = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getExternalWhatsappSendMutationOptions(options));
+    }
+
+export const getGetAutoReplySettingsUrl = () => {
+
+
+
+
+  return `/api/auto-reply/settings`
+}
+
+/**
+ * @summary Get auto-reply settings
+ */
+export const getAutoReplySettings = async ( options?: RequestInit): Promise<AutoReplySettings> => {
+
+  return customFetch<AutoReplySettings>(getGetAutoReplySettingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAutoReplySettingsQueryKey = () => {
+    return [
+    `/api/auto-reply/settings`
+    ] as const;
+    }
+
+
+export const getGetAutoReplySettingsQueryOptions = <TData = Awaited<ReturnType<typeof getAutoReplySettings>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAutoReplySettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAutoReplySettingsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAutoReplySettings>>> = ({ signal }) => getAutoReplySettings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAutoReplySettings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAutoReplySettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getAutoReplySettings>>>
+export type GetAutoReplySettingsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get auto-reply settings
+ */
+
+export function useGetAutoReplySettings<TData = Awaited<ReturnType<typeof getAutoReplySettings>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAutoReplySettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAutoReplySettingsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUpdateAutoReplySettingsUrl = () => {
+
+
+
+
+  return `/api/auto-reply/settings`
+}
+
+/**
+ * @summary Update auto-reply settings
+ */
+export const updateAutoReplySettings = async (autoReplySettingsInput: AutoReplySettingsInput, options?: RequestInit): Promise<AutoReplySettings> => {
+
+  return customFetch<AutoReplySettings>(getUpdateAutoReplySettingsUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      autoReplySettingsInput,)
+  }
+);}
+
+
+
+
+export const getUpdateAutoReplySettingsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAutoReplySettings>>, TError,{data: BodyType<AutoReplySettingsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAutoReplySettings>>, TError,{data: BodyType<AutoReplySettingsInput>}, TContext> => {
+
+const mutationKey = ['updateAutoReplySettings'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAutoReplySettings>>, {data: BodyType<AutoReplySettingsInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateAutoReplySettings(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAutoReplySettingsMutationResult = NonNullable<Awaited<ReturnType<typeof updateAutoReplySettings>>>
+    export type UpdateAutoReplySettingsMutationBody = BodyType<AutoReplySettingsInput>
+    export type UpdateAutoReplySettingsMutationError = ErrorType<void>
+
+    /**
+ * @summary Update auto-reply settings
+ */
+export const useUpdateAutoReplySettings = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAutoReplySettings>>, TError,{data: BodyType<AutoReplySettingsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateAutoReplySettings>>,
+        TError,
+        {data: BodyType<AutoReplySettingsInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateAutoReplySettingsMutationOptions(options));
     }
 
