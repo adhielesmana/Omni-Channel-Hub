@@ -20,6 +20,7 @@ import WhatsappBlasts from "@/pages/whatsapp-blasts";
 import WhatsappTemplates from "@/pages/whatsapp-templates";
 import ApiOutbox from "@/pages/api-outbox";
 import AutoReplySettings from "@/pages/auto-reply";
+import AiAgentsSettings from "@/pages/ai-agents";
 import Settings from "@/pages/settings";
 import PrivacyPolicy from "@/pages/privacy";
 import TermsOfService from "@/pages/terms";
@@ -130,6 +131,9 @@ function Router() {
       </Route>
       <Route path="/auto-reply">
         <ProtectedRoute component={AutoReplySettings} adminOnly />
+      </Route>
+      <Route path="/ai-agents">
+        <ProtectedRoute component={AiAgentsSettings} adminOnly />
       </Route>
       <Route path="/settings">
         <ProtectedRoute component={Settings} />

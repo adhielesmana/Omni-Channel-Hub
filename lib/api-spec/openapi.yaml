@@ -1237,6 +1237,38 @@ paths:
         "400":
           description: Validation error
 
+  /ai-agents/settings:
+    get:
+      operationId: getAiAgentsSettings
+      tags: [ai-agents]
+      summary: Get AI agents settings
+      responses:
+        "200":
+          description: AI agents settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiAgentsSettings"
+    patch:
+      operationId: updateAiAgentsSettings
+      tags: [ai-agents]
+      summary: Update AI agents settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiAgentsSettingsInput"
+      responses:
+        "200":
+          description: Updated AI agents settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiAgentsSettings"
+        "400":
+          description: Validation error
+
 components:
   schemas:
     HealthStatus:
@@ -2213,4 +2245,38 @@ components:
         greetingTemplate4:
           type: string
         greetingTemplate5:
+          type: string
+
+    AiAgentsSettings:
+      type: object
+      properties:
+        id:
+          type: integer
+        isEnabled:
+          type: boolean
+        idleMinutes:
+          type: integer
+        lookbackHours:
+          type: integer
+        apiEndpoint:
+          type: string
+        systemPrompt:
+          type: string
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+
+    AiAgentsSettingsInput:
+      type: object
+      properties:
+        isEnabled:
+          type: boolean
+        idleMinutes:
+          type: integer
+        lookbackHours:
+          type: integer
+        apiEndpoint:
+          type: string
+        systemPrompt:
           type: string

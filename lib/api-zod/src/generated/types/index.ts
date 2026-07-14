@@ -7,6 +7,8 @@
  */
 
 export * from './agentWorkload';
+export * from './aiAgentsSettings';
+export * from './aiAgentsSettingsInput';
 export * from './assignmentInput';
 export * from './authLoginResponse';
 export * from './autoReplySettings';

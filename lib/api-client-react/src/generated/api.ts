@@ -21,6 +21,8 @@ import type {
 
 import type {
   AgentWorkload,
+  AiAgentsSettings,
+  AiAgentsSettingsInput,
   AssignmentInput,
   AuthLoginResponse,
   AutoReplySettings,
@@ -4376,5 +4378,153 @@ export const useUpdateAutoReplySettings = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getUpdateAutoReplySettingsMutationOptions(options));
+    }
+
+export const getGetAiAgentsSettingsUrl = () => {
+
+
+
+
+  return `/api/ai-agents/settings`
+}
+
+/**
+ * @summary Get AI agents settings
+ */
+export const getAiAgentsSettings = async ( options?: RequestInit): Promise<AiAgentsSettings> => {
+
+  return customFetch<AiAgentsSettings>(getGetAiAgentsSettingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAiAgentsSettingsQueryKey = () => {
+    return [
+    `/api/ai-agents/settings`
+    ] as const;
+    }
+
+
+export const getGetAiAgentsSettingsQueryOptions = <TData = Awaited<ReturnType<typeof getAiAgentsSettings>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAiAgentsSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAiAgentsSettingsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAiAgentsSettings>>> = ({ signal }) => getAiAgentsSettings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAiAgentsSettings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAiAgentsSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getAiAgentsSettings>>>
+export type GetAiAgentsSettingsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get AI agents settings
+ */
+
+export function useGetAiAgentsSettings<TData = Awaited<ReturnType<typeof getAiAgentsSettings>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAiAgentsSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAiAgentsSettingsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUpdateAiAgentsSettingsUrl = () => {
+
+
+
+
+  return `/api/ai-agents/settings`
+}
+
+/**
+ * @summary Update AI agents settings
+ */
+export const updateAiAgentsSettings = async (aiAgentsSettingsInput: AiAgentsSettingsInput, options?: RequestInit): Promise<AiAgentsSettings> => {
+
+  return customFetch<AiAgentsSettings>(getUpdateAiAgentsSettingsUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      aiAgentsSettingsInput,)
+  }
+);}
+
+
+
+
+export const getUpdateAiAgentsSettingsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAiAgentsSettings>>, TError,{data: BodyType<AiAgentsSettingsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAiAgentsSettings>>, TError,{data: BodyType<AiAgentsSettingsInput>}, TContext> => {
+
+const mutationKey = ['updateAiAgentsSettings'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAiAgentsSettings>>, {data: BodyType<AiAgentsSettingsInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateAiAgentsSettings(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAiAgentsSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof updateAiAgentsSettings>>>
+    export type UpdateAiAgentsSettingsMutationBody = BodyType<AiAgentsSettingsInput>
+    export type UpdateAiAgentsSettingsMutationError = ErrorType<void>
+
+    /**
+ * @summary Update AI agents settings
+ */
+export const useUpdateAiAgentsSettings = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAiAgentsSettings>>, TError,{data: BodyType<AiAgentsSettingsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateAiAgentsSettings>>,
+        TError,
+        {data: BodyType<AiAgentsSettingsInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateAiAgentsSettingsMutationOptions(options));
     }
 

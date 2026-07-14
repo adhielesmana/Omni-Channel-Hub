@@ -2,6 +2,7 @@ import server from "./app";
 import { logger } from "./lib/logger";
 import { startBlastWorker } from "./lib/blast-worker";
 import { startTemplateSyncWorker } from "./lib/template-sync-worker";
+import { startAiAgentWorker } from "./lib/ai-agent-worker";
 
 const rawPort = process.env["PORT"];
 
@@ -21,4 +22,5 @@ server.listen(port, () => {
   logger.info({ port }, "Server listening");
   startBlastWorker();
   startTemplateSyncWorker();
+  startAiAgentWorker();
 });

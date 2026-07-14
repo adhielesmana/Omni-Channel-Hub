@@ -16,6 +16,7 @@ import externalSendRouter from "./external-send";
 import sendHelloRouter from "./send-hello";
 import outboxRouter from "./outbox";
 import autoReplyRouter from "./auto-reply";
+import aiAgentsRouter from "./ai-agents";
 
 const router = Router();
 
@@ -36,5 +37,6 @@ router.use(whatsappTemplatesRouter);
 router.use(externalSendRouter);
 router.use(outboxRouter);
 router.use(autoReplyRouter);
+router.use(aiAgentsRouter);
 
 export default router;

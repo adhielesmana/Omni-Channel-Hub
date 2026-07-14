@@ -899,6 +899,25 @@ export interface AutoReplySettingsInput {
   greetingTemplate5?: string;
 }
 
+export interface AiAgentsSettings {
+  id?: number;
+  isEnabled?: boolean;
+  idleMinutes?: number;
+  lookbackHours?: number;
+  apiEndpoint?: string;
+  systemPrompt?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface AiAgentsSettingsInput {
+  isEnabled?: boolean;
+  idleMinutes?: number;
+  lookbackHours?: number;
+  apiEndpoint?: string;
+  systemPrompt?: string;
+}
+
 export type ListContactsParams = {
 search?: string;
 channelType?: string;

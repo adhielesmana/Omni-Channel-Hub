@@ -1357,3 +1357,41 @@ export const UpdateAutoReplySettingsResponse = zod.object({
 })
 
 
+/**
+ * @summary Get AI agents settings
+ */
+export const GetAiAgentsSettingsResponse = zod.object({
+  "id": zod.number().optional(),
+  "isEnabled": zod.boolean().optional(),
+  "idleMinutes": zod.number().optional(),
+  "lookbackHours": zod.number().optional(),
+  "apiEndpoint": zod.string().optional(),
+  "systemPrompt": zod.string().optional(),
+  "createdAt": zod.string().optional(),
+  "updatedAt": zod.string().optional()
+})
+
+
+/**
+ * @summary Update AI agents settings
+ */
+export const UpdateAiAgentsSettingsBody = zod.object({
+  "isEnabled": zod.boolean().optional(),
+  "idleMinutes": zod.number().optional(),
+  "lookbackHours": zod.number().optional(),
+  "apiEndpoint": zod.string().optional(),
+  "systemPrompt": zod.string().optional()
+})
+
+export const UpdateAiAgentsSettingsResponse = zod.object({
+  "id": zod.number().optional(),
+  "isEnabled": zod.boolean().optional(),
+  "idleMinutes": zod.number().optional(),
+  "lookbackHours": zod.number().optional(),
+  "apiEndpoint": zod.string().optional(),
+  "systemPrompt": zod.string().optional(),
+  "createdAt": zod.string().optional(),
+  "updatedAt": zod.string().optional()
+})
+
+
