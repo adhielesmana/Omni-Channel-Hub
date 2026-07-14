@@ -5,23 +5,29 @@ import { requireAuth } from "../middlewares/auth";
 
 const router = Router();
 
+function mapSettingsResponse(s: AutoReplySettings) {
+  return {
+    id: s.id,
+    isEnabled: s.isEnabled,
+    cooldownMinutes: s.cooldownMinutes,
+    greetingTemplate1: (s as any).greetingTemplate_1 ?? (s as any).greetingTemplate1 ?? "",
+    greetingTemplate2: (s as any).greetingTemplate_2 ?? (s as any).greetingTemplate2 ?? "",
+    greetingTemplate3: (s as any).greetingTemplate_3 ?? (s as any).greetingTemplate3 ?? "",
+    greetingTemplate4: (s as any).greetingTemplate_4 ?? (s as any).greetingTemplate4 ?? "",
+    greetingTemplate5: (s as any).greetingTemplate_5 ?? (s as any).greetingTemplate5 ?? "",
+    createdAt: s.createdAt.toISOString(),
+    updatedAt: s.updatedAt.toISOString(),
+  };
+}
+
 router.get("/auto-reply/settings", requireAuth, async (_req, res): Promise<void> => {
   const settings = await selectWhere<AutoReplySettings>("auto_reply_settings", {});
   if (!settings.length) {
     const created = await insert<AutoReplySettings>("auto_reply_settings", { isEnabled: false });
-    res.json({
-      ...created,
-      createdAt: created.createdAt.toISOString(),
-      updatedAt: created.updatedAt.toISOString(),
-    });
+    res.json(mapSettingsResponse(created));
     return;
   }
-  const s = settings[0];
-  res.json({
-    ...s,
-    createdAt: s.createdAt.toISOString(),
-    updatedAt: s.updatedAt.toISOString(),
-  });
+  res.json(mapSettingsResponse(settings[0]));
 });
 
 router.patch("/auto-reply/settings", requireAuth, async (req, res): Promise<void> => {
@@ -51,11 +57,7 @@ router.patch("/auto-reply/settings", requireAuth, async (req, res): Promise<void
     res.status(500).json({ error: "Failed to update settings" });
     return;
   }
-  res.json({
-    ...updated,
-    createdAt: updated.createdAt.toISOString(),
-    updatedAt: updated.updatedAt.toISOString(),
-  });
+  res.json(mapSettingsResponse(updated));
 });
 
 export default router;
