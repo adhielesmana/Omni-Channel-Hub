@@ -185,7 +185,11 @@ export default function Inbox() {
   const { user } = useAuth();
   const selectedConversationId = activeConversationId ?? -1;
 
-  const params = { status: activeTab !== "all" ? activeTab : undefined, daysOld: 30 };
+  const params = {
+    ...(activeTab === "assigned" && user?.departmentId ? { departmentId: user.departmentId } : {}),
+    ...(activeTab !== "all" && activeTab !== "assigned" ? { status: activeTab } : {}),
+    daysOld: 30,
+  };
   const { data: conversations, isLoading: isConversationsLoading } = useListConversations(
     params,
     {
@@ -337,7 +341,7 @@ export default function Inbox() {
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="w-full h-9 grid grid-cols-4 bg-muted/50 p-1">
               <TabsTrigger value="open" className="text-xs">Open</TabsTrigger>
-              <TabsTrigger value="pending" className="text-xs">Pend</TabsTrigger>
+              <TabsTrigger value="assigned" className="text-xs">Assg</TabsTrigger>
               <TabsTrigger value="resolved" className="text-xs">Done</TabsTrigger>
               <TabsTrigger value="all" className="text-xs">All</TabsTrigger>
             </TabsList>
