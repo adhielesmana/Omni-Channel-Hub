@@ -19,6 +19,7 @@ export default function AiAgentsSettings() {
   const [idleMinutes, setIdleMinutes] = useState(60);
   const [lookbackHours, setLookbackHours] = useState(24);
   const [apiKey, setApiKey] = useState("");
+  const [aiModel, setAiModel] = useState("deepseek-v4-flash");
   const [systemPrompt, setSystemPrompt] = useState("");
 
   useEffect(() => {
@@ -27,6 +28,7 @@ export default function AiAgentsSettings() {
       setIdleMinutes(settings.idleMinutes ?? 60);
       setLookbackHours(settings.lookbackHours ?? 24);
       setApiKey(settings.apiKey ?? "");
+      setAiModel(settings.model ?? "deepseek-v4-flash");
       setSystemPrompt(settings.systemPrompt ?? "");
     }
   }, [settings]);
@@ -39,6 +41,7 @@ export default function AiAgentsSettings() {
           idleMinutes,
           lookbackHours,
           apiKey: apiKey.trim() || undefined,
+          model: aiModel.trim() || "deepseek-v4-flash",
           systemPrompt: systemPrompt.trim() || undefined,
         },
       },
@@ -167,6 +170,17 @@ export default function AiAgentsSettings() {
                   className="pl-9 font-mono text-sm"
                 />
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">AI Model</Label>
+              <p className="text-xs text-muted-foreground mb-2">Model name for the AI API (e.g. deepseek-v4-flash, qwen3.7-plus)</p>
+              <Input
+                type="text"
+                value={aiModel}
+                onChange={(e) => setAiModel(e.target.value)}
+                placeholder="deepseek-v4-flash"
+              />
             </div>
           </CardContent>
         </Card>

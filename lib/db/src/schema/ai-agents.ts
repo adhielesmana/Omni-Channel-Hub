@@ -9,6 +9,7 @@ export const aiAgentsSettingsTable = pgTable("ai_agents_settings", {
   lookbackHours: integer("lookback_hours").notNull().default(24),
   apiEndpoint: text("api_endpoint").notNull().default("https://opencode.ai/zen/go/v1/chat/completions"),
   apiKey: text("api_key"),
+  model: text("model").notNull().default("deepseek-v4-flash"),
   systemPrompt: text("system_prompt").notNull().default(
     "Anda adalah asisten customer service untuk penyedia layanan internet MaxnetPlus. " +
     "Analisis percakapan berikut dan tentukan tindakan yang tepat.\n\n" +

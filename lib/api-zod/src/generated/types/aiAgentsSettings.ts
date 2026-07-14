@@ -13,6 +13,7 @@ export interface AiAgentsSettings {
   lookbackHours?: number;
   apiEndpoint?: string;
   apiKey?: string;
+  model?: string;
   systemPrompt?: string;
   createdAt?: string;
   updatedAt?: string;

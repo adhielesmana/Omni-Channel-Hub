@@ -2262,6 +2262,8 @@ components:
           type: string
         apiKey:
           type: string
+        model:
+          type: string
         systemPrompt:
           type: string
         createdAt:
@@ -2281,6 +2283,8 @@ components:
         apiEndpoint:
           type: string
         apiKey:
+          type: string
+        model:
           type: string
         systemPrompt:
           type: string

@@ -60,7 +60,7 @@ export async function callAiAgent(
       method: "POST",
       headers,
       body: JSON.stringify({
-        model: "deepseek-v4-flash",
+        model: settings.model || "deepseek-v4-flash",
         messages: [
           { role: "system", content: settings.systemPrompt },
           { role: "user", content: conversationContext },

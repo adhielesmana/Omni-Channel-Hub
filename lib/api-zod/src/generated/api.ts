@@ -1367,6 +1367,7 @@ export const GetAiAgentsSettingsResponse = zod.object({
   "lookbackHours": zod.number().optional(),
   "apiEndpoint": zod.string().optional(),
   "apiKey": zod.string().optional(),
+  "model": zod.string().optional(),
   "systemPrompt": zod.string().optional(),
   "createdAt": zod.string().optional(),
   "updatedAt": zod.string().optional()
@@ -1382,6 +1383,7 @@ export const UpdateAiAgentsSettingsBody = zod.object({
   "lookbackHours": zod.number().optional(),
   "apiEndpoint": zod.string().optional(),
   "apiKey": zod.string().optional(),
+  "model": zod.string().optional(),
   "systemPrompt": zod.string().optional()
 })
 
@@ -1392,6 +1394,7 @@ export const UpdateAiAgentsSettingsResponse = zod.object({
   "lookbackHours": zod.number().optional(),
   "apiEndpoint": zod.string().optional(),
   "apiKey": zod.string().optional(),
+  "model": zod.string().optional(),
   "systemPrompt": zod.string().optional(),
   "createdAt": zod.string().optional(),
   "updatedAt": zod.string().optional()
