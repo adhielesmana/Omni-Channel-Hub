@@ -345,6 +345,8 @@ export interface Conversation {
   department?: ConversationDepartment;
   /** @nullable */
   lastMessage?: string | null;
+  /** @nullable */
+  lastMessageContentType?: string | null;
   createdAt: string;
   updatedAt: string;
 }

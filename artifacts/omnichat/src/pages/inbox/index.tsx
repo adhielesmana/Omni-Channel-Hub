@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import {
   Search, Inbox as InboxIcon, CheckCircle2, Check, CheckCheck, Clock, AlertCircle,
   MoreVertical, Phone, Mail, Hash, UserSquare, Info, Send,
-  MessageSquare, StickyNote, FileText, ArrowLeft
+  MessageSquare, StickyNote, FileText, ArrowLeft, Image, Film, Mic
 } from "lucide-react";
 import {
   useListConversations, useListMessages, useSendMessage,
@@ -390,8 +390,25 @@ export default function Inbox() {
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <p className="text-xs text-muted-foreground truncate min-w-0">
-                        {conv.lastMessage || "No messages yet"}
+                      <p className={`text-xs truncate min-w-0 ${
+                        !conv.lastMessage && conv.lastMessageContentType && conv.lastMessageContentType !== 'text'
+                          ? 'italic text-muted-foreground'
+                          : 'text-muted-foreground'
+                      }`}>
+                        {!conv.lastMessage && conv.lastMessageContentType && conv.lastMessageContentType !== 'text'
+                          ? (() => {
+                              switch (conv.lastMessageContentType) {
+                                case 'image': return '📷 Image received';
+                                case 'video': return '🎬 Video received';
+                                case 'audio': return '🎤 Audio received';
+                                case 'document': return '📄 Document received';
+                                case 'sticker': return '🎨 Sticker received';
+                                case 'location': return '📍 Location received';
+                                default: return '📎 Media received';
+                              }
+                            })()
+                          : conv.lastMessage || 'No messages yet'
+                        }
                       </p>
                       {conv.unreadCount ? (
                         <Badge variant="default" className="h-5 px-1.5 min-w-[20px] flex justify-center text-[10px] rounded-full">

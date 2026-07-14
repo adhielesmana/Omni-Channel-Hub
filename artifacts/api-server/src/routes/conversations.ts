@@ -27,6 +27,7 @@ async function buildConversationDto(conv: Conversation) {
     assignedAgent: agent ? { id: agent.id, name: agent.name, avatarUrl: agent.avatarUrl } : null,
     department: department ? { id: department.id, name: department.name } : null,
     lastMessage: lastMsg?.content ?? null,
+    lastMessageContentType: lastMsg?.contentType ?? null,
   };
 }
 
