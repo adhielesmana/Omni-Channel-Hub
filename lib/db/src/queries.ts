@@ -124,15 +124,18 @@ export async function selectWhere<T = any>(
 ): Promise<T[]> {
   const keys = Object.keys(conditions);
   const values = Object.values(conditions);
-  const whereClause = keys
-    .map((key, i) => `${escapeIdent(key)} = $${i + 1}`)
-    .join(" AND ");
-  return mapRows<T>(
-    await query(
-      `SELECT * FROM ${escapeIdent(table)} WHERE ${whereClause}`,
-      values,
-    ),
-  );
+
+  let sql: string;
+  if (keys.length === 0) {
+    sql = `SELECT * FROM ${escapeIdent(table)}`;
+  } else {
+    const whereClause = keys
+      .map((key, i) => `${escapeIdent(key)} = $${i + 1}`)
+      .join(" AND ");
+    sql = `SELECT * FROM ${escapeIdent(table)} WHERE ${whereClause}`;
+  }
+
+  return mapRows<T>(await query(sql, values));
 }
 
 export async function selectRaw<T = any>(
