@@ -2260,6 +2260,8 @@ components:
           type: integer
         apiEndpoint:
           type: string
+        apiKey:
+          type: string
         systemPrompt:
           type: string
         createdAt:
@@ -2277,6 +2279,8 @@ components:
         lookbackHours:
           type: integer
         apiEndpoint:
+          type: string
+        apiKey:
           type: string
         systemPrompt:
           type: string

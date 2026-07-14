@@ -12,6 +12,7 @@ export interface AiAgentsSettings {
   idleMinutes?: number;
   lookbackHours?: number;
   apiEndpoint?: string;
+  apiKey?: string;
   systemPrompt?: string;
   createdAt?: string;
   updatedAt?: string;

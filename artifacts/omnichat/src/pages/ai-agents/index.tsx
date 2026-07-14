@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useGetAiAgentsSettings, useUpdateAiAgentsSettings } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Bot, Clock, Save, RotateCcw } from "lucide-react";
+import { Bot, Clock, Key, Save, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,6 +18,7 @@ export default function AiAgentsSettings() {
   const [isEnabled, setIsEnabled] = useState(false);
   const [idleMinutes, setIdleMinutes] = useState(60);
   const [lookbackHours, setLookbackHours] = useState(24);
+  const [apiKey, setApiKey] = useState("");
   const [systemPrompt, setSystemPrompt] = useState("");
 
   useEffect(() => {
@@ -25,6 +26,7 @@ export default function AiAgentsSettings() {
       setIsEnabled(settings.isEnabled ?? false);
       setIdleMinutes(settings.idleMinutes ?? 60);
       setLookbackHours(settings.lookbackHours ?? 24);
+      setApiKey(settings.apiKey ?? "");
       setSystemPrompt(settings.systemPrompt ?? "");
     }
   }, [settings]);
@@ -36,6 +38,7 @@ export default function AiAgentsSettings() {
           isEnabled,
           idleMinutes,
           lookbackHours,
+          apiKey: apiKey.trim() || undefined,
           systemPrompt: systemPrompt.trim() || undefined,
         },
       },
@@ -149,6 +152,21 @@ export default function AiAgentsSettings() {
               <p className="text-xs text-muted-foreground">
                 Analyzes last {lookbackHours} hour(s) of conversation
               </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">API Key</Label>
+              <p className="text-xs text-muted-foreground mb-2">Authentication key for the AI endpoint (required)</p>
+              <div className="relative">
+                <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  type="password"
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  placeholder="sk-..."
+                  className="pl-9 font-mono text-sm"
+                />
+              </div>
             </div>
           </CardContent>
         </Card>

@@ -50,12 +50,17 @@ export async function callAiAgent(
 ): Promise<AiAgentDecision | null> {
   const endpoint = settings.apiEndpoint || "https://opencode.ai/zen/go/v1/chat/completions";
 
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (settings.apiKey) {
+    headers["Authorization"] = `Bearer ${settings.apiKey}`;
+  }
+
   try {
     const res = await fetch(endpoint, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({
-        model: "gpt-4o",
+        model: "deepseek-v4-flash",
         messages: [
           { role: "system", content: settings.systemPrompt },
           { role: "user", content: conversationContext },

@@ -12,6 +12,7 @@ function mapSettingsResponse(s: AiAgentsSettings) {
     idleMinutes: s.idleMinutes,
     lookbackHours: s.lookbackHours,
     apiEndpoint: s.apiEndpoint,
+    apiKey: (s as any).api_key ?? s.apiKey ?? null,
     systemPrompt: s.systemPrompt,
     createdAt: s.createdAt.toISOString(),
     updatedAt: s.updatedAt.toISOString(),
@@ -41,6 +42,7 @@ router.patch("/ai-agents/settings", requireAuth, async (req, res): Promise<void>
   if ("idleMinutes" in body) updates.idle_minutes = body.idleMinutes;
   if ("lookbackHours" in body) updates.lookback_hours = body.lookbackHours;
   if ("apiEndpoint" in body) updates.api_endpoint = body.apiEndpoint;
+  if ("apiKey" in body) updates.api_key = body.apiKey;
   if ("systemPrompt" in body) updates.system_prompt = body.systemPrompt;
 
   if (Object.keys(updates).length === 0) {
