@@ -10,10 +10,10 @@ const VALID_ROUTING_MODES = ["manual", "round_robin"] as const;
 router.get("/departments", requireAuth, async (_req, res): Promise<void> => {
   const departments = await selectAll<Department>("departments", { column: "created_at", dir: "ASC" });
 
-  const memberCounts = await selectRaw<{ department_id: number; count: number }>(
+  const memberCounts = await selectRaw<{ departmentId: number; count: number }>(
     "SELECT department_id, count(*)::int AS count FROM users WHERE department_id IS NOT NULL GROUP BY department_id",
   );
-  const countMap = new Map(memberCounts.map((r) => [r.department_id, r.count]));
+  const countMap = new Map(memberCounts.map((r) => [r.departmentId, r.count]));
 
   const result = departments.map((d) => ({
     ...d,
