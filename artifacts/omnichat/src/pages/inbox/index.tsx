@@ -392,7 +392,7 @@ export default function Inbox() {
                     <div className="flex justify-between items-center">
                       <p className={`text-xs truncate min-w-0 ${
                         !conv.lastMessage && conv.lastMessageContentType && conv.lastMessageContentType !== 'text'
-                          ? 'italic text-muted-foreground'
+                          ? 'italic text-muted-foreground pr-1'
                           : 'text-muted-foreground'
                       }`}>
                         {!conv.lastMessage && conv.lastMessageContentType && conv.lastMessageContentType !== 'text'
