@@ -1,5 +1,5 @@
 import { Router } from "../lib/http-kit";
-import { selectAll, selectById, insert, update, del, selectWhere, selectRaw } from "@workspace/db";
+import { selectById, insert, update, del, selectWhere, selectRaw } from "@workspace/db";
 import type { User, Contact, Message, Conversation, Channel, Department } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
 import { canViewConversation, getAssignedAgentDepartment, getAssignedAgentDepartmentMap, loadConversationViewer } from "../lib/conversation-access";
@@ -88,13 +88,20 @@ router.get("/conversations", requireAuth, async (req, res): Promise<void> => {
     }
   }
 
-  let convs: Conversation[];
-  if (conditions.length > 0) {
-    const sql = `SELECT * FROM conversations WHERE ${conditions.join(" AND ")} ORDER BY updated_at DESC`;
-    convs = await selectRaw<Conversation>(sql, params);
-  } else {
-    convs = await selectAll<Conversation>("conversations", { column: "updated_at", dir: "DESC" });
-  }
+  const limit = Math.min(500, Math.max(1, parseInt(req.query.limit as string ?? "100", 10)));
+  const offset = Math.max(0, parseInt(req.query.offset as string ?? "0", 10));
+
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+  const countParams = [...params];
+  const [countRow] = await selectRaw<{ count: string }>(
+    `SELECT count(*)::int AS count FROM conversations ${whereClause}`,
+    countParams,
+  );
+  const total = Number(countRow?.count ?? 0);
+
+  const sql = `SELECT * FROM conversations ${whereClause} ORDER BY updated_at DESC LIMIT $${idx++} OFFSET $${idx++}`;
+  params.push(limit, offset);
+  const convs = await selectRaw<Conversation>(sql, params);
 
   const viewer = await loadConversationViewer(req.userId!);
   if (!viewer) {
@@ -115,7 +122,7 @@ router.get("/conversations", requireAuth, async (req, res): Promise<void> => {
       })();
 
   const dtos = await Promise.all(visibleConvs.map(buildConversationDto));
-  res.json(dtos);
+  res.json({ items: dtos, total });
 });
 
 router.post("/conversations", requireAuth, async (req, res): Promise<void> => {

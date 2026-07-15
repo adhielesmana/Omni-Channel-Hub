@@ -483,15 +483,25 @@ paths:
           schema:
             type: integer
             description: Only return conversations updated within the last N days
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+            description: Number of conversations per page
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+            description: Number of conversations to skip
       responses:
         "200":
-          description: List of conversations
+          description: Paginated list of conversations
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Conversation"
+                $ref: "#/components/schemas/PaginatedConversations"
     post:
       operationId: createConversation
       tags: [conversations]
@@ -1613,6 +1623,18 @@ components:
           type: string
         updatedAt:
           type: string
+
+    PaginatedConversations:
+      type: object
+      required: [items, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Conversation"
+        total:
+          type: integer
+          description: Total number of conversations matching the filters
 
     ConversationInput:
       type: object

@@ -81,6 +81,7 @@ export * from './metaWebhookPayload';
 export * from './metaWebhookPayloadEntryItem';
 export * from './outboxListResponse';
 export * from './outboxMessage';
+export * from './paginatedConversations';
 export * from './resetPasswordResponse';
 export * from './statsOverview';
 export * from './statsPeriod';

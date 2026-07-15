@@ -351,6 +351,12 @@ export interface Conversation {
   updatedAt: string;
 }
 
+export interface PaginatedConversations {
+  items: Conversation[];
+  /** Total number of conversations matching the filters */
+  total: number;
+}
+
 export type ConversationInputChannelType = typeof ConversationInputChannelType[keyof typeof ConversationInputChannelType];
 
 
@@ -937,6 +943,14 @@ channelType?: string;
  * Only return conversations updated within the last N days
  */
 daysOld?: number;
+/**
+ * Number of conversations per page
+ */
+limit?: number;
+/**
+ * Number of conversations to skip
+ */
+offset?: number;
 };
 
 export type VerifyMetaWebhookParams = {

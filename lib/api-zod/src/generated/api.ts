@@ -396,16 +396,22 @@ export const UpdateContactResponse = zod.object({
 /**
  * @summary List conversations
  */
+export const listConversationsQueryLimitDefault = 100;
+export const listConversationsQueryOffsetDefault = 0;
+
 export const ListConversationsQueryParams = zod.object({
   "status": zod.coerce.string().optional(),
   "channelId": zod.coerce.number().optional(),
   "departmentId": zod.coerce.number().optional(),
   "assignedAgentId": zod.coerce.number().optional(),
   "channelType": zod.coerce.string().optional(),
-  "daysOld": zod.coerce.number().optional()
+  "daysOld": zod.coerce.number().optional(),
+  "limit": zod.coerce.number().default(listConversationsQueryLimitDefault),
+  "offset": zod.coerce.number().default(listConversationsQueryOffsetDefault)
 })
 
-export const ListConversationsResponseItem = zod.object({
+export const ListConversationsResponse = zod.object({
+  "items": zod.array(zod.object({
   "id": zod.number(),
   "contactId": zod.number().optional(),
   "channelId": zod.number().optional(),
@@ -455,8 +461,9 @@ export const ListConversationsResponseItem = zod.object({
   "lastMessageContentType": zod.string().nullish(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
+})),
+  "total": zod.number().describe('Total number of conversations matching the filters')
 })
-export const ListConversationsResponse = zod.array(ListConversationsResponseItem)
 
 
 /**

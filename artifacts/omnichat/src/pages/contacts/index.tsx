@@ -167,7 +167,7 @@ export default function Contacts() {
     if (contact.channelType !== "whatsapp") return;
 
     // Find existing active conversation for this contact
-    const existingConv = conversationsData?.find((conv) => {
+    const existingConv = conversationsData?.items?.find((conv) => {
       const contactPhone = contact.phone?.replace(/[^0-9]/g, "");
       const convPhone = conv.contact?.phone?.replace(/[^0-9]/g, "") || conv.contact?.externalId?.replace(/[^0-9]/g, "");
       return convPhone === contactPhone && conv.channelType === "whatsapp";

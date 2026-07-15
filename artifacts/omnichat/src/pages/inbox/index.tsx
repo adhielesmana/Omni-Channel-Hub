@@ -2,16 +2,18 @@ import { useState, useRef, useEffect } from "react";
 import {
   Search, Inbox as InboxIcon, CheckCircle2, Check, CheckCheck, Clock, AlertCircle,
   MoreVertical, Phone, Mail, Hash, UserSquare, Info, Send,
-  MessageSquare, StickyNote, FileText, ArrowLeft, Image, Film, Mic
+  MessageSquare, StickyNote, FileText, ArrowLeft, Image, Film, Mic,
+  Loader2
 } from "lucide-react";
 import {
-  useListConversations, useListMessages, useSendMessage,
+  useListMessages, useSendMessage,
   useResolveConversation, useReopenConversation,
   getListConversationsQueryKey, getListMessagesQueryKey,
   useListUsers, useListDepartments, useAssignConversation,
+  listConversations,
 } from "@workspace/api-client-react";
 import { MessageInputContentType } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -185,22 +187,47 @@ export default function Inbox() {
   const { user } = useAuth();
   const selectedConversationId = activeConversationId ?? -1;
 
-  const params = {
+  const baseParams = {
     ...(activeTab === "assigned" && user?.departmentId ? { departmentId: user.departmentId } : {}),
     ...(activeTab !== "all" && activeTab !== "assigned" ? { status: activeTab } : {}),
     daysOld: 30,
   };
-  const { data: conversations, isLoading: isConversationsLoading } = useListConversations(
-    params,
-    {
-      query: {
-        refetchInterval: 3000,
-        staleTime: 0,
-        refetchIntervalInBackground: true,
-        queryKey: getListConversationsQueryKey(params),
+  const PAGE_SIZE = 100;
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const {
+    data: conversationsData,
+    isLoading: isConversationsLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: [...getListConversationsQueryKey(baseParams), "infinite"],
+    queryFn: ({ pageParam = 0 }) => listConversations({ ...baseParams, limit: PAGE_SIZE, offset: pageParam }),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) => {
+      if (!lastPage) return undefined;
+      const totalLoaded = allPages.reduce((sum, p) => sum + p.items.length, 0);
+      return totalLoaded < lastPage.total ? allPages.length * PAGE_SIZE : undefined;
+    },
+    refetchInterval: 3000,
+    staleTime: 0,
+    refetchIntervalInBackground: true,
+  });
+
+  const conversations = conversationsData?.pages.flatMap(p => p.items) ?? [];
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || !hasNextPage) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) fetchNextPage();
       },
-    }
-  );
+      { rootMargin: "200px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasNextPage, fetchNextPage]);
 
   const { data: messages, isLoading: isMessagesLoading } = useListMessages(
     selectedConversationId,
@@ -241,9 +268,10 @@ export default function Inbox() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Play a subtle notification sound when new conversations arrive
+  // Play a subtle notification sound when new conversations arrive (first page only)
+  const firstPageCount = conversationsData?.pages[0]?.items?.length ?? 0;
   useEffect(() => {
-    const currentCount = conversations?.length ?? 0;
+    const currentCount = firstPageCount;
     const prevCount = prevConversationsRef.current;
     if (currentCount > prevCount && prevCount > 0) {
       try {
@@ -363,80 +391,86 @@ export default function Inbox() {
           </Tabs>
         </div>
 
-        <div className="flex-1 overflow-y-auto overflow-x-hidden">
-          <div className="flex flex-col">
-            {isConversationsLoading ? (
-              <div className="p-8 text-center text-muted-foreground text-sm">Loading conversations...</div>
-            ) : filteredConversations?.length === 0 ? (
-              <div className="p-8 text-center text-muted-foreground flex flex-col items-center">
-                <InboxIcon className="w-8 h-8 mb-3 opacity-20" />
-                <p className="text-sm font-medium">No conversations found</p>
-                <p className="text-xs mt-1 opacity-70">You're all caught up!</p>
-              </div>
-            ) : (
-              filteredConversations?.map((conv) => (
-                <button
-                  key={conv.id}
-                  onClick={() => { setActiveConversationId(conv.id); setMobileShowChat(true); }}
-                  className={`w-full text-left pl-4 pr-4 py-4 border-b transition-colors flex gap-3 hover:bg-muted/30 ${
-                    activeConversationId === conv.id ? 'bg-primary/5 border-l-2 border-l-primary' : 'border-l-2 border-l-transparent'
-                  }`}
-                >
-                  <div className="relative flex-shrink-0">
-                    <Avatar className="w-10 h-10 border border-border/50">
-                      {conv.contact?.avatarUrl ? (
-                        <AvatarImage src={conv.contact.avatarUrl} alt={conv.contact.name} />
-                      ) : null}
-                      <AvatarFallback className="bg-primary/10 text-primary text-xs font-medium">
-                        {conv.contact?.name?.substring(0, 2).toUpperCase() || "??"}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-background rounded-full flex items-center justify-center shadow-sm">
-                      {conv.channelType === 'whatsapp' && <span className="w-3 h-3 bg-green-500 rounded-full" />}
-                      {conv.channelType === 'instagram' && <span className="w-3 h-3 bg-pink-500 rounded-full" />}
-                      {conv.channelType === 'facebook' && <span className="w-3 h-3 bg-blue-500 rounded-full" />}
+          <div className="flex-1 overflow-y-auto overflow-x-hidden">
+            <div className="flex flex-col">
+              {isConversationsLoading ? (
+                <div className="p-8 text-center text-muted-foreground text-sm">Loading conversations...</div>
+              ) : filteredConversations?.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground flex flex-col items-center">
+                  <InboxIcon className="w-8 h-8 mb-3 opacity-20" />
+                  <p className="text-sm font-medium">No conversations found</p>
+                  <p className="text-xs mt-1 opacity-70">You're all caught up!</p>
+                </div>
+              ) : (
+                filteredConversations?.map((conv) => (
+                  <button
+                    key={conv.id}
+                    onClick={() => { setActiveConversationId(conv.id); setMobileShowChat(true); }}
+                    className={`w-full text-left pl-4 pr-4 py-4 border-b transition-colors flex gap-3 hover:bg-muted/30 ${
+                      activeConversationId === conv.id ? 'bg-primary/5 border-l-2 border-l-primary' : 'border-l-2 border-l-transparent'
+                    }`}
+                  >
+                    <div className="relative flex-shrink-0">
+                      <Avatar className="w-10 h-10 border border-border/50">
+                        {conv.contact?.avatarUrl ? (
+                          <AvatarImage src={conv.contact.avatarUrl} alt={conv.contact.name} />
+                        ) : null}
+                        <AvatarFallback className="bg-primary/10 text-primary text-xs font-medium">
+                          {conv.contact?.name?.substring(0, 2).toUpperCase() || "??"}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-background rounded-full flex items-center justify-center shadow-sm">
+                        {conv.channelType === 'whatsapp' && <span className="w-3 h-3 bg-green-500 rounded-full" />}
+                        {conv.channelType === 'instagram' && <span className="w-3 h-3 bg-pink-500 rounded-full" />}
+                        {conv.channelType === 'facebook' && <span className="w-3 h-3 bg-blue-500 rounded-full" />}
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex-1 min-w-0 pr-3">
-                    <div className="flex justify-between items-start mb-1">
-                      <span className="font-semibold text-sm truncate">{conv.contact?.name || "Unknown Contact"}</span>
-                      <span className="text-[10px] text-muted-foreground whitespace-nowrap ml-2">
-                        {formatChatDate(conv.lastMessageAt)}
-                      </span>
+                    <div className="flex-1 min-w-0 pr-3">
+                      <div className="flex justify-between items-start mb-1">
+                        <span className="font-semibold text-sm truncate">{conv.contact?.name || "Unknown Contact"}</span>
+                        <span className="text-[10px] text-muted-foreground whitespace-nowrap ml-2">
+                          {formatChatDate(conv.lastMessageAt)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <p className={`text-xs truncate min-w-0 ${
+                          !conv.lastMessage && conv.lastMessageContentType && conv.lastMessageContentType !== 'text'
+                            ? 'italic text-muted-foreground pr-1'
+                            : 'text-muted-foreground'
+                        }`}>
+                          {!conv.lastMessage && conv.lastMessageContentType && conv.lastMessageContentType !== 'text'
+                            ? (() => {
+                                switch (conv.lastMessageContentType) {
+                                  case 'image': return '📷 Image received';
+                                  case 'video': return '🎬 Video received';
+                                  case 'audio': return '🎤 Audio received';
+                                  case 'document': return '📄 Document received';
+                                  case 'sticker': return '🎨 Sticker received';
+                                  case 'location': return '📍 Location received';
+                                  default: return '📎 Media received';
+                                }
+                              })()
+                            : conv.lastMessage || 'No messages yet'
+                          }
+                        </p>
+                        {conv.unreadCount ? (
+                          <Badge variant="default" className="h-5 px-1.5 min-w-[20px] flex justify-center text-[10px] rounded-full">
+                            {conv.unreadCount}
+                          </Badge>
+                        ) : null}
+                      </div>
                     </div>
-                    <div className="flex justify-between items-center">
-                      <p className={`text-xs truncate min-w-0 ${
-                        !conv.lastMessage && conv.lastMessageContentType && conv.lastMessageContentType !== 'text'
-                          ? 'italic text-muted-foreground pr-1'
-                          : 'text-muted-foreground'
-                      }`}>
-                        {!conv.lastMessage && conv.lastMessageContentType && conv.lastMessageContentType !== 'text'
-                          ? (() => {
-                              switch (conv.lastMessageContentType) {
-                                case 'image': return '📷 Image received';
-                                case 'video': return '🎬 Video received';
-                                case 'audio': return '🎤 Audio received';
-                                case 'document': return '📄 Document received';
-                                case 'sticker': return '🎨 Sticker received';
-                                case 'location': return '📍 Location received';
-                                default: return '📎 Media received';
-                              }
-                            })()
-                          : conv.lastMessage || 'No messages yet'
-                        }
-                      </p>
-                      {conv.unreadCount ? (
-                        <Badge variant="default" className="h-5 px-1.5 min-w-[20px] flex justify-center text-[10px] rounded-full">
-                          {conv.unreadCount}
-                        </Badge>
-                      ) : null}
-                    </div>
-                  </div>
-                </button>
-              ))
-            )}
+                  </button>
+                ))
+              )}
+              <div ref={sentinelRef} className="h-4" />
+              {isFetchingNextPage && (
+                <div className="p-4 flex justify-center">
+                  <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                </div>
+              )}
+            </div>
           </div>
-        </div>
       </div>
 
       {/* Empty state on mobile when no chat selected */}

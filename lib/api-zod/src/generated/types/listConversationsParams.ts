@@ -16,4 +16,12 @@ channelType?: string;
  * Only return conversations updated within the last N days
  */
 daysOld?: number;
+/**
+ * Number of conversations per page
+ */
+limit?: number;
+/**
+ * Number of conversations to skip
+ */
+offset?: number;
 };

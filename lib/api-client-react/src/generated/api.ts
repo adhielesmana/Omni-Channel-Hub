@@ -69,6 +69,7 @@ import type {
   MessageInput,
   MetaWebhookPayload,
   OutboxListResponse,
+  PaginatedConversations,
   ResetPasswordResponse,
   StatsOverview,
   StatsPeriod,
@@ -1742,9 +1743,9 @@ export const getListConversationsUrl = (params?: ListConversationsParams,) => {
 /**
  * @summary List conversations
  */
-export const listConversations = async (params?: ListConversationsParams, options?: RequestInit): Promise<Conversation[]> => {
+export const listConversations = async (params?: ListConversationsParams, options?: RequestInit): Promise<PaginatedConversations> => {
 
-  return customFetch<Conversation[]>(getListConversationsUrl(params),
+  return customFetch<PaginatedConversations>(getListConversationsUrl(params),
   {
     ...options,
     method: 'GET'
