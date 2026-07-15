@@ -4,7 +4,10 @@ import { logger } from "./logger";
 
 function getTimeGreeting(): string {
   const now = new Date();
-  const hours = now.getHours();
+  const hours = parseInt(
+    now.toLocaleString("en-US", { timeZone: "Asia/Jakarta", hour: "numeric", hour12: false }),
+    10,
+  );
 
   if (hours >= 5 && hours < 12) return "Pagi";
   if (hours >= 12 && hours < 15) return "Siang";
