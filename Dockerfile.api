@@ -10,6 +10,7 @@ RUN pnpm run typecheck:libs
 RUN pnpm --filter @workspace/api-server run build
 
 FROM node:24-alpine AS runtime
+RUN apk add --no-cache postgresql-client curl tar gzip
 WORKDIR /app
 COPY --from=builder /build/artifacts/api-server/dist/ ./artifacts/api-server/dist/
 COPY --from=builder /build/artifacts/api-server/node_modules/ ./artifacts/api-server/node_modules/

@@ -81,6 +81,11 @@ const rootRouter = Router();
 rootRouter.use("/api", apiRouter);
 rootRouter.use("/api/media", mediaRouter);
 
-const server = createServer(rootRouter);
+const server = createServer(rootRouter, {
+  bodyParser: {
+    json: { limit: "500mb" },
+    urlencoded: { limit: "500mb" },
+  },
+});
 
 export default server;

@@ -17,6 +17,7 @@ import sendHelloRouter from "./send-hello";
 import outboxRouter from "./outbox";
 import autoReplyRouter from "./auto-reply";
 import aiAgentsRouter from "./ai-agents";
+import backupRouter from "./backup";
 
 const router = Router();
 
@@ -38,5 +39,6 @@ router.use(externalSendRouter);
 router.use(outboxRouter);
 router.use(autoReplyRouter);
 router.use(aiAgentsRouter);
+router.use(backupRouter);
 
 export default router;
