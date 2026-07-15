@@ -2,7 +2,9 @@ import { selectById, selectRaw } from "@workspace/db";
 import type { User } from "@workspace/db";
 import { isSuperadmin } from "./auth";
 
-export type ConversationViewer = Pick<User, "id" | "role" | "departmentId">;
+export type ConversationViewer = Pick<User, "id" | "role" | "departmentId"> & {
+  isHelpdesk?: boolean;
+};
 
 export async function loadConversationViewer(userId: number): Promise<ConversationViewer | null> {
   if (isSuperadmin(userId)) {
@@ -11,7 +13,17 @@ export async function loadConversationViewer(userId: number): Promise<Conversati
 
   const user = await selectById<User>("users", userId);
   if (!user) return null;
-  return { id: user.id, role: user.role, departmentId: user.departmentId };
+
+  let isHelpdesk = false;
+  if (user.departmentId != null) {
+    const [dept] = await selectRaw<{ name: string }>(
+      `SELECT name FROM departments WHERE id = $1`,
+      [user.departmentId],
+    );
+    isHelpdesk = dept?.name === "Helpdesk";
+  }
+
+  return { id: user.id, role: user.role, departmentId: user.departmentId, isHelpdesk };
 }
 
 export async function getAssignedAgentDepartment(assignedAgentId: number | null | undefined): Promise<number | null> {
@@ -38,7 +50,7 @@ export function canViewConversation(
   viewer: ConversationViewer,
   assignedAgentDepartmentId: number | null = null,
 ): boolean {
-  if (viewer.role === "admin") {
+  if (viewer.role === "admin" || viewer.isHelpdesk) {
     return true;
   }
 

@@ -313,7 +313,7 @@ router.post("/conversations/:id/resolve", requireAuth, async (req, res): Promise
     return;
   }
 
-  if (viewer.role !== "admin") {
+  if (viewer.role !== "admin" && !viewer.isHelpdesk) {
     const assignedAgentDepartmentId = await getAssignedAgentDepartment(existing.assignedAgentId);
     if (!canViewConversation(existing, viewer, assignedAgentDepartmentId)) {
       res.status(404).json({ error: "Conversation not found" });
