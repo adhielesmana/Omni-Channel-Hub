@@ -44,6 +44,41 @@ export async function buildConversationContext(
   ].join("\n");
 }
 
+function extractJsonObject(content: string): string | null {
+  const start = content.indexOf("{");
+  if (start === -1) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let i = start; i < content.length; i++) {
+    const char = content[i];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (char === "\\" && inString) {
+      escaped = true;
+      continue;
+    }
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (!inString) {
+      if (char === "{") depth++;
+      if (char === "}") {
+        depth--;
+        if (depth === 0) {
+          return content.slice(start, i + 1);
+        }
+      }
+    }
+  }
+  return null;
+}
+
 export async function callAiAgent(
   settings: AiAgentsSettings,
   conversationContext: string,
@@ -85,13 +120,13 @@ export async function callAiAgent(
       return null;
     }
 
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
+    const jsonStr = extractJsonObject(content);
+    if (!jsonStr) {
       logger.warn({ content }, "AI agent response is not valid JSON");
       return null;
     }
 
-    const parsed = JSON.parse(jsonMatch[0]) as AiAgentDecision;
+    const parsed = JSON.parse(jsonStr) as AiAgentDecision;
 
     if (!parsed.action || !parsed.analysis) {
       logger.warn({ parsed }, "AI agent response missing required fields");
