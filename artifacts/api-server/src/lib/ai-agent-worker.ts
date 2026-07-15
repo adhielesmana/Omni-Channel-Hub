@@ -43,13 +43,12 @@ async function processIdleConversations(): Promise<void> {
        FROM conversations c
        WHERE c.last_message_at IS NOT NULL
          AND c.last_message_at < NOW() - INTERVAL '1 minute' * $1
-         AND EXISTS (
-           SELECT 1 FROM messages m
-           WHERE m.conversation_id = c.id
-             AND m.sender_type = 'contact'
-             AND m.direction = 'inbound'
-             AND m.created_at = c.last_message_at
-         )
+          AND (
+            SELECT m.sender_type FROM messages m
+            WHERE m.conversation_id = c.id
+            ORDER BY m.created_at DESC
+            LIMIT 1
+          ) = 'contact'
          AND NOT EXISTS (
            SELECT 1 FROM messages m
            WHERE m.conversation_id = c.id
