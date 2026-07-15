@@ -224,6 +224,7 @@ export default function Inbox() {
   const assignConversation = useAssignConversation();
 
   const activeConversation = conversations?.find(c => c.id === activeConversationId);
+  const canResolve = user?.role === "admin" || !activeConversation?.department?.id || activeConversation.department?.id === user?.departmentId;
 
   const filteredConversations = conversations?.filter(c =>
     !searchQuery ||
@@ -487,16 +488,18 @@ export default function Inbox() {
                 </Select>
               </div>
 
-              <Button
-                variant={activeConversation.status === 'resolved' ? 'outline' : 'default'}
-                size="sm"
-                className="h-8 text-xs gap-1.5"
-                onClick={handleResolveToggle}
-                disabled={resolveConversation.isPending || reopenConversation.isPending}
-              >
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">{activeConversation.status === 'resolved' ? 'Reopen' : 'Resolve'}</span>
-              </Button>
+              {canResolve && (
+                <Button
+                  variant={activeConversation.status === 'resolved' ? 'outline' : 'default'}
+                  size="sm"
+                  className="h-8 text-xs gap-1.5"
+                  onClick={handleResolveToggle}
+                  disabled={resolveConversation.isPending || reopenConversation.isPending}
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">{activeConversation.status === 'resolved' ? 'Reopen' : 'Resolve'}</span>
+                </Button>
+              )}
 
               <Button variant="ghost" size="icon" className="h-8 w-8 hidden md:flex">
                 <MoreVertical className="w-4 h-4" />

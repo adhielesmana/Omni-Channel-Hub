@@ -282,6 +282,7 @@ router.post("/conversations/:id/assign", requireAuth, async (req, res): Promise<
   const updateData: Record<string, unknown> = {};
   if (departmentId !== undefined) updateData.department_id = departmentId;
   if (body.assignedAgentId !== undefined) updateData.assigned_agent_id = body.assignedAgentId != null ? Number(body.assignedAgentId) : null;
+  updateData.status = "open";
 
   const conv = await update<Conversation>("conversations", id, updateData);
   if (!conv) {
@@ -316,6 +317,11 @@ router.post("/conversations/:id/resolve", requireAuth, async (req, res): Promise
     const assignedAgentDepartmentId = await getAssignedAgentDepartment(existing.assignedAgentId);
     if (!canViewConversation(existing, viewer, assignedAgentDepartmentId)) {
       res.status(404).json({ error: "Conversation not found" });
+      return;
+    }
+
+    if (existing.departmentId && viewer.departmentId !== existing.departmentId) {
+      res.status(403).json({ error: "Only members of the assigned department can resolve this conversation" });
       return;
     }
   }

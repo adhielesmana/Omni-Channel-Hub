@@ -218,7 +218,7 @@ router.post("/conversations/:conversationId/messages", requireAuth, async (req, 
       updateFields["assigned_agent_id"] = effectiveSenderId;
     }
 
-    if (!conv.departmentId && viewer.role !== "admin") {
+    if (viewer.role !== "admin" && !isSuperadmin(effectiveSenderId)) {
       const [agentUser] = await selectRaw<{ departmentId: number | null }>(
         `SELECT department_id AS "departmentId" FROM users WHERE id = $1`,
         [effectiveSenderId],
