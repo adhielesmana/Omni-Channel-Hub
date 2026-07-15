@@ -218,6 +218,11 @@ export default function Inbox() {
   const { data: users } = useListUsers();
   const { data: departments } = useListDepartments();
 
+  const filteredUsers = users?.filter(u => {
+    if (!activeConversation?.department?.id) return true;
+    return u.departmentId === activeConversation.department.id;
+  });
+
   const sendMessage = useSendMessage();
   const resolveConversation = useResolveConversation();
   const reopenConversation = useReopenConversation();
@@ -317,8 +322,17 @@ export default function Inbox() {
 
   const handleAssignDepartment = (deptId: string) => {
     if (!activeConversationId) return;
+    const newDeptId = deptId === "none" ? undefined : Number(deptId);
+    const currentAgentUser = users?.find(u => u.id === activeConversation?.assignedAgent?.id);
+    const agentInNewDept = currentAgentUser && newDeptId ? currentAgentUser.departmentId === newDeptId : true;
     assignConversation.mutate(
-      { id: activeConversationId, data: { departmentId: deptId === "none" ? undefined : Number(deptId) } },
+      {
+        id: activeConversationId,
+        data: {
+          departmentId: newDeptId,
+          ...(agentInNewDept ? {} : { assignedAgentId: null }),
+        },
+      },
       { onSuccess: invalidateConversation }
     );
   };
@@ -481,7 +495,7 @@ export default function Inbox() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Unassigned</SelectItem>
-                    {users?.map(u => (
+                    {filteredUsers?.map(u => (
                       <SelectItem key={u.id} value={u.id.toString()}>{u.name}</SelectItem>
                     ))}
                   </SelectContent>
