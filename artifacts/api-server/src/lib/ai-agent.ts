@@ -1,4 +1,4 @@
-import { selectRaw, insert } from "@workspace/db";
+import { selectRaw, insert, update } from "@workspace/db";
 import type { Channel, Contact, Conversation, AiAgentsSettings } from "@workspace/db";
 import { logger } from "./logger";
 
@@ -163,6 +163,10 @@ export async function processAiAgentConversation(
   channel: Channel,
   settings: AiAgentsSettings,
 ): Promise<void> {
+  await update("conversations", conversation.id, {
+    status: "open",
+  });
+
   const context = await buildConversationContext(
     conversation.id,
     contact,

@@ -41,8 +41,7 @@ async function processIdleConversations(): Promise<void> {
     }>(
       `SELECT c.id, c.contact_id, c.channel_id, c.channel_type, c.last_message_at, c.status
        FROM conversations c
-       WHERE c.status NOT IN ('resolved')
-         AND c.last_message_at IS NOT NULL
+       WHERE c.last_message_at IS NOT NULL
          AND c.last_message_at < NOW() - INTERVAL '1 minute' * $1
          AND EXISTS (
            SELECT 1 FROM messages m
