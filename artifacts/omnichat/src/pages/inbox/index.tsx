@@ -218,17 +218,17 @@ export default function Inbox() {
   const { data: users } = useListUsers();
   const { data: departments } = useListDepartments();
 
-  const filteredUsers = users?.filter(u => {
-    if (!activeConversation?.department?.id) return true;
-    return u.departmentId === activeConversation.department.id;
-  });
-
   const sendMessage = useSendMessage();
   const resolveConversation = useResolveConversation();
   const reopenConversation = useReopenConversation();
   const assignConversation = useAssignConversation();
 
   const activeConversation = conversations?.find(c => c.id === activeConversationId);
+
+  const filteredUsers = users?.filter(u => {
+    if (!activeConversation?.department?.id) return true;
+    return u.departmentId === activeConversation.department.id;
+  });
   const canResolve = user?.role === "admin" || !activeConversation?.department?.id || activeConversation.department?.id === user?.departmentId;
 
   const filteredConversations = conversations?.filter(c =>
