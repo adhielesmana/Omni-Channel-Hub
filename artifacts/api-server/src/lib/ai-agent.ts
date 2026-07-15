@@ -157,16 +157,18 @@ async function sendAiReply(channel: Channel, contact: Contact, content: string):
   }
 }
 
+async function isWithinConversationWindow(conversation: Conversation): Promise<boolean> {
+  if (!conversation.lastMessageAt) return false;
+  const hoursSinceLastMessage = (Date.now() - conversation.lastMessageAt.getTime()) / (1000 * 60 * 60);
+  return hoursSinceLastMessage < 24;
+}
+
 export async function processAiAgentConversation(
   conversation: Conversation,
   contact: Contact,
   channel: Channel,
   settings: AiAgentsSettings,
 ): Promise<void> {
-  await update("conversations", conversation.id, {
-    status: "open",
-  });
-
   const context = await buildConversationContext(
     conversation.id,
     contact,
@@ -212,6 +214,23 @@ Analisis: ${decision.analysis}`;
     logger.warn({ conversationId: conversation.id }, "AI agent decided to respond but response is empty");
     return;
   }
+
+  if (!(await isWithinConversationWindow(conversation))) {
+    await insert("messages", {
+      conversation_id: conversation.id,
+      sender_type: "system",
+      direction: "outbound",
+      content_type: "note",
+      content: `AI Agent: Tidak dapat merespon secara otomatis karena percakapan sudah melebihi 24 jam sejak pesan terakhir pelanggan (di luar jendela percakapan Meta).`,
+      sender_name: "AI Agent",
+    });
+    logger.info({ conversationId: conversation.id }, "AI agent skipped reply — outside 24h Meta conversation window");
+    return;
+  }
+
+  await update("conversations", conversation.id, {
+    status: "open",
+  });
 
   const externalMessageId = await sendAiReply(channel, contact, decision.response);
 
