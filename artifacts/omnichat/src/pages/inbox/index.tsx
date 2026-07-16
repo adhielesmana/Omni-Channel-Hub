@@ -192,7 +192,7 @@ export default function Inbox() {
     ...(activeTab !== "all" && activeTab !== "assigned" ? { status: activeTab } : {}),
     daysOld: 30,
   };
-  const PAGE_SIZE = 100;
+  const PAGE_SIZE = 50;
   const sentinelRef = useRef<HTMLDivElement>(null);
   const {
     data: conversationsData,
