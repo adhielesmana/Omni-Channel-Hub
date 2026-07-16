@@ -305,11 +305,15 @@ async function processWhatsAppEntry(entry: Record<string, unknown>) {
 
       // Auto-reply
       try {
+        logger.info({ conversationId: conversation.id }, "Auto-reply check starting");
         const autoReply = await shouldAutoReply(conversation.id);
+        logger.info({ conversationId: conversation.id, autoReply }, "Auto-reply check result");
         if (autoReply) {
           const settings = (await selectWhere("auto_reply_settings", {}))[0];
+          logger.info({ conversationId: conversation.id, hasSettings: !!settings }, "Auto-reply settings check");
           if (settings) {
             const greeting = buildGreetingMessage(settings, contact.name);
+            logger.info({ conversationId: conversation.id, greeting }, "Sending auto-reply");
             await sendAutoReply(channel, contact, conversation.id, greeting);
           }
         }
@@ -440,11 +444,15 @@ async function processMetaPageEntry(entry: Record<string, unknown>, channelType:
 
     // Auto-reply
     try {
+      logger.info({ conversationId: conversation.id, channelType }, "Auto-reply check starting");
       const autoReply = await shouldAutoReply(conversation.id);
+      logger.info({ conversationId: conversation.id, autoReply }, "Auto-reply check result");
       if (autoReply) {
         const settings = (await selectWhere("auto_reply_settings", {}))[0];
+        logger.info({ conversationId: conversation.id, hasSettings: !!settings }, "Auto-reply settings check");
         if (settings) {
           const greeting = buildGreetingMessage(settings, contact.name);
+          logger.info({ conversationId: conversation.id, greeting }, "Sending auto-reply");
           await sendAutoReply(channel, contact, conversation.id, greeting);
         }
       }
