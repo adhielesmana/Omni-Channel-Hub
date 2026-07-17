@@ -53,12 +53,13 @@ function buildCanonicalRequest(
 
 function buildStringToSign(
   algorithm: string,
+  amzDate: string,
   credentialScope: string,
   canonicalRequest: string,
 ): string {
   return [
     algorithm,
-    credentialScope.split("/")[0],
+    amzDate,
     credentialScope,
     hashSha256(canonicalRequest),
   ].join("\n");
@@ -134,7 +135,7 @@ async function r2Request(
 
   const algorithm = "AWS4-HMAC-SHA256";
   const credentialScope = `${dateStamp}/${REGION}/s3/aws4_request`;
-  const stringToSign = buildStringToSign(algorithm, credentialScope, canonicalRequest);
+  const stringToSign = buildStringToSign(algorithm, amzDate, credentialScope, canonicalRequest);
 
   const signingKey = getSignatureKey(SECRET_ACCESS_KEY, dateStamp, REGION, "s3");
   const signature = hmacSha256(signingKey, stringToSign).toString("hex");
