@@ -185,12 +185,17 @@ router.get("/stats/sentiment", requireAuth, async (req, res): Promise<void> => {
   const dateFilter = buildDateClause(start, end);
 
   const rows = await selectRaw<{ sentiment: string; count: string }>(
-    `SELECT substring(content from 'Sentimen: (\\w+)') AS sentiment, count(*)::int AS count
+    `SELECT
+       CASE
+         WHEN content LIKE '%Sentimen: positive%' THEN 'positive'
+         WHEN content LIKE '%Sentimen: negative%' THEN 'negative'
+         WHEN content LIKE '%Sentimen: neutral%' THEN 'neutral'
+       END AS sentiment,
+       count(*)::int AS count
      FROM messages
-     WHERE content_type = 'note' AND sender_name = 'AI Agent'
-     AND content LIKE '%Sentimen:%'
+     WHERE content_type = 'note' AND sender_name = 'AI Agent' AND content LIKE '%Sentimen:%'
      ${dateFilter.clause}
-     GROUP BY sentiment
+     GROUP BY 1
      HAVING sentiment IS NOT NULL`,
     dateFilter.params,
   );
