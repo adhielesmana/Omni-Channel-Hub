@@ -143,7 +143,7 @@ router.get("/stats/conversations-by-department", requireAuth, async (req, res): 
 router.get("/stats/agent-workload", requireAuth, async (req, res): Promise<void> => {
   const { start, end } = parseDateRange(req);
 
-  const agents = await selectWhere<User>("users", { role: "agent", isActive: true });
+  const agents = await selectWhere<User>("users", { role: "agent", is_active: true });
 
   const workload = await Promise.all(agents.map(async (agent) => {
     const [open] = await selectRaw<{ count: string }>(
