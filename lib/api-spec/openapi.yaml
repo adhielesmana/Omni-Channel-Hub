@@ -830,6 +830,34 @@ paths:
                 items:
                   $ref: "#/components/schemas/DepartmentCount"
 
+  /stats/sentiment:
+    get:
+      operationId: getSentimentDistribution
+      tags: [stats]
+      summary: Sentiment distribution from AI agent analyses
+      parameters:
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Filter start date (ISO 8601)
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Filter end date (ISO 8601)
+      responses:
+        "200":
+          description: Sentiment distribution
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SentimentCount"
+
   /stats/agent-workload:
     get:
       operationId: getAgentWorkload
@@ -1783,6 +1811,15 @@ components:
         departmentId:
           type: integer
         departmentName:
+          type: string
+        count:
+          type: integer
+
+    SentimentCount:
+      type: object
+      required: [sentiment, count]
+      properties:
+        sentiment:
           type: string
         count:
           type: integer

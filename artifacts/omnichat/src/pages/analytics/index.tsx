@@ -1,7 +1,7 @@
 import {
   useGetStatsOverview,
   useGetAgentWorkload,
-  useGetConversationsByChannel,
+  useGetSentimentDistribution,
   useGetConversationsByDepartment,
 } from "@workspace/api-client-react";
 import { MessageSquare, Clock, CheckCircle2, AlertCircle, Download } from "lucide-react";
@@ -24,10 +24,10 @@ import {
   Legend,
 } from "recharts";
 
-const CHANNEL_COLORS: Record<string, string> = {
-  whatsapp: "#22c55e",
-  instagram: "#ec4899",
-  facebook: "#3b82f6",
+const SENTIMENT_COLORS: Record<string, string> = {
+  positive: "#22c55e",
+  negative: "#ef4444",
+  neutral: "#94a3b8",
 };
 
 const DEPT_COLORS = ["#6366f1", "#f59e0b", "#10b981", "#ef4444", "#8b5cf6", "#06b6d4"];
@@ -63,13 +63,13 @@ function downloadCsv(
 export default function Analytics() {
   const { data: stats, isLoading: statsLoading } = useGetStatsOverview();
   const { data: workload, isLoading: workloadLoading } = useGetAgentWorkload();
-  const { data: byChannel } = useGetConversationsByChannel();
+  const { data: sentimentData } = useGetSentimentDistribution();
   const { data: byDepartment } = useGetConversationsByDepartment();
 
-  const channelData = (byChannel ?? []).map((c) => ({
-    name: c.channelType.charAt(0).toUpperCase() + c.channelType.slice(1),
-    value: c.count,
-    fill: CHANNEL_COLORS[c.channelType] ?? "#94a3b8",
+  const sentimentChartData = (sentimentData ?? []).map((s) => ({
+    name: s.sentiment.charAt(0).toUpperCase() + s.sentiment.slice(1),
+    value: s.count,
+    fill: SENTIMENT_COLORS[s.sentiment] ?? "#94a3b8",
   }));
 
   const deptData = (byDepartment ?? []).map((d, i) => ({
@@ -246,16 +246,16 @@ export default function Analytics() {
 
             <Card className="shadow-sm h-[420px] flex flex-col">
               <CardHeader className="border-b bg-muted/20 flex-shrink-0 flex flex-row items-center justify-between">
-                <CardTitle className="text-base">Channel Distribution</CardTitle>
+                <CardTitle className="text-base">Customer Satisfaction (Sentiment)</CardTitle>
                 <Button
                   variant="ghost"
                   size="sm"
                   className="h-7 gap-1 text-xs"
                   onClick={() =>
                     downloadCsv(
-                      "channel-distribution.csv",
-                      ["Channel", "Count"],
-                      channelData.map((channel) => [channel.name, channel.value])
+                      "sentiment-distribution.csv",
+                      ["Sentiment", "Count"],
+                      sentimentChartData.map((s) => [s.name, s.value])
                     )
                   }
                 >
@@ -264,13 +264,13 @@ export default function Analytics() {
                 </Button>
               </CardHeader>
               <CardContent className="flex-1 flex items-center justify-center p-4">
-                {!channelData.length ? (
-                  <p className="text-sm text-muted-foreground">No channel data</p>
+                {!sentimentChartData.length ? (
+                  <p className="text-sm text-muted-foreground">No sentiment data</p>
                 ) : (
                   <ResponsiveContainer width="100%" height={260}>
                     <PieChart>
                       <Pie
-                        data={channelData}
+                        data={sentimentChartData}
                         cx="50%"
                         cy="45%"
                         innerRadius={60}
@@ -280,7 +280,7 @@ export default function Analytics() {
                         label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                         labelLine={false}
                       >
-                        {channelData.map((entry) => (
+                        {sentimentChartData.map((entry) => (
                           <Cell key={entry.name} fill={entry.fill} />
                         ))}
                       </Pie>

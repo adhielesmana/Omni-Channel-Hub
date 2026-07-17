@@ -180,6 +180,24 @@ router.get("/stats/agent-workload", requireAuth, async (req, res): Promise<void>
   res.json(workload);
 });
 
+router.get("/stats/sentiment", requireAuth, async (req, res): Promise<void> => {
+  const { start, end } = parseDateRange(req);
+  const dateFilter = buildDateClause(start, end);
+
+  const rows = await selectRaw<{ sentiment: string; count: string }>(
+    `SELECT substring(content from 'Sentimen: (\\w+)') AS sentiment, count(*)::int AS count
+     FROM messages
+     WHERE content_type = 'note' AND sender_name = 'AI Agent'
+     AND content LIKE '%Sentimen:%'
+     ${dateFilter.clause}
+     GROUP BY sentiment
+     HAVING sentiment IS NOT NULL`,
+    dateFilter.params,
+  );
+
+  res.json(rows.map(r => ({ sentiment: r.sentiment, count: Number(r.count) })));
+});
+
 router.get("/stats/periods", requireAuth, async (_req, res): Promise<void> => {
   res.json(getPeriods());
 });

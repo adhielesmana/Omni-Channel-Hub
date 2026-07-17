@@ -55,6 +55,7 @@ import type {
   GetAgentWorkloadParams,
   GetConversationsByChannelParams,
   GetConversationsByDepartmentParams,
+  GetSentimentDistributionParams,
   GetStatsOverviewParams,
   HealthStatus,
   ListContactsParams,
@@ -71,6 +72,7 @@ import type {
   OutboxListResponse,
   PaginatedConversations,
   ResetPasswordResponse,
+  SentimentCount,
   StatsOverview,
   StatsPeriod,
   SyncWaTemplatesInput,
@@ -2927,6 +2929,90 @@ export function useGetConversationsByDepartment<TData = Awaited<ReturnType<typeo
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetConversationsByDepartmentQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetSentimentDistributionUrl = (params?: GetSentimentDistributionParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/stats/sentiment?${stringifiedParams}` : `/api/stats/sentiment`
+}
+
+/**
+ * @summary Sentiment distribution from AI agent analyses
+ */
+export const getSentimentDistribution = async (params?: GetSentimentDistributionParams, options?: RequestInit): Promise<SentimentCount[]> => {
+
+  return customFetch<SentimentCount[]>(getGetSentimentDistributionUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSentimentDistributionQueryKey = (params?: GetSentimentDistributionParams,) => {
+    return [
+    `/api/stats/sentiment`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetSentimentDistributionQueryOptions = <TData = Awaited<ReturnType<typeof getSentimentDistribution>>, TError = ErrorType<unknown>>(params?: GetSentimentDistributionParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSentimentDistribution>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSentimentDistributionQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSentimentDistribution>>> = ({ signal }) => getSentimentDistribution(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSentimentDistribution>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSentimentDistributionQueryResult = NonNullable<Awaited<ReturnType<typeof getSentimentDistribution>>>
+export type GetSentimentDistributionQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Sentiment distribution from AI agent analyses
+ */
+
+export function useGetSentimentDistribution<TData = Awaited<ReturnType<typeof getSentimentDistribution>>, TError = ErrorType<unknown>>(
+ params?: GetSentimentDistributionParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSentimentDistribution>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSentimentDistributionQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

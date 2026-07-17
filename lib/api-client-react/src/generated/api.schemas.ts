@@ -531,6 +531,11 @@ export interface DepartmentCount {
   count: number;
 }
 
+export interface SentimentCount {
+  sentiment: string;
+  count: number;
+}
+
 export interface LoginInput {
   email: string;
   password: string;
@@ -982,6 +987,17 @@ endDate?: string;
 };
 
 export type GetConversationsByDepartmentParams = {
+/**
+ * Filter start date (ISO 8601)
+ */
+startDate?: string;
+/**
+ * Filter end date (ISO 8601)
+ */
+endDate?: string;
+};
+
+export type GetSentimentDistributionParams = {
 /**
  * Filter start date (ISO 8601)
  */
