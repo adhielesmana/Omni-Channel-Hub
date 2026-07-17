@@ -32,7 +32,7 @@ export async function buildConversationContext(
 
   const lines = messages.map((m) => {
     const sender = m.senderType === "contact" ? "Pelanggan" : (m.senderName || "Agent");
-    const content = m.contentType === "text" ? m.content : `[${m.contentType}]`;
+    const content = m.contentType === "text" ? (m.content || "(empty)") : `[${m.contentType}]`;
     const time = new Date(m.createdAt).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" });
     return `[${time}] ${sender}: ${content}`;
   });
@@ -101,12 +101,14 @@ export async function callAiAgent(
           { role: "user", content: conversationContext },
         ],
         temperature: 0.7,
-        max_tokens: 1024,
+        max_tokens: 4096,
       }),
+      signal: AbortSignal.timeout(60_000),
     });
 
     if (!res.ok) {
-      logger.error({ status: res.status, statusText: res.statusText }, "AI agent API error");
+      const text = await res.text().catch(() => "");
+      logger.error({ status: res.status, statusText: res.statusText, body: text.slice(0, 500) }, "AI agent API error");
       return null;
     }
 
@@ -116,7 +118,7 @@ export async function callAiAgent(
 
     const content = data.choices?.[0]?.message?.content;
     if (!content) {
-      logger.warn("AI agent returned empty response");
+      logger.warn({ response: JSON.stringify(data).slice(0, 500) }, "AI agent returned empty response");
       return null;
     }
 
