@@ -46,6 +46,7 @@ async function processIdleConversations(): Promise<void> {
           AND (
             SELECT m.sender_type FROM messages m
             WHERE m.conversation_id = c.id
+              AND m.sender_type != 'system'
             ORDER BY m.created_at DESC
             LIMIT 1
           ) = 'contact'
