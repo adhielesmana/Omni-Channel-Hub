@@ -21,6 +21,7 @@ import type {
 
 import type {
   AgentWorkload,
+  AiAgentConversationCount,
   AiAgentsSettings,
   AiAgentsSettingsInput,
   AssignmentInput,
@@ -53,6 +54,7 @@ import type {
   ExternalWhatsappSendInput,
   ExternalWhatsappSendResult,
   GetAgentWorkloadParams,
+  GetAiAgentConversationsParams,
   GetConversationsByChannelParams,
   GetConversationsByDepartmentParams,
   GetSentimentDistributionParams,
@@ -3013,6 +3015,90 @@ export function useGetSentimentDistribution<TData = Awaited<ReturnType<typeof ge
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetSentimentDistributionQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetAiAgentConversationsUrl = (params?: GetAiAgentConversationsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/stats/ai-agent-conversations?${stringifiedParams}` : `/api/stats/ai-agent-conversations`
+}
+
+/**
+ * @summary Conversations where AI Agent sent a reply
+ */
+export const getAiAgentConversations = async (params?: GetAiAgentConversationsParams, options?: RequestInit): Promise<AiAgentConversationCount> => {
+
+  return customFetch<AiAgentConversationCount>(getGetAiAgentConversationsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAiAgentConversationsQueryKey = (params?: GetAiAgentConversationsParams,) => {
+    return [
+    `/api/stats/ai-agent-conversations`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetAiAgentConversationsQueryOptions = <TData = Awaited<ReturnType<typeof getAiAgentConversations>>, TError = ErrorType<unknown>>(params?: GetAiAgentConversationsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAiAgentConversations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAiAgentConversationsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAiAgentConversations>>> = ({ signal }) => getAiAgentConversations(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAiAgentConversations>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAiAgentConversationsQueryResult = NonNullable<Awaited<ReturnType<typeof getAiAgentConversations>>>
+export type GetAiAgentConversationsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Conversations where AI Agent sent a reply
+ */
+
+export function useGetAiAgentConversations<TData = Awaited<ReturnType<typeof getAiAgentConversations>>, TError = ErrorType<unknown>>(
+ params?: GetAiAgentConversationsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAiAgentConversations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAiAgentConversationsQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

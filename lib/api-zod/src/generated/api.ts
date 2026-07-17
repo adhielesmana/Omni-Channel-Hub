@@ -959,6 +959,19 @@ export const GetSentimentDistributionResponse = zod.array(GetSentimentDistributi
 
 
 /**
+ * @summary Conversations where AI Agent sent a reply
+ */
+export const GetAiAgentConversationsQueryParams = zod.object({
+  "startDate": zod.date().optional().describe('Filter start date (ISO 8601)'),
+  "endDate": zod.date().optional().describe('Filter end date (ISO 8601)')
+})
+
+export const GetAiAgentConversationsResponse = zod.object({
+  "count": zod.number()
+})
+
+
+/**
  * @summary Per-agent conversation workload
  */
 export const GetAgentWorkloadQueryParams = zod.object({

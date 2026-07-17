@@ -143,7 +143,7 @@ router.get("/stats/conversations-by-department", requireAuth, async (req, res): 
 router.get("/stats/agent-workload", requireAuth, async (req, res): Promise<void> => {
   const { start, end } = parseDateRange(req);
 
-  const agents = await selectWhere<User>("users", { role: "agent" });
+  const agents = await selectWhere<User>("users", { role: "agent", isActive: true });
 
   const workload = await Promise.all(agents.map(async (agent) => {
     const [open] = await selectRaw<{ count: string }>(
@@ -177,7 +177,11 @@ router.get("/stats/agent-workload", requireAuth, async (req, res): Promise<void>
     };
   }));
 
-  res.json(workload);
+  const filteredWorkload = workload.filter(
+    (agent) => agent.openCount > 0 || agent.resolvedCount > 0
+  );
+
+  res.json(filteredWorkload);
 });
 
 router.get("/stats/sentiment", requireAuth, async (req, res): Promise<void> => {
@@ -204,6 +208,22 @@ router.get("/stats/sentiment", requireAuth, async (req, res): Promise<void> => {
   );
 
   res.json(rows.map(r => ({ sentiment: r.sentiment, count: Number(r.count) })));
+});
+
+router.get("/stats/ai-agent-conversations", requireAuth, async (req, res): Promise<void> => {
+  const { start, end } = parseDateRange(req);
+  const dateFilter = buildDateClause(start, end);
+
+  const [row] = await selectRaw<{ count: string }>(
+    `SELECT count(DISTINCT m.conversation_id)::int AS count
+     FROM messages m
+     WHERE m.sender_name = 'AI Agent'
+       AND m.content_type = 'text'
+       ${dateFilter.clause.replace(/created_at/g, "m.created_at")}`,
+    dateFilter.params,
+  );
+
+  res.json({ count: Number(row?.count ?? 0) });
 });
 
 router.get("/stats/periods", requireAuth, async (_req, res): Promise<void> => {

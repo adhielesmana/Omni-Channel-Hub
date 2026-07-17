@@ -2,7 +2,7 @@ import {
   useGetStatsOverview,
   useGetAgentWorkload,
   useGetSentimentDistribution,
-  useGetConversationsByDepartment,
+  useGetAiAgentConversations,
 } from "@workspace/api-client-react";
 import { MessageSquare, Clock, CheckCircle2, AlertCircle, Download } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,7 +30,6 @@ const SENTIMENT_COLORS: Record<string, string> = {
   neutral: "#94a3b8",
 };
 
-const DEPT_COLORS = ["#6366f1", "#f59e0b", "#10b981", "#ef4444", "#8b5cf6", "#06b6d4"];
 const AGENT_COLORS = ["#6366f1", "#0ea5e9", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
 
 function escapeCsvValue(value: string | number | null | undefined): string {
@@ -64,7 +63,7 @@ export default function Analytics() {
   const { data: stats, isLoading: statsLoading } = useGetStatsOverview();
   const { data: workload, isLoading: workloadLoading } = useGetAgentWorkload();
   const { data: sentimentData } = useGetSentimentDistribution();
-  const { data: byDepartment } = useGetConversationsByDepartment();
+  const { data: aiAgentData } = useGetAiAgentConversations();
 
   const sentimentChartData = (sentimentData ?? []).map((s) => ({
     name: s.sentiment.charAt(0).toUpperCase() + s.sentiment.slice(1),
@@ -72,11 +71,8 @@ export default function Analytics() {
     fill: SENTIMENT_COLORS[s.sentiment] ?? "#94a3b8",
   }));
 
-  const deptData = (byDepartment ?? []).map((d, i) => ({
-    name: d.departmentName ?? `Dept #${d.departmentId}`,
-    count: d.count,
-    fill: DEPT_COLORS[i % DEPT_COLORS.length],
-  }));
+  const aiAgentCount = aiAgentData?.count ?? 0;
+  const aiAgentChartData = [{ name: "AI Agents", count: aiAgentCount, fill: "#8b5cf6" }];
 
   const workloadData = workload ?? [];
   const maxWorkloadCount = Math.max(
@@ -334,19 +330,19 @@ export default function Analytics() {
             </Card>
           )}
 
-          {deptData.length > 0 && (
+          {aiAgentCount > 0 && (
             <Card className="shadow-sm">
               <CardHeader className="border-b bg-muted/20 flex flex-row items-center justify-between">
-                <CardTitle className="text-base">Conversations by Department</CardTitle>
+                <CardTitle className="text-base">AI Agent Conversations</CardTitle>
                 <Button
                   variant="ghost"
                   size="sm"
                   className="h-7 gap-1 text-xs"
                   onClick={() =>
                     downloadCsv(
-                      "conversations-by-department.csv",
-                      ["Department", "Count"],
-                      deptData.map((dept) => [dept.name, dept.count])
+                      "ai-agent-conversations.csv",
+                      ["Source", "Count"],
+                      aiAgentChartData.map((row) => [row.name, row.count])
                     )
                   }
                 >
@@ -356,13 +352,13 @@ export default function Analytics() {
               </CardHeader>
               <CardContent className="p-4 pt-6">
                 <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={deptData} margin={{ top: 0, right: 16, left: 0, bottom: 0 }}>
+                  <BarChart data={aiAgentChartData} margin={{ top: 0, right: 16, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                     <XAxis dataKey="name" tick={{ fontSize: 12 }} />
                     <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
                     <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
                     <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-                      {deptData.map((entry) => (
+                      {aiAgentChartData.map((entry) => (
                         <Cell key={entry.name} fill={entry.fill} />
                       ))}
                     </Bar>

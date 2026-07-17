@@ -7,6 +7,7 @@
  */
 
 export * from './agentWorkload';
+export * from './aiAgentConversationCount';
 export * from './aiAgentsSettings';
 export * from './aiAgentsSettingsInput';
 export * from './assignmentInput';
@@ -57,6 +58,7 @@ export * from './externalWhatsappBlastInputRecipientsItem';
 export * from './externalWhatsappSendInput';
 export * from './externalWhatsappSendResult';
 export * from './getAgentWorkloadParams';
+export * from './getAiAgentConversationsParams';
 export * from './getConversationsByChannelParams';
 export * from './getConversationsByDepartmentParams';
 export * from './getSentimentDistributionParams';
