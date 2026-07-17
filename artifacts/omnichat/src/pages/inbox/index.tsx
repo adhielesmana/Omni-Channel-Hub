@@ -475,7 +475,7 @@ export default function Inbox() {
 
       {/* Empty state on mobile when no chat selected */}
       {activeConversation ? (
-        <div className={`flex-1 flex flex-col h-full bg-background min-w-0 ${!mobileShowChat ? 'hidden md:flex' : 'flex'}`}>
+        <div className={`flex-1 flex flex-col h-full bg-background min-w-0 overflow-hidden ${!mobileShowChat ? 'hidden md:flex' : 'flex'}`}>
           {/* Chat Header */}
           <div className="h-16 px-4 border-b bg-card flex items-center justify-between shrink-0 gap-2">
             <div className="flex items-center gap-3 min-w-0 flex-1 overflow-hidden">
