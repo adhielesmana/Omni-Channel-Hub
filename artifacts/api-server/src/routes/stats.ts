@@ -126,7 +126,7 @@ router.get("/stats/conversations-by-department", requireAuth, async (req, res): 
     `SELECT c.department_id, d.name AS department_name, count(*)::int AS count
      FROM conversations c
      LEFT JOIN departments d ON c.department_id = d.id
-     WHERE 1=1 ${dateFilter.clause}
+     WHERE c.department_id IS NOT NULL ${dateFilter.clause}
      GROUP BY c.department_id, d.name`,
     dateFilter.params,
   );
