@@ -16,11 +16,11 @@ export async function buildConversationContext(
   lookbackHours: number,
 ): Promise<string> {
   const messages = await selectRaw<{
-    sender_type: string;
-    sender_name: string | null;
+    senderType: string;
+    senderName: string | null;
     content: string | null;
-    content_type: string;
-    created_at: string;
+    contentType: string;
+    createdAt: string;
   }>(
     `SELECT sender_type, sender_name, content, content_type, created_at
      FROM messages
@@ -31,9 +31,9 @@ export async function buildConversationContext(
   );
 
   const lines = messages.map((m) => {
-    const sender = m.sender_type === "contact" ? "Pelanggan" : (m.sender_name || "Agent");
-    const content = m.content_type === "text" ? m.content : `[${m.content_type}]`;
-    const time = new Date(m.created_at).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" });
+    const sender = m.senderType === "contact" ? "Pelanggan" : (m.senderName || "Agent");
+    const content = m.contentType === "text" ? m.content : `[${m.contentType}]`;
+    const time = new Date(m.createdAt).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" });
     return `[${time}] ${sender}: ${content}`;
   });
 
