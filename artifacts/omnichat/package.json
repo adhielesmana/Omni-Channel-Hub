@@ -74,5 +74,12 @@
     "vite": "catalog:",
     "wouter": "^3.3.5",
     "zod": "catalog:"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.4.2",
+    "@capacitor/cli": "^8.4.2",
+    "@capacitor/core": "^8.4.2",
+    "@rollup/rollup-darwin-arm64": "^4.62.2",
+    "lightningcss-darwin-arm64": "^1.32.0"
   }
 }

@@ -1,0 +1,8 @@
+{
+  "appId": "com.omnichat.app",
+  "appName": "OmniChat",
+  "webDir": "dist/public",
+  "server": {
+    "androidScheme": "https"
+  }
+}
