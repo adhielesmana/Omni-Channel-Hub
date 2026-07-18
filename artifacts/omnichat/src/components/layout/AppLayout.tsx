@@ -5,6 +5,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/context/AuthContext";
 import { canAccessAdminFeatures } from "@/lib/permissions";
+import { Logo } from "@/components/logo/Logo";
 
 const NAV_ITEMS = [
   { href: "/inbox", icon: MessageSquare, label: "Inbox" },
@@ -33,8 +34,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <aside className="hidden md:flex w-16 flex-shrink-0 border-r bg-sidebar flex-col items-center py-4 justify-between z-20">
         <div className="flex flex-col items-center gap-4 w-full">
           <Link href="/">
-            <div className="w-10 h-10 bg-primary text-primary-foreground rounded-lg flex items-center justify-center font-bold text-xl mb-4 shadow-sm cursor-pointer hover:opacity-90 transition-opacity">
-              O
+            <div className="mb-4 cursor-pointer hover:opacity-90 transition-opacity">
+              <Logo size={40} />
             </div>
           </Link>
 
@@ -108,8 +109,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       {/* Mobile Header */}
       <div className="md:hidden fixed top-0 left-0 right-0 h-14 bg-sidebar border-b z-30 flex items-center justify-between px-4">
         <Link href="/">
-          <div className="w-8 h-8 bg-primary text-primary-foreground rounded-lg flex items-center justify-center font-bold text-sm cursor-pointer">
-            O
+          <div className="cursor-pointer">
+            <Logo size={32} />
           </div>
         </Link>
         <div className="flex items-center gap-2">
