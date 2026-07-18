@@ -475,9 +475,9 @@ export default function Inbox() {
 
       {/* Empty state on mobile when no chat selected */}
       {activeConversation ? (
-        <div className={`flex-1 flex flex-col h-full bg-background min-w-0 overflow-hidden ${!mobileShowChat ? 'hidden md:flex' : 'flex'}`}>
+          <div className={`flex-1 flex flex-col h-full bg-background min-w-0 max-h-full overflow-hidden ${!mobileShowChat ? 'hidden md:flex' : 'flex'}`}>
           {/* Chat Header */}
-          <div className="h-16 px-4 border-b bg-card flex items-center justify-between shrink-0 gap-2">
+          <div className="h-16 px-4 border-b bg-card flex items-center justify-between shrink-0 gap-2 sticky top-0 z-10">
             <div className="flex items-center gap-3 min-w-0 flex-1 overflow-hidden">
               <button
                 className="md:hidden w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted -ml-1"
@@ -556,7 +556,7 @@ export default function Inbox() {
           </div>
 
           {/* Chat Messages */}
-          <ScrollArea className="flex-1 p-6">
+          <ScrollArea className="flex-1 min-h-0 p-6">
             <div className="flex flex-col justify-end min-h-full gap-4">
               {isMessagesLoading ? (
                 <div className="w-full flex justify-center p-4">
@@ -619,7 +619,7 @@ export default function Inbox() {
           </ScrollArea>
 
           {/* Chat Composer */}
-          <div className="p-2 md:p-4 bg-card border-t shrink-0">
+          <div className="p-2 md:p-4 bg-card border-t shrink-0 sticky bottom-0 z-10">
             {composerMode === "note" && (
               <div className="flex items-center gap-2 mb-2 px-1">
                 <div className="w-2 h-2 rounded-full bg-amber-400" />
