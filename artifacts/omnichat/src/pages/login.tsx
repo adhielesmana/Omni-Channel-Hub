@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/context/AuthContext";
+import { Logo } from "@/components/logo/Logo";
 
 const DEMO_ACCOUNTS = [
   { label: "Admin", email: "admin@omnichat.io", role: "Full access" },
@@ -55,9 +56,7 @@ export default function Login() {
         {/* Logo */}
         <Link href="/">
           <div className="flex items-center gap-3 relative">
-            <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center">
-              <MessageSquare className="w-5 h-5 text-white" />
-            </div>
+            <Logo size={40} />
             <span className="text-xl font-bold tracking-tight">OmniChat</span>
           </div>
         </Link>
@@ -104,9 +103,7 @@ export default function Login() {
         <div className="lg:hidden p-6 border-b border-gray-100">
           <Link href="/">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-violet-600 flex items-center justify-center">
-                <MessageSquare className="w-4 h-4 text-white" />
-              </div>
+              <Logo size={32} />
               <span className="font-bold text-lg">OmniChat</span>
             </div>
           </Link>

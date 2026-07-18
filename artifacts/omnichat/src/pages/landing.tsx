@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Logo } from "@/components/logo/Logo";
 
 /* ─── SVG Channel Icons ──────────────────────────────────────────────────── */
 function WhatsAppIcon({ className }: { className?: string }) {
@@ -285,9 +286,7 @@ export default function Landing() {
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
           {/* Logo */}
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500 to-violet-700 flex items-center justify-center shadow-lg shadow-violet-500/30">
-              <MessageSquare className="w-4 h-4 text-white" />
-            </div>
+            <Logo size={32} />
             <span className="font-bold text-lg text-white tracking-tight">OmniChat</span>
           </div>
 
@@ -627,7 +626,7 @@ export default function Landing() {
 
         <div className="mx-auto max-w-3xl text-center relative">
           <div className="inline-flex w-14 h-14 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-violet-700 shadow-xl shadow-violet-500/30 mb-8">
-            <MessageSquare className="w-7 h-7 text-white" />
+            <Logo size={56} />
           </div>
           <h2 className="text-4xl sm:text-5xl font-extrabold tracking-tight">
             Start responding faster today
@@ -655,8 +654,8 @@ export default function Landing() {
             {/* Brand */}
             <div className="max-w-xs">
               <div className="flex items-center gap-2.5 mb-4">
-                <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-violet-500 to-violet-700 flex items-center justify-center">
-                  <MessageSquare className="w-3.5 h-3.5 text-white" />
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center">
+                  <Logo size={28} />
                 </div>
                 <span className="font-bold text-white">OmniChat</span>
               </div>

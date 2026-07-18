@@ -1,5 +1,6 @@
 import { Link } from "wouter";
 import { ArrowLeft, Shield, MessageSquare, Eye, Lock, Globe, Trash2, Mail } from "lucide-react";
+import { Logo } from "@/components/logo/Logo";
 
 export default function PrivacyPolicy() {
   return (
@@ -9,9 +10,7 @@ export default function PrivacyPolicy() {
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
           <Link href="/">
             <div className="flex items-center gap-2.5 cursor-pointer">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500 to-violet-700 flex items-center justify-center shadow-lg shadow-violet-500/30">
-                <MessageSquare className="w-4 h-4 text-white" />
-              </div>
+              <Logo size={32} />
               <span className="font-bold text-lg text-white tracking-tight">OmniChat</span>
             </div>
           </Link>
