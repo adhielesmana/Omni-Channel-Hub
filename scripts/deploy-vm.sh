@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VM_HOST="root@202.10.40.78"
+VM_HOST="maxnetplus@103.217.144.111"
 REMOTE_DIR="/opt/omnichat"
 
 ssh "$VM_HOST" "bash -s" <<'EOF'

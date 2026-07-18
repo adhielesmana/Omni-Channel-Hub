@@ -3,7 +3,7 @@ name: OmniChat production deployment
 description: How OmniChat production is hosted and the deploy runbook + footguns (self-hosted Docker Compose VM, not Replit Deployments).
 ---
 
-OmniChat production is a **self-hosted Docker Compose VM** at `root@202.10.40.78` (ssh key auth), app dir `/opt/omnichat`. It is NOT a Replit Deployment. Compose file `docker-compose.prod.yml`, services: `postgres`, `db-migrate`, `api`, `frontend`, `nginx`. Images built from source via `Dockerfile.api` / `Dockerfile.frontend` (both COPY `lib/` + `artifacts/<x>/`; api runtime WORKDIR `/app`, run `node artifacts/api-server/dist/index.mjs`).
+OmniChat production is a **self-hosted Docker Compose VM** at `maxnetplus@103.217.144.111` (ssh key auth), app dir `/opt/omnichat`. It is NOT a Replit Deployment. Compose file `docker-compose.prod.yml`, services: `postgres`, `db-migrate`, `api`, `frontend`, `nginx`. Images built from source via `Dockerfile.api` / `Dockerfile.frontend` (both COPY `lib/` + `artifacts/<x>/`; api runtime WORKDIR `/app`, run `node artifacts/api-server/dist/index.mjs`).
 
 ## Deploy runbook
 1. `scp` changed source files to `/opt/omnichat/...` (mirror the repo path).
@@ -11,7 +11,7 @@ OmniChat production is a **self-hosted Docker Compose VM** at `root@202.10.40.78
 3. Build image(s): `docker build -f Dockerfile.<x> -t omnichat-<x>:latest --no-cache .`
 4. `docker compose -f docker-compose.prod.yml --env-file .env up -d --force-recreate <svc>`
 5. **Restart nginx** (see footgun): `docker compose ... restart nginx`
-6. Verify: `curl -sk https://202.10.40.78/api/healthz` (200), frontend bundle hash, feature-specific checks.
+6. Verify: `curl -sk https://103.217.144.111/api/healthz` (200), frontend bundle hash, feature-specific checks.
 
 ## Footguns (the "why")
 - **Always restart nginx after recreating `api` or `frontend`.** nginx caches upstream container IPs at startup; recreated containers get new IPs, so requests hit dead IPs → 502 until nginx restarts. This caused a production 502 once.

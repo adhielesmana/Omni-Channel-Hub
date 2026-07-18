@@ -1,6 +1,6 @@
 === MacBook SSH Setup for OmniChat VM ===
 
-Server: root@202.10.40.78
+Server: maxnetplus@103.217.144.111
 
 1. Save the private key (id_ed25519) to ~/.ssh/id_ed25519
 2. Save the SSH config to ~/.ssh/config

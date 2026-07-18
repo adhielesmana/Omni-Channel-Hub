@@ -1,6 +1,6 @@
-Host omnichat-vm
-    HostName 202.10.40.78
-    User root
-    IdentityFile ~/.ssh/id_ed25519
+Host omnichat-new
+    HostName 103.217.144.111
+    User maxnetplus
+    IdentityFile ~/.ssh/id_ed25519_omnichat
     StrictHostKeyChecking no
     ConnectTimeout 10
