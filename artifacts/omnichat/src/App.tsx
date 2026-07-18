@@ -30,6 +30,7 @@ import { canAccessAdminFeatures } from "@/lib/permissions";
 import {
   AUTH_SESSION_EXPIRED_EVENT,
   type AuthSessionExpiredDetail,
+  setBaseUrl,
 } from "@workspace/api-client-react";
 
 const queryClient = new QueryClient({
@@ -142,6 +143,16 @@ function Router() {
       <Route component={NotFound} />
     </Switch>
   );
+}
+
+// In Capacitor, relative URLs resolve to capacitor://localhost which doesn't
+// serve the API. Set the base URL to the production server so API calls work.
+if (
+  typeof window !== "undefined" &&
+  (window.location.protocol === "capacitor:" ||
+    window.location.protocol === "ionic:")
+) {
+  setBaseUrl("https://ocha.kabeltelekom.id");
 }
 
 function App() {
