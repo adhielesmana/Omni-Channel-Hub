@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-SERVER="maxnetplus@103.217.144.111"
+SERVER="omnichat-new"
 SSH_KEY="~/.ssh/id_ed25519_omnichat"
 REMOTE_DIR="/opt/omnichat"
 
@@ -35,7 +35,7 @@ deploy_all() {
   deploy_frontend
   echo "=== Verifying health ==="
   ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no -o ConnectTimeout=15 "$SERVER" \
-    "curl -sk https://103.217.144.111/api/healthz"
+    "curl -sk https://ocha.kabeltelekom.id/api/healthz"
   echo ""
   echo "=== Deploy complete ==="
 }
