@@ -118,7 +118,7 @@ export async function buildAiAutoReply(
           { role: "user", content: context },
         ],
         temperature: 0.7,
-        max_tokens: 256,
+        max_tokens: 1024,
       }),
       signal: AbortSignal.timeout(30_000),
     });

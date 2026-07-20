@@ -194,7 +194,7 @@ export async function callAiAgent(
           { role: "user", content: conversationContext },
         ],
         temperature: 0.7,
-        max_tokens: 512,
+        max_tokens: 2048,
       }),
       signal: AbortSignal.timeout(60_000),
     });
