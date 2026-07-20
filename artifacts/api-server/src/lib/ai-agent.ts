@@ -1,14 +1,61 @@
 import { selectRaw, insert, update } from "@workspace/db";
 import type { Channel, Contact, Conversation, AiAgentsSettings } from "@workspace/db";
 import { logger } from "./logger";
+import { createHash } from "crypto";
 
 export interface AiAgentDecision {
   analysis: string;
   sentiment: "positive" | "negative" | "neutral";
-  action: "respond_empathy" | "respond_payment" | "note_only";
+  action: "respond_empathy" | "respond_payment" | "note_only" | "empathy" | "payment" | "note";
   team: "support" | "finance" | null;
   response: string;
 }
+
+function normalizeAction(action: string): "respond_empathy" | "respond_payment" | "note_only" {
+  const map: Record<string, "respond_empathy" | "respond_payment" | "note_only"> = {
+    respond_empathy: "respond_empathy",
+    respond_payment: "respond_payment",
+    note_only: "note_only",
+    empathy: "respond_empathy",
+    payment: "respond_payment",
+    note: "note_only",
+  };
+  return map[action] || "note_only";
+}
+
+// ── Response cache (in-memory, LRU-style) ────────────────────────────────
+const RESPONSE_CACHE_MAX = 200;
+const RESPONSE_CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
+const responseCache = new Map<string, { decision: AiAgentDecision; ts: number }>();
+
+function cacheKey(context: string, systemPrompt: string): string {
+  // Hash only the last 500 chars of context + first 200 chars of prompt for speed
+  const input = context.slice(-500) + "||" + systemPrompt.slice(0, 200);
+  return createHash("sha256").update(input).digest("hex").slice(0, 16);
+}
+
+function getCached(key: string): AiAgentDecision | null {
+  const entry = responseCache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.ts > RESPONSE_CACHE_TTL_MS) {
+    responseCache.delete(key);
+    return null;
+  }
+  return entry.decision;
+}
+
+function setCache(key: string, decision: AiAgentDecision): void {
+  if (responseCache.size >= RESPONSE_CACHE_MAX) {
+    // Evict oldest entry
+    const oldest = responseCache.keys().next().value;
+    if (oldest) responseCache.delete(oldest);
+  }
+  responseCache.set(key, { decision, ts: Date.now() });
+}
+
+// ── Context compression ───────────────────────────────────────────────────
+const MAX_RECENT_MESSAGES = 15;
+const MAX_CONTEXT_CHARS = 4000;
 
 export async function buildConversationContext(
   conversationId: number,
@@ -30,18 +77,56 @@ export async function buildConversationContext(
     [conversationId, lookbackHours],
   );
 
-  const lines = messages.map((m) => {
-    const sender = m.senderType === "contact" ? "Pelanggan" : (m.senderName || "Agent");
-    const content = m.contentType === "text" ? (m.content || "(empty)") : `[${m.contentType}]`;
-    const time = new Date(m.createdAt).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" });
-    return `[${time}] ${sender}: ${content}`;
+  const customerInfo = `Info: Nama=${contact.name || "?"}, No=${contact.phone || "-"}, Ch=${contact.externalId?.split("@")[1] || "-"}`;
+
+  if (messages.length <= MAX_RECENT_MESSAGES) {
+    // Small conversation — send all messages, compressed
+    const totalMsgs = messages.length;
+    const lines = messages.map((m) => {
+      const sender = m.senderType === "contact" ? "C" : "A";
+      const content = m.contentType === "text" ? (m.content || "") : `[${m.contentType}]`;
+      // Truncate long messages to save tokens
+      const truncated = content.length > 500 ? content.slice(0, 497) + "..." : content;
+      return `${sender}: ${truncated}`;
+    });
+    return customerInfo + "\n" + lines.join("\n") + `\n(Total ${totalMsgs} pesan)`;
+  }
+
+  // Large conversation — summarize older messages, keep recent ones in full
+  const totalMsgs = messages.length;
+  const oldMessages = messages.slice(0, -MAX_RECENT_MESSAGES);
+  const recentMessages = messages.slice(-MAX_RECENT_MESSAGES);
+
+  // Build summary of old messages
+  const customerMsgs = oldMessages.filter(m => m.senderType === "contact");
+  const agentMsgs = oldMessages.filter(m => m.senderType !== "contact");
+
+  const summaryParts: string[] = [];
+  if (customerMsgs.length > 0) {
+    const topics = customerMsgs
+      .map(m => (m.content || "").slice(0, 120))
+      .filter(Boolean)
+      .slice(-3); // Last 3 customer messages as topic summary
+    summaryParts.push(`${customerMsgs.length} pesan pelanggan: "${topics.join("; ")}"`);
+  }
+  if (agentMsgs.length > 0) {
+    summaryParts.push(`${agentMsgs.length} balasan agent`);
+  }
+
+  const recentLines = recentMessages.map((m) => {
+    const sender = m.senderType === "contact" ? "C" : "A";
+    const content = m.contentType === "text" ? (m.content || "") : `[${m.contentType}]`;
+    const truncated = content.length > 500 ? content.slice(0, 497) + "..." : content;
+    return `${sender}: ${truncated}`;
   });
 
-  return [
-    `Info Pelanggan: Nama=${contact.name || "Tidak diketahui"}, No=${contact.phone || "-"}, Channel=${contact.externalId?.split("@")[1] || "-"}`,
-    "",
-    ...lines,
-  ].join("\n");
+  const context = customerInfo + `\n[${totalMsgs} pesan total] [Rangkuman awal: ` + summaryParts.join(". ") + `]\n[15 pesan terakhir]\n` + recentLines.join("\n");
+
+  // Hard cap on context length
+  if (context.length > MAX_CONTEXT_CHARS) {
+    return context.slice(0, MAX_CONTEXT_CHARS);
+  }
+  return context;
 }
 
 function extractJsonObject(content: string): string | null {
@@ -83,6 +168,14 @@ export async function callAiAgent(
   settings: AiAgentsSettings,
   conversationContext: string,
 ): Promise<AiAgentDecision | null> {
+  // Check cache first
+  const key = cacheKey(conversationContext, settings.systemPrompt);
+  const cached = getCached(key);
+  if (cached) {
+    logger.info("AI agent cache hit");
+    return cached;
+  }
+
   const endpoint = settings.apiEndpoint || "https://opencode.ai/zen/go/v1/chat/completions";
 
   const headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -101,7 +194,7 @@ export async function callAiAgent(
           { role: "user", content: conversationContext },
         ],
         temperature: 0.7,
-        max_tokens: 4096,
+        max_tokens: 512,
       }),
       signal: AbortSignal.timeout(60_000),
     });
@@ -129,11 +222,15 @@ export async function callAiAgent(
     }
 
     const parsed = JSON.parse(jsonStr) as AiAgentDecision;
+    parsed.action = normalizeAction(parsed.action as string);
 
     if (!parsed.action || !parsed.analysis) {
       logger.warn({ parsed }, "AI agent response missing required fields");
       return null;
     }
+
+    // Cache the response
+    setCache(key, parsed);
 
     return parsed;
   } catch (err) {
