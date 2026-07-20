@@ -8,7 +8,8 @@ import { uploadToR2 } from "../lib/r2";
 import { optimizeImage } from "../lib/media-optimizer";
 import { toTitleCase } from "../lib/string";
 import { fetchCustomerProfile } from "../lib/meta-profile";
-import { shouldAutoReply, sendAutoReply, buildGreetingMessage } from "../lib/auto-reply";
+import { shouldAutoReply, sendAutoReply, buildAiAutoReply } from "../lib/auto-reply";
+import type { AiAgentsSettings } from "@workspace/db";
 
 const router = Router();
 
@@ -303,22 +304,25 @@ async function processWhatsAppEntry(entry: Record<string, unknown>) {
 
       logger.info({ contactId: contact.id, conversationId: conversation.id }, "Processed WhatsApp inbound message");
 
-      // Auto-reply
+      // AI auto-reply
       try {
-        logger.info({ conversationId: conversation.id }, "Auto-reply check starting");
+        logger.info({ conversationId: conversation.id }, "AI auto-reply check starting");
         const autoReply = await shouldAutoReply(conversation.id);
-        logger.info({ conversationId: conversation.id, autoReply }, "Auto-reply check result");
+        logger.info({ conversationId: conversation.id, autoReply }, "AI auto-reply check result");
         if (autoReply) {
-          const settings = (await selectWhere("auto_reply_settings", {}))[0];
-          logger.info({ conversationId: conversation.id, hasSettings: !!settings }, "Auto-reply settings check");
-          if (settings) {
-            const greeting = buildGreetingMessage(settings, contact.name);
-            logger.info({ conversationId: conversation.id, greeting }, "Sending auto-reply");
-            await sendAutoReply(channel, contact, conversation.id, greeting);
+          const settingsList = await selectWhere<AiAgentsSettings>("ai_agents_settings", {});
+          const settings = settingsList[0];
+          logger.info({ conversationId: conversation.id, hasSettings: !!settings }, "AI auto-reply settings check");
+          if (settings?.autoReplyEnabled) {
+            const greeting = await buildAiAutoReply(settings, content, contact.name);
+            if (greeting) {
+              logger.info({ conversationId: conversation.id, greeting: greeting.slice(0, 80) }, "Sending AI auto-reply");
+              await sendAutoReply(channel, contact, conversation.id, greeting);
+            }
           }
         }
       } catch (err) {
-        logger.error({ err, conversationId: conversation.id }, "Auto-reply failed");
+        logger.error({ err, conversationId: conversation.id }, "AI auto-reply failed");
       }
     }
   }
@@ -442,22 +446,25 @@ async function processMetaPageEntry(entry: Record<string, unknown>, channelType:
 
     logger.info({ contactId: contact.id, conversationId: conversation.id, channelType }, "Processed inbound message");
 
-    // Auto-reply
+    // AI auto-reply
     try {
-      logger.info({ conversationId: conversation.id, channelType }, "Auto-reply check starting");
+      logger.info({ conversationId: conversation.id, channelType }, "AI auto-reply check starting");
       const autoReply = await shouldAutoReply(conversation.id);
-      logger.info({ conversationId: conversation.id, autoReply }, "Auto-reply check result");
+      logger.info({ conversationId: conversation.id, autoReply }, "AI auto-reply check result");
       if (autoReply) {
-        const settings = (await selectWhere("auto_reply_settings", {}))[0];
-        logger.info({ conversationId: conversation.id, hasSettings: !!settings }, "Auto-reply settings check");
-        if (settings) {
-          const greeting = buildGreetingMessage(settings, contact.name);
-          logger.info({ conversationId: conversation.id, greeting }, "Sending auto-reply");
-          await sendAutoReply(channel, contact, conversation.id, greeting);
+        const settingsList = await selectWhere<AiAgentsSettings>("ai_agents_settings", {});
+        const settings = settingsList[0];
+        logger.info({ conversationId: conversation.id, hasSettings: !!settings }, "AI auto-reply settings check");
+        if (settings?.autoReplyEnabled) {
+          const greeting = await buildAiAutoReply(settings, text ?? null, contact.name);
+          if (greeting) {
+            logger.info({ conversationId: conversation.id, greeting: greeting.slice(0, 80) }, "Sending AI auto-reply");
+            await sendAutoReply(channel, contact, conversation.id, greeting);
+          }
         }
       }
     } catch (err) {
-      logger.error({ err, conversationId: conversation.id }, "Auto-reply failed");
+      logger.error({ err, conversationId: conversation.id }, "AI auto-reply failed");
     }
   }
 }

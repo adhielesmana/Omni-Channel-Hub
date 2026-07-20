@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useGetAiAgentsSettings, useUpdateAiAgentsSettings } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Bot, Clock, Key, Save, RotateCcw } from "lucide-react";
+import { Bot, Clock, Key, Save, RotateCcw, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +21,9 @@ export default function AiAgentsSettings() {
   const [apiKey, setApiKey] = useState("");
   const [aiModel, setAiModel] = useState("deepseek-v4-flash");
   const [systemPrompt, setSystemPrompt] = useState("");
+  const [autoReplyEnabled, setAutoReplyEnabled] = useState(false);
+  const [autoReplyCooldownMinutes, setAutoReplyCooldownMinutes] = useState(1440);
+  const [autoReplyPrompt, setAutoReplyPrompt] = useState("");
 
   useEffect(() => {
     if (settings) {
@@ -30,6 +33,9 @@ export default function AiAgentsSettings() {
       setApiKey(settings.apiKey ?? "");
       setAiModel(settings.model ?? "deepseek-v4-flash");
       setSystemPrompt(settings.systemPrompt ?? "");
+      setAutoReplyEnabled(settings.autoReplyEnabled ?? false);
+      setAutoReplyCooldownMinutes(settings.autoReplyCooldownMinutes ?? 1440);
+      setAutoReplyPrompt(settings.autoReplyPrompt ?? "");
     }
   }, [settings]);
 
@@ -43,6 +49,9 @@ export default function AiAgentsSettings() {
           apiKey: apiKey.trim() || undefined,
           model: aiModel.trim() || "deepseek-v4-flash",
           systemPrompt: systemPrompt.trim() || undefined,
+          autoReplyEnabled,
+          autoReplyCooldownMinutes,
+          autoReplyPrompt: autoReplyPrompt.trim() || undefined,
         },
       },
       {
@@ -216,12 +225,63 @@ export default function AiAgentsSettings() {
         </Card>
       </div>
 
+      {/* Auto Reply Section */}
+      <Card className="shadow-sm mt-6">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <MessageCircle className="w-5 h-5" />
+            AI Auto Reply
+          </CardTitle>
+          <CardDescription>
+            When a customer sends their first message, AI generates a contextual greeting instead of a static template.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label className="text-sm font-medium">Enable AI Auto Reply</Label>
+              <p className="text-xs text-muted-foreground">Turn on AI-powered instant greetings for new conversations</p>
+            </div>
+            <Switch checked={autoReplyEnabled} onCheckedChange={setAutoReplyEnabled} />
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Cooldown (minutes)</Label>
+            <p className="text-xs text-muted-foreground mb-2">Wait this long after last agent reply before auto-replying again</p>
+            <Input
+              type="number"
+              value={autoReplyCooldownMinutes}
+              onChange={(e) => setAutoReplyCooldownMinutes(parseInt(e.target.value) || 1440)}
+              min={60}
+              max={10080}
+            />
+            <p className="text-xs text-muted-foreground">
+              {autoReplyCooldownMinutes >= 1440 ? `${Math.floor(autoReplyCooldownMinutes / 1440)} day(s)` : `${autoReplyCooldownMinutes} minute(s)`}
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Auto Reply Prompt</Label>
+            <p className="text-xs text-muted-foreground mb-2">
+              Instructions for generating the greeting. Must return JSON with <code className="bg-muted px-1 py-0.5 rounded text-xs">response</code> field.
+            </p>
+            <Textarea
+              value={autoReplyPrompt}
+              onChange={(e) => setAutoReplyPrompt(e.target.value)}
+              placeholder="Auto reply prompt..."
+              rows={10}
+              className="font-mono text-sm"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
       {/* System Prompt */}
       <Card className="shadow-sm mt-6">
         <CardHeader>
-          <CardTitle className="text-lg">System Prompt</CardTitle>
+          <CardTitle className="text-lg">Analysis System Prompt</CardTitle>
           <CardDescription>
-            Instructions given to the AI agent. Must instruct the AI to return JSON with <code className="bg-muted px-1 py-0.5 rounded text-xs">action</code>, <code className="bg-muted px-1 py-0.5 rounded text-xs">analysis</code>, and <code className="bg-muted px-1 py-0.5 rounded text-xs">response</code> fields.
+            Instructions for idle conversation analysis. Must return JSON with <code className="bg-muted px-1 py-0.5 rounded text-xs">action</code>, <code className="bg-muted px-1 py-0.5 rounded text-xs">analysis</code>, and <code className="bg-muted px-1 py-0.5 rounded text-xs">response</code> fields.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -229,7 +289,7 @@ export default function AiAgentsSettings() {
             value={systemPrompt}
             onChange={(e) => setSystemPrompt(e.target.value)}
             placeholder="Enter system prompt for AI agent..."
-            rows={16}
+            rows={12}
             className="font-mono text-sm"
           />
         </CardContent>

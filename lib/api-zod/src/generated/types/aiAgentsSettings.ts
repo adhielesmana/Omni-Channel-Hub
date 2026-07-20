@@ -15,6 +15,9 @@ export interface AiAgentsSettings {
   apiKey?: string;
   model?: string;
   systemPrompt?: string;
+  autoReplyEnabled?: boolean;
+  autoReplyCooldownMinutes?: number;
+  autoReplyPrompt?: string;
   createdAt?: string;
   updatedAt?: string;
 }

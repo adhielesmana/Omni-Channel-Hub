@@ -1269,38 +1269,6 @@ paths:
         "401":
           description: Invalid API key
 
-  /auto-reply/settings:
-    get:
-      operationId: getAutoReplySettings
-      tags: [auto-reply]
-      summary: Get auto-reply settings
-      responses:
-        "200":
-          description: Auto-reply settings
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AutoReplySettings"
-    patch:
-      operationId: updateAutoReplySettings
-      tags: [auto-reply]
-      summary: Update auto-reply settings
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/AutoReplySettingsInput"
-      responses:
-        "200":
-          description: Updated settings
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AutoReplySettings"
-        "400":
-          description: Validation error
-
   /ai-agents/settings:
     get:
       operationId: getAiAgentsSettings
@@ -2358,6 +2326,12 @@ components:
           type: string
         systemPrompt:
           type: string
+        autoReplyEnabled:
+          type: boolean
+        autoReplyCooldownMinutes:
+          type: integer
+        autoReplyPrompt:
+          type: string
         createdAt:
           type: string
         updatedAt:
@@ -2379,4 +2353,10 @@ components:
         model:
           type: string
         systemPrompt:
+          type: string
+        autoReplyEnabled:
+          type: boolean
+        autoReplyCooldownMinutes:
+          type: integer
+        autoReplyPrompt:
           type: string

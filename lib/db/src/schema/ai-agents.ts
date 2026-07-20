@@ -20,6 +20,18 @@ export const aiAgentsSettingsTable = pgTable("ai_agents_settings", {
     "4. Tidak yakin → action:note response kosong.\n" +
     "5. Sentiment: neg=komplain/marah, pos=terima kasih/bayar, neutral=lainnya."
   ),
+  autoReplyEnabled: boolean("auto_reply_enabled").notNull().default(false),
+  autoReplyCooldownMinutes: integer("auto_reply_cooldown_minutes").notNull().default(1440),
+  autoReplyPrompt: text("auto_reply_prompt").notNull().default(
+    "Kamu adalah CS MaxnetPlus. Pelanggan baru saja mengirim pesan. Balas dengan ramah dan natural dalam Bahasa Indonesia, perkenalkan diri sebagai CS MaxnetPlus, dan tanyakan ada yang bisa dibantu.\n\n" +
+    "PENTING: Output JSON SAJA tanpa teks lain.\n" +
+    '{"response":"string","sentiment":"positive|negative|neutral"}\n\n' +
+    "response: balasan greeting yang ramah dan natural. Jangan seperti bot.\n" +
+    "sentiment: analisis sentimen pesan pelanggan.\n\n" +
+    "Contoh:\n" +
+    'Pesan: "Halo"\n"response": "Halo Kak, selamat siang. Terima kasih sudah menghubungi MaxnetPlus Helpdesk. Ada yang bisa kami bantu?", "sentiment": "positive"\n\n' +
+    'Pesan: "Internet saya lemot"\n"response": "Maaf Kak atas ketidaknyamanannya. Bisa tolong jelaskan lebih detail kendala yang dialami? Kami akan bantu cek dan selesaikan masalahnya.", "sentiment": "negative"'
+  ),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

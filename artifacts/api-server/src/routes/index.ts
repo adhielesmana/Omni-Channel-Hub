@@ -15,7 +15,6 @@ import whatsappTemplatesRouter from "./whatsapp-templates";
 import externalSendRouter from "./external-send";
 import sendHelloRouter from "./send-hello";
 import outboxRouter from "./outbox";
-import autoReplyRouter from "./auto-reply";
 import aiAgentsRouter from "./ai-agents";
 import backupRouter from "./backup";
 
@@ -37,7 +36,6 @@ router.use(whatsappBlastRouter);
 router.use(whatsappTemplatesRouter);
 router.use(externalSendRouter);
 router.use(outboxRouter);
-router.use(autoReplyRouter);
 router.use(aiAgentsRouter);
 router.use(backupRouter);
 

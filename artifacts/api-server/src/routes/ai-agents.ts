@@ -15,6 +15,9 @@ function mapSettingsResponse(s: AiAgentsSettings) {
     apiKey: (s as any).api_key ?? s.apiKey ?? null,
     model: (s as any).model ?? s.model ?? "deepseek-v4-flash",
     systemPrompt: s.systemPrompt,
+    autoReplyEnabled: s.autoReplyEnabled,
+    autoReplyCooldownMinutes: s.autoReplyCooldownMinutes,
+    autoReplyPrompt: s.autoReplyPrompt,
     createdAt: s.createdAt.toISOString(),
     updatedAt: s.updatedAt.toISOString(),
   };
@@ -46,6 +49,9 @@ router.patch("/ai-agents/settings", requireAuth, async (req, res): Promise<void>
   if ("apiKey" in body) updates.api_key = body.apiKey;
   if ("model" in body) updates.model = body.model;
   if ("systemPrompt" in body) updates.system_prompt = body.systemPrompt;
+  if ("autoReplyEnabled" in body) updates.auto_reply_enabled = body.autoReplyEnabled;
+  if ("autoReplyCooldownMinutes" in body) updates.auto_reply_cooldown_minutes = body.autoReplyCooldownMinutes;
+  if ("autoReplyPrompt" in body) updates.auto_reply_prompt = body.autoReplyPrompt;
 
   if (Object.keys(updates).length === 0) {
     res.status(400).json({ error: "No valid fields to update" });
