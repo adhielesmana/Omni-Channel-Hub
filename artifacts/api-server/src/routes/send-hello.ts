@@ -5,6 +5,19 @@ import { requireAuth } from "../middlewares/auth";
 import { sendWhatsAppTemplate } from "./external-send";
 import { logger } from "../lib/logger";
 
+function getTimeGreeting(): string {
+  const now = new Date();
+  const jakartaOffset = 7 * 60;
+  const utcMinutes = now.getUTCHours() * 60 + now.getUTCMinutes();
+  const jakartaMinutes = (utcMinutes + jakartaOffset) % (24 * 60);
+  const hours = Math.floor(jakartaMinutes / 60);
+
+  if (hours >= 5 && hours < 12) return "Pagi";
+  if (hours >= 12 && hours < 15) return "Siang";
+  if (hours >= 15 && hours < 18) return "Sore";
+  return "Malam";
+}
+
 const router = Router();
 
 async function findOrCreateConversation(
@@ -79,7 +92,8 @@ router.post("/send-hello", requireAuth, async (req, res): Promise<void> => {
 
   try {
     const conversation = await findOrCreateConversation(contact.id, channel.id, channel);
-    const params = [contact.name || contact.phone];
+    const timeGreeting = getTimeGreeting();
+    const params = [contact.name || contact.phone, timeGreeting];
     const messageId = await sendWhatsAppTemplate(channel, contact.phone, "sapa_customer", template.language, params);
 
     let content = "";
